@@ -191,13 +191,18 @@ export default function DashboardPage() {
     loadDashboard()
   }, [])
 
-  const today = new Date()
-  const formattedDate = today.toLocaleDateString('nl-NL', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  const [formattedDate, setFormattedDate] = useState('')
+
+  useEffect(() => {
+    setFormattedDate(
+      new Date().toLocaleDateString('nl-NL', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    )
+  }, [])
 
   const metrics: {
     label: string
