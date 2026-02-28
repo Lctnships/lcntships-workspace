@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, Calendar, Users, DollarSign, Rocket, Star } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -13,50 +14,52 @@ interface Activity {
   timestamp: Date
 }
 
-const mockActivities: Activity[] = [
-  {
-    id: '1',
-    type: 'booking',
-    title: 'New booking confirmed',
-    description: 'Sarah Chen booked Sunlight Studios for Jan 28',
-    timestamp: new Date(Date.now() - 1000 * 60 * 15), // 15 min ago
-  },
-  {
-    id: '2',
-    type: 'partner',
-    title: 'New partner onboarded',
-    description: 'Echo Sound Studio joined the platform',
-    timestamp: new Date(Date.now() - 1000 * 60 * 45), // 45 min ago
-  },
-  {
-    id: '3',
-    type: 'payment',
-    title: 'Payout processed',
-    description: '$2,450 sent to Creative Loft Studios',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-  },
-  {
-    id: '4',
-    type: 'lead',
-    title: 'Lead converted',
-    description: 'Podcast Pro Studio signed contract',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-  },
-  {
-    id: '5',
-    type: 'review',
-    title: 'New 5-star review',
-    description: 'Mike R. rated Sunlight Studios',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
-  },
-  {
-    id: '6',
-    type: 'studio',
-    title: 'Studio listing updated',
-    description: 'The Creative Loft added new photos',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8), // 8 hours ago
-  },
-]
+function createMockActivities(): Activity[] {
+  return [
+    {
+      id: '1',
+      type: 'booking',
+      title: 'New booking confirmed',
+      description: 'Sarah Chen booked Sunlight Studios for Jan 28',
+      timestamp: new Date(Date.now() - 1000 * 60 * 15),
+    },
+    {
+      id: '2',
+      type: 'partner',
+      title: 'New partner onboarded',
+      description: 'Echo Sound Studio joined the platform',
+      timestamp: new Date(Date.now() - 1000 * 60 * 45),
+    },
+    {
+      id: '3',
+      type: 'payment',
+      title: 'Payout processed',
+      description: '$2,450 sent to Creative Loft Studios',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+    },
+    {
+      id: '4',
+      type: 'lead',
+      title: 'Lead converted',
+      description: 'Podcast Pro Studio signed contract',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
+    },
+    {
+      id: '5',
+      type: 'review',
+      title: 'New 5-star review',
+      description: 'Mike R. rated Sunlight Studios',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
+    },
+    {
+      id: '6',
+      type: 'studio',
+      title: 'Studio listing updated',
+      description: 'The Creative Loft added new photos',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8),
+    },
+  ]
+}
 
 const activityIcons = {
   studio: { icon: Building2, color: 'bg-blue-50 text-blue-600' },
@@ -68,6 +71,12 @@ const activityIcons = {
 }
 
 export function RecentActivity() {
+  const [activities, setActivities] = useState<Activity[]>([])
+
+  useEffect(() => {
+    setActivities(createMockActivities())
+  }, [])
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -75,9 +84,9 @@ export function RecentActivity() {
       </CardHeader>
       <CardContent>
         <div className="relative space-y-0">
-          {mockActivities.map((activity, index) => {
+          {activities.map((activity, index) => {
             const { icon: Icon, color } = activityIcons[activity.type]
-            const isLast = index === mockActivities.length - 1
+            const isLast = index === activities.length - 1
 
             return (
               <div key={activity.id} className="flex gap-4 pb-4">
