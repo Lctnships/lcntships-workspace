@@ -1,10 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr'
 
+// Use placeholder values during build when env vars are not available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+
 // Create a single supabase client for browser-side usage
-export const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 // Type definitions for database tables
 export interface Studio {
