@@ -243,8 +243,8 @@ export default function EmailPage() {
     }))
     setResults(initialResults)
 
-    const BATCH_SIZE = 10
-    const DELAY_MS = 1100 // 1.1 seconds between batches
+    const BATCH_SIZE = 100
+    const DELAY_MS = 1100 // 1.1 seconds between batches (Resend Pro: 100/sec)
 
     for (let i = 0; i < leads.length; i += BATCH_SIZE) {
       // Check abort
@@ -341,7 +341,7 @@ export default function EmailPage() {
     pausedRef.current = false
     abortRef.current = false
 
-    const BATCH_SIZE = 10
+    const BATCH_SIZE = 100
     const DELAY_MS = 1100
 
     for (let i = 0; i < failedLeads.length; i += BATCH_SIZE) {
@@ -778,7 +778,7 @@ export default function EmailPage() {
               <div className="p-4 bg-gray-50 rounded-xl">
                 <p className="text-sm text-gray-500">Geschatte duur</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ~{Math.ceil(leads.length / 10 * 1.1)}s
+                  ~{Math.ceil(leads.length / 100 * 1.1)}s
                 </p>
               </div>
             </div>

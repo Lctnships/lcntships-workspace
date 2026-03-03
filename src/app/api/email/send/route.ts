@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { leads, subject, htmlTemplate, batchIndex, batchSize = 10 } = await request.json()
+    const { leads, subject, htmlTemplate, batchIndex, batchSize = 100 } = await request.json()
 
     if (!leads || !Array.isArray(leads) || leads.length === 0) {
       return NextResponse.json(
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send this batch (max 10 per request to respect rate limits)
+    // Send this batch (Resend Pro: up to 100/sec)
     const batch = leads.slice(0, batchSize)
     const results: Array<{ email: string; status: 'sent' | 'failed'; error?: string; id?: string }> = []
 
