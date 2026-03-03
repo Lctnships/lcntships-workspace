@@ -1,989 +1,561 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
-import Papa from 'papaparse'
+import { useState } from 'react'
 import {
   Mail,
-  Upload,
-  FileSpreadsheet,
-  X,
-  Check,
+  Inbox,
+  Send,
+  Star,
+  Trash2,
+  Archive,
+  Search,
+  Plus,
+  Paperclip,
+  MoreHorizontal,
+  ChevronDown,
+  RefreshCw,
+  Settings,
+  LogIn,
+  Shield,
+  Globe,
+  ArrowLeft,
+  Reply,
+  Forward,
+  Clock,
+  CheckCircle2,
   AlertCircle,
   Loader2,
-  Send,
-  Eye,
-  Play,
-  Pause,
-  RotateCcw,
-  Download,
-  Sparkles,
-  ChevronRight,
-  Users,
-  TestTube,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-// Types
-interface Lead {
-  email: string
-  naam: string
-  studio: string
-  stad: string
-  [key: string]: string
-}
-
-interface SendResult {
-  email: string
-  status: 'pending' | 'sent' | 'failed'
-  error?: string
-  id?: string
-  timestamp?: string
-}
-
-// Default template
-const DEFAULT_TEMPLATE = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <p style="font-size: 16px; color: #1a1a1a;">Hey {naam},</p>
-
-  <p style="font-size: 16px; color: #333; line-height: 1.6;">
-    Snelle vraag: als je gratis een professionele video, foto's en een eigen boekingspagina voor <strong>{studio}</strong> kon krijgen — zou je dat willen?
-  </p>
-
-  <p style="font-size: 16px; color: #333; line-height: 1.6;">
-    Wij doen dit voor creatieve studio's in Nederland. Geen kosten, geen verplichtingen.
-  </p>
-
-  <p style="font-size: 16px; margin-top: 24px;">
-    <a href="https://wa.me/31612345678?text=Hey%20Rivaldo%2C%20vertel%20me%20meer%20over%20lcntships"
-       style="display: inline-block; padding: 12px 24px; background: #4F46E5; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-      Stuur me een berichtje →
-    </a>
-  </p>
-
-  <p style="font-size: 14px; color: #666; margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
-    Rivaldo<br/>
-    <a href="https://lcntships.com" style="color: #4F46E5;">lcntships.com</a>
-  </p>
-</div>`
-
-const DEFAULT_SUBJECT = 'Vraagje over {studio}'
-
-// Steps
-const STEPS = [
-  { id: 1, label: 'Upload CSV', icon: Upload },
-  { id: 2, label: 'Template', icon: Mail },
-  { id: 3, label: 'Preview & Test', icon: Eye },
-  { id: 4, label: 'Versturen', icon: Send },
+// Email provider options
+const EMAIL_PROVIDERS = [
+  { id: 'google', name: 'Google / Gmail', icon: '📧', color: 'bg-red-50 border-red-200 hover:bg-red-100' },
+  { id: 'outlook', name: 'Microsoft Outlook', icon: '📬', color: 'bg-blue-50 border-blue-200 hover:bg-blue-100' },
+  { id: 'imap', name: 'IMAP / SMTP (custom)', icon: '⚙️', color: 'bg-gray-50 border-gray-200 hover:bg-gray-100' },
 ]
 
-function personalise(text: string, lead: Lead): string {
-  let result = text
-  for (const [key, value] of Object.entries(lead)) {
-    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '')
-  }
-  return result
+type Folder = 'inbox' | 'sent' | 'starred' | 'drafts' | 'trash'
+
+interface EmailMessage {
+  id: string
+  from: string
+  fromEmail: string
+  to: string
+  subject: string
+  preview: string
+  body: string
+  date: string
+  read: boolean
+  starred: boolean
+  folder: Folder
+  hasAttachment: boolean
 }
 
-export default function EmailPage() {
-  // Step management
-  const [currentStep, setCurrentStep] = useState(1)
+// Login screen component
+function EmailLogin({ onConnect }: { onConnect: (provider: string) => void }) {
+  const [connecting, setConnecting] = useState<string | null>(null)
+  const [imapForm, setImapForm] = useState(false)
+  const [imapHost, setImapHost] = useState('')
+  const [imapEmail, setImapEmail] = useState('')
+  const [imapPassword, setImapPassword] = useState('')
 
-  // Step 1: CSV Upload
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [csvError, setCsvError] = useState<string | null>(null)
-  const [csvFileName, setCsvFileName] = useState<string>('')
-  const [dragActive, setDragActive] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Step 2: Template
-  const [subject, setSubject] = useState(DEFAULT_SUBJECT)
-  const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_TEMPLATE)
-
-  // Step 3: Test
-  const [testEmail, setTestEmail] = useState('')
-  const [testSending, setTestSending] = useState(false)
-  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
-
-  // Step 4: Sending
-  const [sending, setSending] = useState(false)
-  const [paused, setPaused] = useState(false)
-  const [results, setResults] = useState<SendResult[]>([])
-  const [showConfirm, setShowConfirm] = useState(false)
-  const pausedRef = useRef(false)
-  const abortRef = useRef(false)
-
-  // CSV parsing
-  const handleCSVFile = useCallback((file: File) => {
-    setCsvError(null)
-    setCsvFileName(file.name)
-
-    if (!file.name.endsWith('.csv')) {
-      setCsvError('Alleen CSV bestanden zijn toegestaan')
+  const handleConnect = async (providerId: string) => {
+    if (providerId === 'imap') {
+      setImapForm(true)
       return
     }
-
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (result) => {
-        if (result.errors.length > 0) {
-          setCsvError(`CSV parsing error: ${result.errors[0].message}`)
-          return
-        }
-
-        const headers = result.meta.fields || []
-
-        // Map common column names
-        const columnMap: Record<string, string> = {}
-        for (const h of headers) {
-          const lower = h.toLowerCase().trim()
-          if (['email', 'e-mail', 'mail', 'emailaddress', 'email address'].includes(lower)) columnMap[h] = 'email'
-          else if (['naam', 'name', 'contact', 'contact_name', 'contactpersoon', 'first name'].includes(lower)) columnMap[h] = 'naam'
-          else if (['studio', 'company', 'company_name', 'bedrijf', 'bedrijfsnaam', 'company name'].includes(lower)) columnMap[h] = 'studio'
-          else if (['stad', 'city', 'plaats', 'company city'].includes(lower)) columnMap[h] = 'stad'
-          else columnMap[h] = lower.replace(/\s+/g, '_')
-        }
-
-        // Check for first name + last name combo
-        const firstNameCol = headers.find(h => h.toLowerCase().trim() === 'first name')
-        const lastNameCol = headers.find(h => h.toLowerCase().trim() === 'last name')
-
-        const parsed: Lead[] = []
-        const seen = new Set<string>()
-
-        for (const row of result.data) {
-          const mapped: Record<string, string> = {}
-          for (const [original, target] of Object.entries(columnMap)) {
-            if (row[original]) mapped[target] = row[original].trim()
-          }
-
-          // Combine first + last name
-          if (firstNameCol && lastNameCol && !mapped.naam) {
-            const first = row[firstNameCol]?.trim() || ''
-            const last = row[lastNameCol]?.trim() || ''
-            if (first || last) mapped.naam = `${first} ${last}`.trim()
-          }
-
-          if (!mapped.email) continue
-
-          // Duplicate check
-          const emailLower = mapped.email.toLowerCase()
-          if (seen.has(emailLower)) continue
-          seen.add(emailLower)
-
-          parsed.push(mapped as Lead)
-        }
-
-        if (parsed.length === 0) {
-          setCsvError('Geen geldige leads gevonden (email kolom vereist)')
-          return
-        }
-
-        setLeads(parsed)
-      },
-      error: (err) => {
-        setCsvError(`Kon het bestand niet lezen: ${err.message}`)
-      },
-    })
-  }, [])
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(false)
-    if (e.dataTransfer.files[0]) handleCSVFile(e.dataTransfer.files[0])
+    setConnecting(providerId)
+    // Simulate connection - in production this would do OAuth
+    setTimeout(() => {
+      onConnect(providerId)
+    }, 1500)
   }
 
-  // Test send
-  const handleTestSend = async () => {
-    if (!testEmail) return
-    setTestSending(true)
-    setTestResult(null)
-
-    const sampleLead = leads[0] || { email: testEmail, naam: 'Test Gebruiker', studio: 'Test Studio', stad: 'Amsterdam' }
-
-    try {
-      const res = await fetch('/api/email/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: testEmail,
-          subject: personalise(subject, sampleLead),
-          html: personalise(htmlTemplate, sampleLead),
-        }),
-      })
-
-      if (res.ok) {
-        setTestResult('success')
-      } else {
-        setTestResult('error')
-      }
-    } catch {
-      setTestResult('error')
-    } finally {
-      setTestSending(false)
-    }
+  const handleImapConnect = () => {
+    if (!imapHost || !imapEmail || !imapPassword) return
+    setConnecting('imap')
+    setTimeout(() => {
+      onConnect('imap')
+    }, 1500)
   }
-
-  // Bulk send
-  const startBulkSend = async () => {
-    setShowConfirm(false)
-    setSending(true)
-    setPaused(false)
-    pausedRef.current = false
-    abortRef.current = false
-
-    // Initialize results
-    const initialResults: SendResult[] = leads.map(l => ({
-      email: l.email,
-      status: 'pending',
-    }))
-    setResults(initialResults)
-
-    const BATCH_SIZE = 100
-    const DELAY_MS = 1100 // 1.1 seconds between batches (Resend Pro: 100/sec)
-
-    for (let i = 0; i < leads.length; i += BATCH_SIZE) {
-      // Check abort
-      if (abortRef.current) break
-
-      // Check pause
-      while (pausedRef.current) {
-        await new Promise(r => setTimeout(r, 500))
-        if (abortRef.current) break
-      }
-      if (abortRef.current) break
-
-      const batch = leads.slice(i, i + BATCH_SIZE)
-
-      try {
-        const res = await fetch('/api/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            leads: batch,
-            subject,
-            htmlTemplate,
-            batchIndex: Math.floor(i / BATCH_SIZE),
-          }),
-        })
-
-        const data = await res.json()
-
-        if (data.results) {
-          setResults(prev => {
-            const updated = [...prev]
-            for (const r of data.results) {
-              const idx = updated.findIndex(u => u.email === r.email)
-              if (idx !== -1) {
-                updated[idx] = {
-                  ...updated[idx],
-                  status: r.status,
-                  error: r.error,
-                  id: r.id,
-                  timestamp: new Date().toISOString(),
-                }
-              }
-            }
-            return updated
-          })
-        }
-      } catch {
-        // Mark batch as failed
-        setResults(prev => {
-          const updated = [...prev]
-          for (const lead of batch) {
-            const idx = updated.findIndex(u => u.email === lead.email)
-            if (idx !== -1) {
-              updated[idx] = { ...updated[idx], status: 'failed', error: 'Network error' }
-            }
-          }
-          return updated
-        })
-      }
-
-      // Rate limit delay between batches
-      if (i + BATCH_SIZE < leads.length && !abortRef.current) {
-        await new Promise(r => setTimeout(r, DELAY_MS))
-      }
-    }
-
-    setSending(false)
-  }
-
-  const togglePause = () => {
-    pausedRef.current = !pausedRef.current
-    setPaused(pausedRef.current)
-  }
-
-  const stopSending = () => {
-    abortRef.current = true
-    pausedRef.current = false
-    setPaused(false)
-  }
-
-  // Retry failed
-  const retryFailed = async () => {
-    const failedLeads = results
-      .filter(r => r.status === 'failed')
-      .map(r => leads.find(l => l.email === r.email))
-      .filter(Boolean) as Lead[]
-
-    if (failedLeads.length === 0) return
-
-    // Reset failed to pending
-    setResults(prev => prev.map(r => r.status === 'failed' ? { ...r, status: 'pending' as const } : r))
-
-    setSending(true)
-    pausedRef.current = false
-    abortRef.current = false
-
-    const BATCH_SIZE = 100
-    const DELAY_MS = 1100
-
-    for (let i = 0; i < failedLeads.length; i += BATCH_SIZE) {
-      if (abortRef.current) break
-
-      const batch = failedLeads.slice(i, i + BATCH_SIZE)
-
-      try {
-        const res = await fetch('/api/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ leads: batch, subject, htmlTemplate, batchIndex: i }),
-        })
-
-        const data = await res.json()
-
-        if (data.results) {
-          setResults(prev => {
-            const updated = [...prev]
-            for (const r of data.results) {
-              const idx = updated.findIndex(u => u.email === r.email)
-              if (idx !== -1) {
-                updated[idx] = { ...updated[idx], status: r.status, error: r.error, id: r.id, timestamp: new Date().toISOString() }
-              }
-            }
-            return updated
-          })
-        }
-      } catch {
-        // keep them as failed
-      }
-
-      if (i + BATCH_SIZE < failedLeads.length) {
-        await new Promise(r => setTimeout(r, DELAY_MS))
-      }
-    }
-
-    setSending(false)
-  }
-
-  // Export results as CSV
-  const exportResults = () => {
-    const csv = [
-      'email,status,error,timestamp',
-      ...results.map(r => `"${r.email}","${r.status}","${r.error || ''}","${r.timestamp || ''}"`)
-    ].join('\n')
-
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `email-resultaten-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  // Stats
-  const sentCount = results.filter(r => r.status === 'sent').length
-  const failedCount = results.filter(r => r.status === 'failed').length
-  const pendingCount = results.filter(r => r.status === 'pending').length
-  const progressPercent = results.length > 0 ? ((sentCount + failedCount) / results.length) * 100 : 0
-  const isDone = results.length > 0 && pendingCount === 0 && !sending
-
-  // Duplicate count from leads
-  const duplicateInfo = leads.length > 0 ? `${leads.length} unieke emails` : ''
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Email Campagne</h1>
-          <p className="text-gray-500 mt-1">Verstuur bulk emails naar je leads met Resend</p>
+    <div className="flex flex-col items-center justify-center min-h-[70vh]">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Mail className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Email Client</h1>
+          <p className="text-gray-500 mt-2">Verbind je email account om je inbox te bekijken en berichten te versturen</p>
         </div>
-        {leads.length > 0 && currentStep < 4 && (
-          <Badge className="bg-indigo-100 text-indigo-700 text-sm">
-            <Users className="h-3.5 w-3.5 mr-1.5" />
-            {leads.length} leads geladen
-          </Badge>
-        )}
-      </div>
 
-      {/* Step Indicator */}
-      <div className="flex items-center gap-2">
-        {STEPS.map((step, i) => {
-          const Icon = step.icon
-          const isActive = currentStep === step.id
-          const isCompleted = currentStep > step.id
-          return (
-            <div key={step.id} className="flex items-center gap-2">
+        {/* Provider buttons */}
+        {!imapForm ? (
+          <div className="space-y-3">
+            {EMAIL_PROVIDERS.map((provider) => (
               <button
-                onClick={() => {
-                  if (sending) return
-                  if (step.id <= currentStep || (step.id === 2 && leads.length > 0)) {
-                    setCurrentStep(step.id)
-                  }
-                }}
-                disabled={sending}
+                key={provider.id}
+                onClick={() => handleConnect(provider.id)}
+                disabled={connecting !== null}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all',
-                  isActive && 'bg-indigo-600 text-white shadow-md',
-                  isCompleted && !isActive && 'bg-indigo-100 text-indigo-700 cursor-pointer',
-                  !isActive && !isCompleted && 'bg-gray-100 text-gray-400',
-                  sending && 'cursor-not-allowed opacity-60'
+                  'w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left',
+                  provider.color,
+                  connecting === provider.id && 'ring-2 ring-indigo-500',
+                  connecting !== null && connecting !== provider.id && 'opacity-50'
                 )}
               >
-                {isCompleted && !isActive ? (
-                  <Check className="h-4 w-4" />
+                <span className="text-2xl">{provider.icon}</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900">{provider.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {provider.id === 'google' && 'Verbind via Google OAuth'}
+                    {provider.id === 'outlook' && 'Verbind via Microsoft OAuth'}
+                    {provider.id === 'imap' && 'Verbind met IMAP/SMTP instellingen'}
+                  </p>
+                </div>
+                {connecting === provider.id ? (
+                  <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" />
                 ) : (
-                  <Icon className="h-4 w-4" />
+                  <LogIn className="h-5 w-5 text-gray-400" />
                 )}
-                <span className="hidden sm:inline">{step.label}</span>
               </button>
-              {i < STEPS.length - 1 && (
-                <ChevronRight className={cn('h-4 w-4', isCompleted ? 'text-indigo-400' : 'text-gray-300')} />
-              )}
-            </div>
-          )
-        })}
-      </div>
+            ))}
 
-      {/* Step 1: CSV Upload */}
-      {currentStep === 1 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/50">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">CSV Upload</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Upload een CSV met kolommen: email, naam, studio, stad (en extra velden)
-            </p>
-          </div>
-
-          <div className="p-6">
-            {leads.length === 0 ? (
-              <>
-                <div
-                  className={cn(
-                    'border-2 border-dashed rounded-2xl p-12 text-center transition-colors',
-                    dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
-                  )}
-                  onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
-                  onDragLeave={() => setDragActive(false)}
-                  onDrop={handleDrop}
-                >
-                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2 text-lg">
-                    Sleep je CSV bestand hierheen of{' '}
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-indigo-600 font-semibold hover:underline"
-                    >
-                      blader
-                    </button>
+            <div className="mt-6 p-4 bg-indigo-50 rounded-2xl">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-indigo-900">Veilige verbinding</p>
+                  <p className="text-xs text-indigo-700 mt-1">
+                    Je gegevens worden versleuteld en we slaan geen wachtwoorden op. OAuth wordt gebruikt voor Google en Microsoft.
                   </p>
-                  <p className="text-sm text-gray-400">
-                    Ondersteunt Apollo exports, standaard CSV, en custom formaten
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv"
-                    className="hidden"
-                    onChange={(e) => e.target.files?.[0] && handleCSVFile(e.target.files[0])}
-                  />
                 </div>
-
-                {csvError && (
-                  <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl text-red-700 mt-4">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    <p>{csvError}</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {/* File info */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-50">
-                      <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-900">{csvFileName}</span>
-                      <p className="text-sm text-gray-500">{duplicateInfo} (duplicaten verwijderd)</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-emerald-100 text-emerald-700">
-                      <Check className="h-3 w-3 mr-1" />
-                      {leads.length} leads
-                    </Badge>
-                    <button
-                      onClick={() => { setLeads([]); setCsvFileName(''); setCsvError(null) }}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <X className="h-4 w-4 text-gray-400" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Available fields */}
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-600 mb-2">Beschikbare velden voor personalisatie:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.keys(leads[0] || {}).map(key => (
-                      <Badge key={key} className="bg-purple-100 text-purple-700 font-mono text-xs">
-                        {`{${key}}`}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Preview table */}
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="max-h-80 overflow-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-medium text-gray-600">#</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Email</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Naam</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Studio</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Stad</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {leads.slice(0, 20).map((lead, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="p-3 text-gray-400">{i + 1}</td>
-                            <td className="p-3 text-gray-900">{lead.email}</td>
-                            <td className="p-3 text-gray-600">{lead.naam || '-'}</td>
-                            <td className="p-3 text-gray-600">{lead.studio || '-'}</td>
-                            <td className="p-3 text-gray-600">{lead.stad || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {leads.length > 20 && (
-                    <div className="p-3 bg-gray-50 text-center text-sm text-gray-500">
-                      ... en {leads.length - 20} meer
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end mt-6">
-                  <Button onClick={() => setCurrentStep(2)} className="gap-2">
-                    Volgende: Template
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Step 2: Template Editor */}
-      {currentStep === 2 && (
-        <div className="grid grid-cols-2 gap-6">
-          {/* Editor */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/50">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Email Template</h2>
-              <p className="text-sm text-gray-500 mt-1">Schrijf je email met personalisatie variabelen</p>
+              </div>
             </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <button onClick={() => setImapForm(false)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="h-4 w-4" />
+              Terug naar providers
+            </button>
 
-            <div className="p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900">IMAP / SMTP Instellingen</h3>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Onderwerp
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">IMAP Server</label>
                 <input
                   type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Bijv. Vraagje over {studio}"
+                  value={imapHost}
+                  onChange={(e) => setImapHost(e.target.value)}
+                  placeholder="imap.example.com"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  HTML Body
-                </label>
-                <textarea
-                  value={htmlTemplate}
-                  onChange={(e) => setHtmlTemplate(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm resize-none"
-                  rows={18}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Adres</label>
+                <input
+                  type="email"
+                  value={imapEmail}
+                  onChange={(e) => setImapEmail(e.target.value)}
+                  placeholder="jouw@email.com"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-2">Beschikbare variabelen:</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.keys(leads[0] || { naam: '', studio: '', stad: '', email: '' }).map(key => (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        const tag = `{${key}}`
-                        setHtmlTemplate(prev => prev + tag)
-                      }}
-                      className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-mono hover:bg-purple-200 transition-colors"
-                    >
-                      {`{${key}}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Preview */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/50">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Preview</h2>
-                <Badge className="bg-purple-100 text-purple-700">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Lead #{1}
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Zo ziet de email eruit voor de eerste lead
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Subject preview */}
-              <div className="mb-4 p-3 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1">Onderwerp:</p>
-                <p className="font-medium text-gray-900">
-                  {personalise(subject, leads[0] || { email: 'test@example.com', naam: 'Jan Jansen', studio: 'Studio Amsterdam', stad: 'Amsterdam' })}
-                </p>
-              </div>
-
-              {/* From */}
-              <div className="mb-4 p-3 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1">Van:</p>
-                <p className="font-medium text-gray-900">Rivaldo &lt;rivaldo@lcntships.com&gt;</p>
-              </div>
-
-              {/* HTML preview */}
-              <div className="border border-gray-200 rounded-xl p-4 overflow-auto max-h-[400px]">
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: personalise(
-                      htmlTemplate,
-                      leads[0] || { email: 'test@example.com', naam: 'Jan Jansen', studio: 'Studio Amsterdam', stad: 'Amsterdam' }
-                    ),
-                  }}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Wachtwoord / App Password</label>
+                <input
+                  type="password"
+                  value={imapPassword}
+                  onChange={(e) => setImapPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
-            </div>
 
-            <div className="p-6 pt-0 flex justify-between">
-              <Button variant="outline" onClick={() => setCurrentStep(1)}>
-                Terug
-              </Button>
-              <Button onClick={() => setCurrentStep(3)} className="gap-2">
-                Volgende: Preview & Test
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Preview & Test */}
-      {currentStep === 3 && (
-        <div className="space-y-6">
-          {/* Test send */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/50 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-xl bg-amber-50">
-                <TestTube className="h-5 w-5 text-amber-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Test Email Versturen</h2>
-                <p className="text-sm text-gray-500">Stuur eerst een test naar je eigen email</p>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <input
-                type="email"
-                value={testEmail}
-                onChange={(e) => { setTestEmail(e.target.value); setTestResult(null) }}
-                placeholder="jouw@email.com"
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
               <Button
-                onClick={handleTestSend}
-                disabled={testSending || !testEmail}
-                variant="outline"
-                className="gap-2"
+                onClick={handleImapConnect}
+                disabled={connecting !== null || !imapHost || !imapEmail || !imapPassword}
+                className="w-full gap-2"
               >
-                {testSending ? (
+                {connecting === 'imap' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Send className="h-4 w-4" />
+                  <LogIn className="h-4 w-4" />
                 )}
-                Test Versturen
+                Verbinden
               </Button>
             </div>
-
-            {testResult === 'success' && (
-              <div className="flex items-center gap-2 mt-3 text-emerald-600">
-                <CheckCircle2 className="h-4 w-4" />
-                <span className="text-sm">Test email succesvol verstuurd!</span>
-              </div>
-            )}
-            {testResult === 'error' && (
-              <div className="flex items-center gap-2 mt-3 text-red-600">
-                <XCircle className="h-4 w-4" />
-                <span className="text-sm">Test email mislukt. Check je RESEND_API_KEY.</span>
-              </div>
-            )}
           </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
-          {/* Summary */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/50 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Campagne Samenvatting</h2>
+// Email Client component (after login)
+function EmailClient({ provider, onDisconnect }: { provider: string; onDisconnect: () => void }) {
+  const [activeFolder, setActiveFolder] = useState<Folder>('inbox')
+  const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null)
+  const [composing, setComposing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
 
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500">Ontvangers</p>
-                <p className="text-2xl font-bold text-gray-900">{leads.length}</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500">Onderwerp</p>
-                <p className="text-sm font-medium text-gray-900 truncate">{subject}</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500">Geschatte duur</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ~{Math.ceil(leads.length / 100 * 1.1)}s
-                </p>
-              </div>
-            </div>
+  // Compose state
+  const [composeTo, setComposeTo] = useState('')
+  const [composeSubject, setComposeSubject] = useState('')
+  const [composeBody, setComposeBody] = useState('')
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setCurrentStep(2)}>
-                Terug
-              </Button>
-              <Button
-                onClick={() => setShowConfirm(true)}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+  // Demo emails - in production these come from the email API
+  const [emails] = useState<EmailMessage[]>([
+    {
+      id: '1',
+      from: 'Studio Yoga Amsterdam',
+      fromEmail: 'info@yogaamsterdam.nl',
+      to: 'rivaldo@lcntships.com',
+      subject: 'Re: Samenwerking lcntships - interesse!',
+      preview: 'Hey Rivaldo, bedankt voor je bericht. We zijn zeker geïnteresseerd in de samenwerking. Kunnen we volgende week een call inplannen?',
+      body: `<p>Hey Rivaldo,</p><p>Bedankt voor je bericht. We zijn zeker geïnteresseerd in de samenwerking. Kunnen we volgende week een call inplannen?</p><p>We hebben 3 studio ruimtes en zoeken al een tijd naar een goed boekingsplatform.</p><p>Groetjes,<br/>Marieke<br/>Studio Yoga Amsterdam</p>`,
+      date: '2026-03-03T10:30:00',
+      read: false,
+      starred: true,
+      folder: 'inbox',
+      hasAttachment: false,
+    },
+    {
+      id: '2',
+      from: 'CrossFit Den Haag',
+      fromEmail: 'owner@crossfitdh.nl',
+      to: 'rivaldo@lcntships.com',
+      subject: 'Vraag over jullie platform',
+      preview: 'Hallo, ik zag jullie website en ben benieuwd naar de mogelijkheden voor onze CrossFit box...',
+      body: `<p>Hallo,</p><p>Ik zag jullie website en ben benieuwd naar de mogelijkheden voor onze CrossFit box. We hebben momenteel 200+ leden en zoeken naar een beter boekingssysteem.</p><p>Kunnen jullie ook group classes aan?</p><p>Mvg,<br/>Tom</p>`,
+      date: '2026-03-03T09:15:00',
+      read: false,
+      starred: false,
+      folder: 'inbox',
+      hasAttachment: true,
+    },
+    {
+      id: '3',
+      from: 'Pilates Studio Utrecht',
+      fromEmail: 'contact@pilatesutrecht.nl',
+      to: 'rivaldo@lcntships.com',
+      subject: 'Niet geïnteresseerd',
+      preview: 'Bedankt voor het aanbod, maar we gebruiken momenteel al een ander systeem en zijn tevreden...',
+      body: `<p>Bedankt voor het aanbod, maar we gebruiken momenteel al een ander systeem en zijn tevreden.</p><p>Groetjes</p>`,
+      date: '2026-03-02T16:45:00',
+      read: true,
+      starred: false,
+      folder: 'inbox',
+      hasAttachment: false,
+    },
+    {
+      id: '4',
+      from: 'Rivaldo',
+      fromEmail: 'rivaldo@lcntships.com',
+      to: 'info@yogaamsterdam.nl',
+      subject: 'Samenwerking lcntships - gratis studio profiel',
+      preview: 'Hey, ik ben Rivaldo van lcntships. We bieden gratis studio profielen aan...',
+      body: `<p>Hey,</p><p>Ik ben Rivaldo van lcntships. We bieden gratis studio profielen aan met professionele foto's en video's.</p><p>Zou dit interessant zijn voor jullie studio?</p>`,
+      date: '2026-03-01T14:00:00',
+      read: true,
+      starred: false,
+      folder: 'sent',
+      hasAttachment: false,
+    },
+  ])
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    setTimeout(() => setRefreshing(false), 1500)
+  }
+
+  const folderEmails = emails.filter(e => {
+    if (activeFolder === 'starred') return e.starred
+    return e.folder === activeFolder
+  }).filter(e => {
+    if (!searchQuery) return true
+    const q = searchQuery.toLowerCase()
+    return e.from.toLowerCase().includes(q) || e.subject.toLowerCase().includes(q) || e.preview.toLowerCase().includes(q)
+  })
+
+  const unreadCount = emails.filter(e => !e.read && e.folder === 'inbox').length
+
+  const folders: { id: Folder; label: string; icon: typeof Inbox; count?: number }[] = [
+    { id: 'inbox', label: 'Inbox', icon: Inbox, count: unreadCount },
+    { id: 'sent', label: 'Verzonden', icon: Send },
+    { id: 'starred', label: 'Belangrijk', icon: Star },
+    { id: 'drafts', label: 'Concepten', icon: Clock },
+    { id: 'trash', label: 'Prullenbak', icon: Trash2 },
+  ]
+
+  const formatEmailDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const isToday = date.toDateString() === now.toDateString()
+    if (isToday) return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
+  }
+
+  const providerName = provider === 'google' ? 'Gmail' : provider === 'outlook' ? 'Outlook' : 'IMAP'
+
+  return (
+    <div className="flex h-[calc(100vh-120px)] bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-56 border-r border-gray-100 flex flex-col">
+        <div className="p-4">
+          <Button onClick={() => setComposing(true)} className="w-full gap-2">
+            <Plus className="h-4 w-4" />
+            Nieuw Bericht
+          </Button>
+        </div>
+
+        <nav className="flex-1 px-3 space-y-1">
+          {folders.map((folder) => {
+            const Icon = folder.icon
+            const isActive = activeFolder === folder.id
+            return (
+              <button
+                key={folder.id}
+                onClick={() => { setActiveFolder(folder.id); setSelectedEmail(null) }}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
+                  isActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'
+                )}
               >
-                <Send className="h-4 w-4" />
-                Start Campagne
-              </Button>
+                <Icon className={cn('h-4 w-4', isActive ? 'text-indigo-600' : 'text-gray-400')} />
+                <span className="flex-1 text-left">{folder.label}</span>
+                {folder.count && folder.count > 0 && (
+                  <Badge className="bg-indigo-600 text-white text-xs px-1.5 py-0.5 min-w-[20px] text-center">{folder.count}</Badge>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+
+        {/* Account info */}
+        <div className="p-3 border-t border-gray-100">
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center">
+              <Globe className="h-3.5 w-3.5 text-indigo-600" />
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-900 truncate">{providerName}</p>
+              <p className="text-xs text-gray-500 truncate">rivaldo@lcntships.com</p>
+            </div>
+            <button onClick={onDisconnect} className="p-1 hover:bg-gray-100 rounded-lg" title="Uitloggen">
+              <Settings className="h-3.5 w-3.5 text-gray-400" />
+            </button>
           </div>
+        </div>
+      </div>
 
-          {/* Confirmation modal */}
-          {showConfirm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
-              <div className="absolute inset-0 bg-black/50" onClick={() => setShowConfirm(false)} />
-              <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md m-4 p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 rounded-full bg-amber-100">
-                    <AlertTriangle className="h-6 w-6 text-amber-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Bevestig Verzending</h3>
-                    <p className="text-sm text-gray-500">Dit kan niet ongedaan worden gemaakt</p>
-                  </div>
-                </div>
+      {/* Email List */}
+      <div className={cn('flex-1 flex flex-col border-r border-gray-100', selectedEmail && 'hidden md:flex md:w-80 md:flex-none')}>
+        {/* Search bar */}
+        <div className="p-3 border-b border-gray-100 flex items-center gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Zoeken in emails..."
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+          <button onClick={handleRefresh} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Vernieuwen">
+            <RefreshCw className={cn('h-4 w-4 text-gray-400', refreshing && 'animate-spin')} />
+          </button>
+        </div>
 
-                <div className="p-4 bg-amber-50 rounded-xl mb-6">
-                  <p className="text-amber-800">
-                    Je staat op het punt <strong>{leads.length} emails</strong> te versturen
-                    vanuit <strong>rivaldo@lcntships.com</strong>.
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowConfirm(false)}
-                    className="flex-1"
-                  >
-                    Annuleren
-                  </Button>
-                  <Button
-                    onClick={() => { startBulkSend(); setCurrentStep(4) }}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 gap-2"
-                  >
-                    <Send className="h-4 w-4" />
-                    Ja, Verstuur
-                  </Button>
-                </div>
-              </div>
+        {/* Email list */}
+        <div className="flex-1 overflow-y-auto">
+          {folderEmails.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-6">
+              <Inbox className="h-10 w-10 text-gray-300 mb-3" />
+              <p className="text-gray-500 font-medium">Geen berichten</p>
+              <p className="text-sm text-gray-400 mt-1">
+                {activeFolder === 'inbox' ? 'Je inbox is leeg' : `Geen berichten in ${folders.find(f => f.id === activeFolder)?.label}`}
+              </p>
             </div>
+          ) : (
+            folderEmails.map((email) => (
+              <button
+                key={email.id}
+                onClick={() => setSelectedEmail(email)}
+                className={cn(
+                  'w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors',
+                  !email.read && 'bg-indigo-50/30',
+                  selectedEmail?.id === email.id && 'bg-indigo-50'
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={cn('text-sm flex-1 truncate', !email.read ? 'font-semibold text-gray-900' : 'text-gray-600')}>
+                    {email.from}
+                  </span>
+                  <span className="text-xs text-gray-400 flex-shrink-0">{formatEmailDate(email.date)}</span>
+                </div>
+                <p className={cn('text-sm truncate mb-1', !email.read ? 'font-medium text-gray-800' : 'text-gray-600')}>
+                  {email.subject}
+                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-gray-400 truncate flex-1">{email.preview}</p>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {email.hasAttachment && <Paperclip className="h-3 w-3 text-gray-400" />}
+                    {email.starred && <Star className="h-3 w-3 text-amber-400 fill-amber-400" />}
+                  </div>
+                </div>
+              </button>
+            ))
           )}
         </div>
-      )}
+      </div>
 
-      {/* Step 4: Sending & Results */}
-      {currentStep === 4 && (
-        <div className="space-y-6">
-          {/* Progress */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/50 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {isDone ? 'Campagne Voltooid' : sending ? (paused ? 'Gepauzeerd' : 'Versturen...') : 'Klaar om te starten'}
-              </h2>
-              {sending && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={togglePause} className="gap-2">
-                    {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                    {paused ? 'Hervatten' : 'Pauzeren'}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={stopSending} className="gap-2 text-red-600 hover:bg-red-50">
-                    <X className="h-4 w-4" />
-                    Stop
-                  </Button>
-                </div>
-              )}
+      {/* Email Detail / Compose */}
+      {selectedEmail ? (
+        <div className="flex-1 flex flex-col">
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+            <button onClick={() => setSelectedEmail(null)} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-900 truncate flex-1 mx-3">{selectedEmail.subject}</h2>
+            <div className="flex items-center gap-1">
+              <button className="p-2 hover:bg-gray-100 rounded-lg" title="Beantwoorden"><Reply className="h-4 w-4 text-gray-400" /></button>
+              <button className="p-2 hover:bg-gray-100 rounded-lg" title="Doorsturen"><Forward className="h-4 w-4 text-gray-400" /></button>
+              <button className="p-2 hover:bg-gray-100 rounded-lg" title="Archiveren"><Archive className="h-4 w-4 text-gray-400" /></button>
+              <button className="p-2 hover:bg-gray-100 rounded-lg" title="Verwijderen"><Trash2 className="h-4 w-4 text-gray-400" /></button>
             </div>
-
-            {/* Progress bar */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                <span>Verzonden: {sentCount + failedCount} / {results.length}</span>
-                <span>{Math.round(progressPercent)}%</span>
-              </div>
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all duration-300',
-                    isDone && failedCount === 0 ? 'bg-emerald-500' : 'bg-indigo-500'
-                  )}
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="p-4 bg-emerald-50 rounded-xl text-center">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-emerald-700">{sentCount}</p>
-                <p className="text-xs text-emerald-600">Verstuurd</p>
-              </div>
-              <div className="p-4 bg-red-50 rounded-xl text-center">
-                <XCircle className="h-5 w-5 text-red-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-red-700">{failedCount}</p>
-                <p className="text-xs text-red-600">Mislukt</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl text-center">
-                <Loader2 className={cn('h-5 w-5 text-gray-400 mx-auto mb-1', sending && !paused && 'animate-spin')} />
-                <p className="text-2xl font-bold text-gray-700">{pendingCount}</p>
-                <p className="text-xs text-gray-500">Wachtend</p>
-              </div>
-            </div>
-
-            {/* Actions when done */}
-            {isDone && (
-              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-100">
-                {failedCount > 0 && (
-                  <Button variant="outline" onClick={retryFailed} className="gap-2">
-                    <RotateCcw className="h-4 w-4" />
-                    {failedCount} Opnieuw Proberen
-                  </Button>
-                )}
-                <Button variant="outline" onClick={exportResults} className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Export Resultaten (CSV)
-                </Button>
-                <Button
-                  onClick={() => {
-                    setCurrentStep(1)
-                    setLeads([])
-                    setResults([])
-                    setCsvFileName('')
-                    setSubject(DEFAULT_SUBJECT)
-                    setHtmlTemplate(DEFAULT_TEMPLATE)
-                  }}
-                  className="gap-2 ml-auto"
-                >
-                  <Mail className="h-4 w-4" />
-                  Nieuwe Campagne
-                </Button>
-              </div>
-            )}
           </div>
 
-          {/* Detailed results */}
-          {results.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/50">
-              <div className="p-6 border-b border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-900">Verzend Log</h2>
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                <span className="text-sm font-semibold text-indigo-600">{selectedEmail.from.charAt(0)}</span>
               </div>
-              <div className="max-h-96 overflow-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="text-left p-3 font-medium text-gray-600">#</th>
-                      <th className="text-left p-3 font-medium text-gray-600">Email</th>
-                      <th className="text-left p-3 font-medium text-gray-600">Status</th>
-                      <th className="text-left p-3 font-medium text-gray-600">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {results.map((result, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="p-3 text-gray-400">{i + 1}</td>
-                        <td className="p-3 text-gray-900">{result.email}</td>
-                        <td className="p-3">
-                          {result.status === 'sent' && (
-                            <Badge className="bg-emerald-100 text-emerald-700">
-                              <Check className="h-3 w-3 mr-1" />
-                              Verstuurd
-                            </Badge>
-                          )}
-                          {result.status === 'failed' && (
-                            <Badge className="bg-red-100 text-red-700">
-                              <X className="h-3 w-3 mr-1" />
-                              Mislukt
-                            </Badge>
-                          )}
-                          {result.status === 'pending' && (
-                            <Badge className="bg-gray-100 text-gray-600">
-                              <Loader2 className={cn('h-3 w-3 mr-1', sending && !paused && 'animate-spin')} />
-                              Wachtend
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-3 text-gray-500 text-xs">
-                          {result.error || result.id || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900">{selectedEmail.from}</span>
+                  <span className="text-xs text-gray-400">&lt;{selectedEmail.fromEmail}&gt;</span>
+                </div>
+                <p className="text-xs text-gray-500">Aan: {selectedEmail.to}</p>
               </div>
+              <span className="text-sm text-gray-400">
+                {new Date(selectedEmail.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
-          )}
+
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedEmail.body }} />
+          </div>
+
+          {/* Quick reply */}
+          <div className="p-4 border-t border-gray-100">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Snel antwoorden..."
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <Button size="sm" className="gap-2">
+                <Send className="h-3.5 w-3.5" />
+                Verstuur
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : composing ? (
+        <div className="flex-1 flex flex-col">
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Nieuw Bericht</h2>
+            <button onClick={() => setComposing(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <X className="h-4 w-4 text-gray-400" />
+            </button>
+          </div>
+
+          <div className="flex-1 p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Aan</label>
+              <input
+                type="email"
+                value={composeTo}
+                onChange={(e) => setComposeTo(e.target.value)}
+                placeholder="email@voorbeeld.com"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Onderwerp</label>
+              <input
+                type="text"
+                value={composeSubject}
+                onChange={(e) => setComposeSubject(e.target.value)}
+                placeholder="Onderwerp..."
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex-1">
+              <textarea
+                value={composeBody}
+                onChange={(e) => setComposeBody(e.target.value)}
+                placeholder="Schrijf je bericht..."
+                className="w-full h-64 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button className="p-2 hover:bg-gray-100 rounded-lg" title="Bijlage toevoegen">
+                <Paperclip className="h-4 w-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setComposing(false)}>Annuleren</Button>
+              <Button className="gap-2">
+                <Send className="h-4 w-4" />
+                Verstuur
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+          <Mail className="h-12 w-12 text-gray-300 mb-4" />
+          <p className="text-gray-500 font-medium">Selecteer een email om te lezen</p>
+          <p className="text-sm text-gray-400 mt-1">Of klik &quot;Nieuw Bericht&quot; om een email te versturen</p>
         </div>
       )}
     </div>
   )
+}
+
+export default function EmailPage() {
+  const [connected, setConnected] = useState(false)
+  const [provider, setProvider] = useState<string>('')
+
+  const handleConnect = (selectedProvider: string) => {
+    setProvider(selectedProvider)
+    setConnected(true)
+  }
+
+  const handleDisconnect = () => {
+    setConnected(false)
+    setProvider('')
+  }
+
+  if (!connected) {
+    return <EmailLogin onConnect={handleConnect} />
+  }
+
+  return <EmailClient provider={provider} onDisconnect={handleDisconnect} />
 }
