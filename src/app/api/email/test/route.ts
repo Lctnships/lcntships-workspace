@@ -1,0 +1,49 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+export async function POST(request: NextRequest) {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { error: 'RESEND_API_KEY is not configured' },
+        { status: 500 }
+      )
+    }
+
+    const { to, subject, html } = await request.json()
+
+    if (!to || !subject || !html) {
+      return NextResponse.json(
+        { error: 'to, subject, and html are required' },
+        { status: 400 }
+      )
+    }
+
+    const response = await resend.emails.send({
+      from: 'Rivaldo <rivaldo@lcntships.com>',
+      to,
+      subject,
+      html,
+    })
+
+    if (response.error) {
+      return NextResponse.json(
+        { error: response.error.message },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      id: response.data?.id,
+    })
+  } catch (error) {
+    console.error('Test send error:', error)
+    return NextResponse.json(
+      { error: 'Er ging iets mis bij het versturen.' },
+      { status: 500 }
+    )
+  }
+}

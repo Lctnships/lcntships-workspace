@@ -28,7 +28,8 @@ import {
   ExternalLink,
   Search,
   Filter,
-  ChevronDown
+  ChevronDown,
+  Sparkles
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -499,7 +500,10 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
   const [preview, setPreview] = useState<Partial<SalesLead>[]>([])
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null)
+  const [aiAnalyzing, setAiAnalyzing] = useState(false)
+  const [aiUsed, setAiUsed] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [rawCsvContent, setRawCsvContent] = useState<string>('')
 
   const parseCSVLine = (line: string): string[] => {
     const result: string[] = []
@@ -619,14 +623,49 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
+      setRawCsvContent(text)
       const parsed = parseCSV(text)
       if (parsed.length === 0) {
         setError('Geen geldige leads gevonden in het bestand.')
       } else {
         setPreview(parsed)
+        setAiUsed(false)
       }
     }
     reader.readAsText(selectedFile)
+  }
+
+  const analyzeWithAI = async () => {
+    if (!rawCsvContent) return
+
+    setAiAnalyzing(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/csv/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csvContent: rawCsvContent }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'AI analyse mislukt')
+        return
+      }
+
+      if (data.leads && data.leads.length > 0) {
+        setPreview(data.leads)
+        setAiUsed(true)
+      } else {
+        setError('AI kon geen leads extraheren uit het bestand.')
+      }
+    } catch {
+      setError('Kon geen verbinding maken met de AI service.')
+    } finally {
+      setAiAnalyzing(false)
+    }
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -668,6 +707,8 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
     setPreview([])
     setError(null)
     setImportResult(null)
+    setAiUsed(false)
+    setRawCsvContent('')
     onClose()
   }
 
@@ -751,10 +792,38 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
                       <FileSpreadsheet className="h-5 w-5 text-gray-400" />
                       <span className="font-medium text-gray-900">{file.name}</span>
                     </div>
-                    <Badge className="bg-emerald-100 text-emerald-700">
-                      {preview.length} leads gevonden
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {aiUsed && (
+                        <Badge className="bg-purple-100 text-purple-700">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          AI
+                        </Badge>
+                      )}
+                      <Badge className="bg-emerald-100 text-emerald-700">
+                        {preview.length} leads gevonden
+                      </Badge>
+                    </div>
                   </div>
+
+                  {!aiUsed && (
+                    <button
+                      onClick={analyzeWithAI}
+                      disabled={aiAnalyzing}
+                      className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors disabled:opacity-50"
+                    >
+                      {aiAnalyzing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          AI analyseert je CSV...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          Analyseer met AI (Claude Haiku)
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   <div className="border border-gray-200 rounded-xl overflow-hidden mb-4">
                     <div className="max-h-64 overflow-auto">
