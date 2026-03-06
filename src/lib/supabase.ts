@@ -990,3 +990,749 @@ export const profilesApi = {
     return data as { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role: string }
   },
 }
+// New interfaces for Email, Invoices, Contracts, and Sequences
+
+export interface EmailAccount {
+  id: string
+  user_id: string
+  email: string
+  name?: string
+  provider: 'gmail' | 'outlook' | 'imap'
+  imap_host?: string
+  imap_port?: number
+  smtp_host?: string
+  smtp_port?: number
+  username?: string
+  password_encrypted?: string
+  is_connected: boolean
+  last_sync_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Email {
+  id: string
+  account_id: string
+  message_id?: string
+  thread_id?: string
+  folder: 'inbox' | 'sent' | 'drafts' | 'trash' | 'spam' | 'archive'
+  subject?: string
+  from_name?: string
+  from_email: string
+  to_emails: { name?: string; email: string }[]
+  cc_emails?: { name?: string; email: string }[]
+  bcc_emails?: { name?: string; email: string }[]
+  body_text?: string
+  body_html?: string
+  is_read: boolean
+  is_starred: boolean
+  attachments?: { filename: string; size: number; content_type: string; url?: string }[]
+  sent_at?: string
+  received_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailTemplate {
+  id: string
+  user_id: string
+  name: string
+  subject: string
+  body: string
+  is_shared: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailSequence {
+  id: string
+  user_id: string
+  name: string
+  description?: string
+  status: 'draft' | 'active' | 'paused'
+  emails?: SequenceEmail[]
+  created_at: string
+  updated_at: string
+}
+
+export interface SequenceEmail {
+  id: string
+  sequence_id: string
+  subject: string
+  body: string
+  delay_days: number
+  order_index: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SequenceEnrollment {
+  id: string
+  sequence_id: string
+  lead_id: string
+  current_step: number
+  status: 'active' | 'completed' | 'bounced' | 'unsubscribed'
+  started_at: string
+  completed_at?: string
+  next_send_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SequenceEmailLog {
+  id: string
+  enrollment_id: string
+  sequence_email_id: string
+  subject?: string
+  body?: string
+  sent_at: string
+  opened_at?: string
+  clicked_at?: string
+  status: 'sent' | 'delivered' | 'bounced' | 'failed'
+}
+
+export interface Invoice {
+  id: string
+  user_id: string
+  invoice_number: string
+  customer_name: string
+  customer_email: string
+  customer_company?: string
+  customer_address?: string
+  subtotal: number
+  tax_rate: number
+  tax_amount: number
+  total: number
+  currency: string
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
+  issue_date: string
+  due_date: string
+  paid_at?: string
+  notes?: string
+  pdf_url?: string
+  items?: InvoiceItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface InvoiceItem {
+  id: string
+  invoice_id: string
+  description: string
+  quantity: number
+  unit_price: number
+  total: number
+  created_at: string
+}
+
+export interface Contract {
+  id: string
+  user_id: string
+  title: string
+  description?: string
+  customer_name: string
+  customer_email: string
+  customer_company?: string
+  file_url?: string
+  file_name?: string
+  status: 'draft' | 'sent' | 'viewed' | 'signed' | 'expired' | 'cancelled'
+  created_at: string
+  sent_at?: string
+  viewed_at?: string
+  signed_at?: string
+  expires_at?: string
+  signature_url?: string
+  updated_at: string
+}
+
+export interface EmailTracking {
+  id: string
+  email_id: string
+  tracking_type: 'open' | 'click'
+  ip_address?: string
+  user_agent?: string
+  link_url?: string
+  tracked_at: string
+}
+
+// Email Accounts API
+export const emailAccountsApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('email_accounts')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as EmailAccount[]
+  },
+
+  async create(account: Partial<EmailAccount>) {
+    const { data, error } = await supabase
+      .from('email_accounts')
+      .insert(account)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as EmailAccount
+  },
+
+  async update(id: string, account: Partial<EmailAccount>) {
+    const { data, error } = await supabase
+      .from('email_accounts')
+      .update(account)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as EmailAccount
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('email_accounts')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  }
+}
+
+// Emails API
+export const emailsApi = {
+  async getByFolder(accountId: string, folder: string) {
+    const { data, error } = await supabase
+      .from('emails')
+      .select('*')
+      .eq('account_id', accountId)
+      .eq('folder', folder)
+      .order('received_at', { ascending: false })
+
+    if (error) throw error
+    return data as Email[]
+  },
+
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('emails')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    return data as Email
+  },
+
+  async create(email: Partial<Email>) {
+    const { data, error } = await supabase
+      .from('emails')
+      .insert(email)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Email
+  },
+
+  async update(id: string, email: Partial<Email>) {
+    const { data, error } = await supabase
+      .from('emails')
+      .update(email)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Email
+  },
+
+  async markAsRead(id: string) {
+    return this.update(id, { is_read: true })
+  },
+
+  async toggleStar(id: string, isStarred: boolean) {
+    return this.update(id, { is_starred: isStarred })
+  },
+
+  async moveToFolder(id: string, folder: string) {
+    return this.update(id, { folder: folder as any })
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('emails')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  }
+}
+
+// Email Templates API
+export const emailTemplatesApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('email_templates')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as EmailTemplate[]
+  },
+
+  async create(template: Partial<EmailTemplate>) {
+    const { data, error } = await supabase
+      .from('email_templates')
+      .insert(template)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as EmailTemplate
+  },
+
+  async update(id: string, template: Partial<EmailTemplate>) {
+    const { data, error } = await supabase
+      .from('email_templates')
+      .update(template)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as EmailTemplate
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('email_templates')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  }
+}
+
+// Email Sequences API
+export const emailSequencesApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('email_sequences')
+      .select(`
+        *,
+        emails:sequence_emails(*)
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as EmailSequence[]
+  },
+
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('email_sequences')
+      .select(`
+        *,
+        emails:sequence_emails(*),
+        enrollments:sequence_enrollments(count)
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    return data as EmailSequence
+  },
+
+  async create(sequence: Partial<EmailSequence>, emails: Partial<SequenceEmail>[]) {
+    const { data: sequenceData, error: sequenceError } = await supabase
+      .from('email_sequences')
+      .insert(sequence)
+      .select()
+      .single()
+
+    if (sequenceError) throw sequenceError
+
+    if (emails.length > 0) {
+      const { error: emailsError } = await supabase
+        .from('sequence_emails')
+        .insert(emails.map((e, i) => ({
+          ...e,
+          sequence_id: sequenceData.id,
+          order_index: i,
+        })))
+
+      if (emailsError) throw emailsError
+    }
+
+    return sequenceData as EmailSequence
+  },
+
+  async update(id: string, sequence: Partial<EmailSequence>) {
+    const { data, error } = await supabase
+      .from('email_sequences')
+      .update(sequence)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as EmailSequence
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('email_sequences')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  },
+
+  // Sequence Emails
+  async addSequenceEmail(sequenceEmail: Partial<SequenceEmail>) {
+    const { data, error } = await supabase
+      .from('sequence_emails')
+      .insert(sequenceEmail)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as SequenceEmail
+  },
+
+  async updateSequenceEmail(id: string, sequenceEmail: Partial<SequenceEmail>) {
+    const { data, error } = await supabase
+      .from('sequence_emails')
+      .update(sequenceEmail)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as SequenceEmail
+  },
+
+  async deleteSequenceEmail(id: string) {
+    const { error } = await supabase
+      .from('sequence_emails')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  },
+
+  // Enrollments
+  async enrollLead(sequenceId: string, leadId: string) {
+    const { data, error } = await supabase
+      .from('sequence_enrollments')
+      .insert({
+        sequence_id: sequenceId,
+        lead_id: leadId,
+        current_step: 0,
+        status: 'active',
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as SequenceEnrollment
+  },
+
+  async getEnrollments(sequenceId: string) {
+    const { data, error } = await supabase
+      .from('sequence_enrollments')
+      .select(`
+        *,
+        lead:sales_leads(*)
+      `)
+      .eq('sequence_id', sequenceId)
+
+    if (error) throw error
+    return data as SequenceEnrollment[]
+  },
+
+  async updateEnrollment(id: string, enrollment: Partial<SequenceEnrollment>) {
+    const { data, error } = await supabase
+      .from('sequence_enrollments')
+      .update(enrollment)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as SequenceEnrollment
+  }
+}
+
+// Invoices API
+export const invoicesApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        items:invoice_items(*)
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as Invoice[]
+  },
+
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        items:invoice_items(*)
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    return data as Invoice
+  },
+
+  async create(invoice: Partial<Invoice>, items: Partial<InvoiceItem>[]) {
+    const { data: invoiceData, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert(invoice)
+      .select()
+      .single()
+
+    if (invoiceError) throw invoiceError
+
+    if (items.length > 0) {
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(items.map(item => ({
+          ...item,
+          invoice_id: invoiceData.id,
+        })))
+
+      if (itemsError) throw itemsError
+    }
+
+    return invoiceData as Invoice
+  },
+
+  async update(id: string, invoice: Partial<Invoice>, items?: Partial<InvoiceItem>[]) {
+    const { data, error } = await supabase
+      .from('invoices')
+      .update(invoice)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    if (items) {
+      // Delete existing items
+      await supabase.from('invoice_items').delete().eq('invoice_id', id)
+      
+      // Insert new items
+      if (items.length > 0) {
+        await supabase.from('invoice_items').insert(items.map(item => ({
+          ...item,
+          invoice_id: id,
+        })))
+      }
+    }
+
+    return data as Invoice
+  },
+
+  async markAsPaid(id: string) {
+    return this.update(id, {
+      status: 'paid',
+      paid_at: new Date().toISOString(),
+    })
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  },
+
+  async getStats() {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('status, total')
+
+    if (error) throw error
+
+    const stats = {
+      total: data?.length || 0,
+      paid: 0,
+      outstanding: 0,
+      overdue: 0,
+      revenue: 0,
+      outstandingAmount: 0,
+    }
+
+    for (const invoice of data || []) {
+      if (invoice.status === 'paid') {
+        stats.paid++
+        stats.revenue += Number(invoice.total) || 0
+      }
+      if (invoice.status === 'sent' || invoice.status === 'overdue') {
+        stats.outstanding++
+        stats.outstandingAmount += Number(invoice.total) || 0
+      }
+      if (invoice.status === 'overdue') {
+        stats.overdue++
+      }
+    }
+
+    return stats
+  }
+}
+
+// Contracts API
+export const contractsApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as Contract[]
+  },
+
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    return data as Contract
+  },
+
+  async create(contract: Partial<Contract>) {
+    const { data, error } = await supabase
+      .from('contracts')
+      .insert(contract)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Contract
+  },
+
+  async update(id: string, contract: Partial<Contract>) {
+    const { data, error } = await supabase
+      .from('contracts')
+      .update(contract)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Contract
+  },
+
+  async send(id: string) {
+    return this.update(id, {
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    })
+  },
+
+  async markAsViewed(id: string) {
+    return this.update(id, {
+      status: 'viewed',
+      viewed_at: new Date().toISOString(),
+    })
+  },
+
+  async markAsSigned(id: string, signatureUrl?: string) {
+    return this.update(id, {
+      status: 'signed',
+      signed_at: new Date().toISOString(),
+      signature_url: signatureUrl,
+    })
+  },
+
+  async cancel(id: string) {
+    return this.update(id, { status: 'cancelled' })
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('contracts')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  },
+
+  async getStats() {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('status')
+
+    if (error) throw error
+
+    return {
+      total: data?.length || 0,
+      signed: data?.filter(c => c.status === 'signed').length || 0,
+      pending: data?.filter(c => c.status === 'sent' || c.status === 'viewed').length || 0,
+      draft: data?.filter(c => c.status === 'draft').length || 0,
+      expired: data?.filter(c => c.status === 'expired').length || 0,
+    }
+  }
+}
+
+// Email Tracking API
+export const emailTrackingApi = {
+  async trackOpen(emailId: string, ipAddress?: string, userAgent?: string) {
+    const { error } = await supabase
+      .from('email_tracking')
+      .insert({
+        email_id: emailId,
+        tracking_type: 'open',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      })
+
+    if (error) throw error
+  },
+
+  async trackClick(emailId: string, linkUrl: string, ipAddress?: string, userAgent?: string) {
+    const { error } = await supabase
+      .from('email_tracking')
+      .insert({
+        email_id: emailId,
+        tracking_type: 'click',
+        link_url: linkUrl,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      })
+
+    if (error) throw error
+  },
+
+  async getStats(emailId: string) {
+    const { data, error } = await supabase
+      .from('email_tracking')
+      .select('*')
+      .eq('email_id', emailId)
+
+    if (error) throw error
+
+    return {
+      opens: data?.filter(t => t.tracking_type === 'open').length || 0,
+      clicks: data?.filter(t => t.tracking_type === 'click').length || 0,
+      uniqueOpens: new Set(data?.filter(t => t.tracking_type === 'open').map(t => t.ip_address)).size || 0,
+    }
+  }
+}

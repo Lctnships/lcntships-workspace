@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { emailSequencesApi, supabase } from '@/lib/supabase'
 
 // Types
 interface EmailSequence {
@@ -50,35 +51,6 @@ interface SequenceEmail {
   delayDays: number
   order: number
 }
-
-// Mock data
-const mockSequences: EmailSequence[] = [
-  {
-    id: '1',
-    name: 'Welkomstserie nieuwe leads',
-    description: 'Automatische follow-up voor nieuwe studio leads',
-    status: 'active',
-    emails: [
-      { id: 'e1', subject: 'Welkom bij lcntships!', body: 'Bedankt voor je interesse...', delayDays: 0, order: 1 },
-      { id: 'e2', subject: 'Hoe werkt lcntships?', body: 'Laat me je uitleggen...', delayDays: 3, order: 2 },
-      { id: 'e3', subject: 'Klaar om te starten?', body: 'Wil je een demo inplannen?', delayDays: 7, order: 3 },
-    ],
-    stats: { totalEnrolled: 45, active: 12, completed: 30, bounced: 3 },
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Cold outreach follow-up',
-    description: 'Follow-up serie voor cold emails',
-    status: 'paused',
-    emails: [
-      { id: 'e4', subject: 'Re: Samenwerking', body: 'Heb je mijn vorige mail gezien?', delayDays: 3, order: 1 },
-      { id: 'e5', subject: 'Laatste poging', body: 'Dit is mijn laatste mail...', delayDays: 7, order: 2 },
-    ],
-    stats: { totalEnrolled: 120, active: 0, completed: 98, bounced: 22 },
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
 
 // Create/Edit Modal
 interface SequenceModalProps {
@@ -393,47 +365,131 @@ function EnrollModal({ isOpen, onClose, sequence }: { isOpen: boolean; onClose: 
 }
 
 export default function SequencesPage() {
-  const [sequences, setSequences] = useState<EmailSequence[]>(mockSequences)
+  const [sequences, setSequences] = useState<EmailSequence[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null)
 
-  const handleSave = (sequenceData: Partial<EmailSequence>) => {
-    if (selectedSequence) {
-      // Edit existing
-      setSequences(sequences.map(s =>
-        s.id === selectedSequence.id
-          ? { ...s, ...sequenceData } as EmailSequence
-          : s
-      ))
-    } else {
-      // Create new
-      const newSequence: EmailSequence = {
-        id: Date.now().toString(),
-        name: sequenceData.name!,
-        description: sequenceData.description,
-        emails: sequenceData.emails!,
-        status: 'draft',
+  // Load sequences from database
+  useEffect(() => {
+    loadSequences()
+  }, [])
+
+  const loadSequences = async () => {
+    try {
+      setIsLoading(true)
+      const data = await emailSequencesApi.getAll()
+      // Transform data to match our interface
+      const transformed = data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        status: s.status,
+        emails: s.emails?.map((e: any, i: number) => ({
+          id: e.id,
+          subject: e.subject,
+          body: e.body,
+          delayDays: e.delay_days,
+          order: e.order_index || i,
+        })) || [],
         stats: { totalEnrolled: 0, active: 0, completed: 0, bounced: 0 },
-        createdAt: new Date().toISOString(),
-      }
-      setSequences([...sequences, newSequence])
+        createdAt: s.created_at,
+      }))
+      setSequences(transformed)
+    } catch (error) {
+      console.error('Error loading sequences:', error)
+      alert('Kon sequences niet laden')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const toggleStatus = (sequenceId: string) => {
-    setSequences(sequences.map(s => {
-      if (s.id !== sequenceId) return s
-      return {
-        ...s,
-        status: s.status === 'active' ? 'paused' : 'active' as const,
+  const handleSave = async (sequenceData: Partial<EmailSequence>) => {
+    try {
+      if (selectedSequence) {
+        // Edit existing
+        await emailSequencesApi.update(selectedSequence.id, {
+          name: sequenceData.name,
+          description: sequenceData.description,
+        })
+        
+        // Update emails
+        // First delete existing
+        for (const email of selectedSequence.emails) {
+          await emailSequencesApi.deleteSequenceEmail(email.id)
+        }
+        
+        // Then add new ones
+        for (const email of sequenceData.emails || []) {
+          await emailSequencesApi.addSequenceEmail({
+            sequence_id: selectedSequence.id,
+            subject: email.subject,
+            body: email.body,
+            delay_days: email.delayDays,
+            order_index: email.order,
+          })
+        }
+      } else {
+        // Create new
+        const emails = (sequenceData.emails || []).map((e, i) => ({
+          subject: e.subject,
+          body: e.body,
+          delay_days: e.delayDays,
+          order_index: i,
+        }))
+        
+        await emailSequencesApi.create({
+          name: sequenceData.name!,
+          description: sequenceData.description,
+          status: 'draft',
+        }, emails)
       }
-    }))
+      
+      // Reload sequences
+      await loadSequences()
+    } catch (error) {
+      console.error('Error saving sequence:', error)
+      alert('Kon sequence niet opslaan')
+    }
   }
 
-  const deleteSequence = (sequenceId: string) => {
+  const toggleStatus = async (sequenceId: string) => {
+    try {
+      const sequence = sequences.find(s => s.id === sequenceId)
+      if (!sequence) return
+      
+      const newStatus = sequence.status === 'active' ? 'paused' : 'active'
+      await emailSequencesApi.update(sequenceId, { status: newStatus })
+      
+      // Update local state
+      setSequences(sequences.map(s => 
+        s.id === sequenceId ? { ...s, status: newStatus } : s
+      ))
+    } catch (error) {
+      console.error('Error updating status:', error)
+      alert('Kon status niet wijzigen')
+    }
+  }
+
+  const deleteSequence = async (sequenceId: string) => {
     if (!confirm('Weet je zeker dat je deze sequence wilt verwijderen?')) return
-    setSequences(sequences.filter(s => s.id !== sequenceId))
+    
+    try {
+      await emailSequencesApi.delete(sequenceId)
+      setSequences(sequences.filter(s => s.id !== sequenceId))
+    } catch (error) {
+      console.error('Error deleting sequence:', error)
+      alert('Kon sequence niet verwijderen')
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    )
   }
 
   return (
