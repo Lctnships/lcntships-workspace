@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
+import { invoicesApi } from '@/lib/supabase'
 
 // Types
 interface Invoice {
@@ -58,69 +59,12 @@ interface InvoiceItem {
   total: number
 }
 
-// Mock data
-const mockInvoices: Invoice[] = [
-  {
-    id: '1',
-    invoiceNumber: 'INV-2024-001',
-    customer: {
-      name: 'Jan Jansen',
-      email: 'jan@studioamsterdam.nl',
-      company: 'Studio Amsterdam B.V.',
-      address: 'Herengracht 123, 1015 BW Amsterdam',
-    },
-    items: [
-      { id: '1', description: 'Maandelijks abonnement - Pro', quantity: 1, unitPrice: 99, total: 99 },
-      { id: '2', description: 'Setup fee', quantity: 1, unitPrice: 250, total: 250 },
-    ],
-    subtotal: 349,
-    tax: 73.29,
-    total: 422.29,
-    status: 'paid',
-    issueDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    dueDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    paidDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    invoiceNumber: 'INV-2024-002',
-    customer: {
-      name: 'Lisa de Vries',
-      email: 'lisa@creativehub.nl',
-      company: 'Creative Hub',
-      address: 'Keizersgracht 456, 1017 EG Amsterdam',
-    },
-    items: [
-      { id: '3', description: 'Maandelijks abonnement - Basic', quantity: 1, unitPrice: 49, total: 49 },
-    ],
-    subtotal: 49,
-    tax: 10.29,
-    total: 59.29,
-    status: 'sent',
-    issueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    dueDate: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    invoiceNumber: 'INV-2024-003',
-    customer: {
-      name: 'Peter Bakker',
-      email: 'peter@musicstudio.nl',
-      company: 'Music Studio Rotterdam',
-      address: 'Coolsingel 789, 3012 AA Rotterdam',
-    },
-    items: [
-      { id: '4', description: 'Maandelijks abonnement - Enterprise', quantity: 1, unitPrice: 299, total: 299 },
-      { id: '5', description: 'Custom integratie', quantity: 1, unitPrice: 1500, total: 1500 },
-    ],
-    subtotal: 1799,
-    tax: 377.79,
-    total: 2176.79,
-    status: 'overdue',
-    issueDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    dueDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
+// Generate next invoice number
+const generateInvoiceNumber = () => {
+  const year = new Date().getFullYear()
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+  return `INV-${year}-${random}`
+}
 
 // Create/Edit Invoice Modal
 interface InvoiceModalProps {
@@ -520,12 +464,57 @@ function InvoiceDetail({ invoice, onClose, onMarkPaid }: { invoice: Invoice; onC
 }
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null)
+
+  // Load invoices from database
+  useEffect(() => {
+    loadInvoices()
+  }, [])
+
+  const loadInvoices = async () => {
+    try {
+      setIsLoading(true)
+      const data = await invoicesApi.getAll()
+      // Transform data to match our interface
+      const transformed = data.map((i: any) => ({
+        id: i.id,
+        invoiceNumber: i.invoice_number,
+        customer: {
+          name: i.customer_name,
+          email: i.customer_email,
+          company: i.customer_company,
+          address: i.customer_address,
+        },
+        items: i.items?.map((item: any) => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          total: item.total,
+        })) || [],
+        subtotal: i.subtotal,
+        tax: i.tax_amount,
+        total: i.total,
+        status: i.status,
+        issueDate: i.issue_date,
+        dueDate: i.due_date,
+        paidDate: i.paid_at,
+        notes: i.notes,
+      }))
+      setInvoices(transformed)
+    } catch (error) {
+      console.error('Error loading invoices:', error)
+      alert('Kon facturen niet laden')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Filter invoices
   const filteredInvoices = invoices.filter(invoice => {
@@ -553,30 +542,91 @@ export default function InvoicesPage() {
     outstandingAmount: invoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((sum, i) => sum + i.total, 0),
   }
 
-  const handleSave = (invoiceData: Partial<Invoice>) => {
-    if (selectedInvoice) {
-      setInvoices(invoices.map(i =>
-        i.id === selectedInvoice.id
-          ? { ...i, ...invoiceData } as Invoice
-          : i
-      ))
-    } else {
-      const newInvoice: Invoice = {
-        id: Date.now().toString(),
-        invoiceNumber: `INV-${new Date().getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`,
-        ...invoiceData,
-      } as Invoice
-      setInvoices([...invoices, newInvoice])
+  const handleSave = async (invoiceData: Partial<Invoice>) => {
+    try {
+      const items = (invoiceData.items || []).map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        total: item.total,
+      }))
+
+      if (selectedInvoice) {
+        // Edit existing
+        await invoicesApi.update(
+          selectedInvoice.id,
+          {
+            customer_name: invoiceData.customer?.name,
+            customer_email: invoiceData.customer?.email,
+            customer_company: invoiceData.customer?.company,
+            customer_address: invoiceData.customer?.address,
+            subtotal: invoiceData.subtotal,
+            tax_amount: invoiceData.tax,
+            total: invoiceData.total,
+            issue_date: invoiceData.issueDate,
+            due_date: invoiceData.dueDate,
+            notes: invoiceData.notes,
+          },
+          items
+        )
+      } else {
+        // Create new
+        await invoicesApi.create(
+          {
+            invoice_number: generateInvoiceNumber(),
+            customer_name: invoiceData.customer!.name,
+            customer_email: invoiceData.customer!.email,
+            customer_company: invoiceData.customer?.company,
+            customer_address: invoiceData.customer?.address,
+            subtotal: invoiceData.subtotal!,
+            tax_amount: invoiceData.tax!,
+            total: invoiceData.total!,
+            issue_date: invoiceData.issueDate!,
+            due_date: invoiceData.dueDate!,
+            notes: invoiceData.notes,
+            status: 'draft',
+          },
+          items
+        )
+      }
+      
+      // Reload invoices
+      await loadInvoices()
+    } catch (error) {
+      console.error('Error saving invoice:', error)
+      alert('Kon factuur niet opslaan')
     }
   }
 
-  const markAsPaid = (invoiceId: string) => {
-    setInvoices(invoices.map(i =>
-      i.id === invoiceId
-        ? { ...i, status: 'paid' as const, paidDate: new Date().toISOString() }
-        : i
-    ))
-    setViewingInvoice(null)
+  const markAsPaid = async (invoiceId: string) => {
+    try {
+      await invoicesApi.markAsPaid(invoiceId)
+      await loadInvoices()
+      setViewingInvoice(null)
+    } catch (error) {
+      console.error('Error marking as paid:', error)
+      alert('Kon factuur niet markeren als betaald')
+    }
+  }
+
+  const handleDelete = async (invoiceId: string) => {
+    if (!confirm('Weet je zeker dat je deze factuur wilt verwijderen?')) return
+    
+    try {
+      await invoicesApi.delete(invoiceId)
+      setInvoices(invoices.filter(i => i.id !== invoiceId))
+    } catch (error) {
+      console.error('Error deleting invoice:', error)
+      alert('Kon factuur niet verwijderen')
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    )
   }
 
   const getStatusIcon = (status: Invoice['status']) => {
