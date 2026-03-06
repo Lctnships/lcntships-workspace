@@ -55,7 +55,8 @@ interface EmailAccount {
   isConnected: boolean
 }
 
-// For now we'll use localStorage as a fallback until IMAP is set up
+// Mock data for now - will be replaced with API calls
+const mockEmails: EmailMessage[] = [
   {
     id: '1',
     subject: 'Welkom bij je nieuwe Email Client!',
