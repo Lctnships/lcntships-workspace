@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import Papa from 'papaparse'
 import {
   Plus,
@@ -41,6 +42,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -2123,6 +2125,13 @@ export default function SalesPage() {
             <Send className="h-4 w-4" />
             Email Campagne
           </Button>
+
+          <Link href="/sales/sequences">
+            <Button variant="outline" className="gap-2">
+              <Clock className="h-4 w-4" />
+              Sequences
+            </Button>
+          </Link>
 
           <Button variant="outline" onClick={() => setShowCSVModal(true)}>
             <Upload className="h-4 w-4 mr-2" />
