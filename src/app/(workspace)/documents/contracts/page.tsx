@@ -23,12 +23,14 @@ import {
   Eye,
   Copy,
   ExternalLink,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
+import { contractsApi } from '@/lib/supabase'
 
 // Types
 interface Contract {
@@ -49,54 +51,6 @@ interface Contract {
   expiresAt?: string
   signatureUrl?: string
 }
-
-// Mock data
-const mockContracts: Contract[] = [
-  {
-    id: '1',
-    title: 'Partner Overeenkomst 2024',
-    description: 'Samenwerkingsovereenkomst voor studio verhuur',
-    customer: {
-      name: 'Jan Jansen',
-      email: 'jan@studioamsterdam.nl',
-      company: 'Studio Amsterdam B.V.',
-    },
-    status: 'signed',
-    fileName: 'partner_overeenkomst_2024.pdf',
-    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    sentAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-    signedAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 320 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    title: 'Service Level Agreement',
-    description: 'SLA voor Premium support',
-    customer: {
-      name: 'Lisa de Vries',
-      email: 'lisa@creativehub.nl',
-      company: 'Creative Hub',
-    },
-    status: 'sent',
-    fileName: 'sla_premium.pdf',
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'Huurovereenkomst Studio',
-    description: 'Lange termijn huur studio ruimte',
-    customer: {
-      name: 'Peter Bakker',
-      email: 'peter@musicstudio.nl',
-      company: 'Music Studio Rotterdam',
-    },
-    status: 'draft',
-    fileName: 'huurovereenkomst.pdf',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
 
 // Create/Edit Contract Modal
 interface ContractModalProps {
@@ -447,12 +401,50 @@ function ContractDetail({ contract, onClose, onSend, onCancel }: {
 }
 
 export default function ContractsPage() {
-  const [contracts, setContracts] = useState<Contract[]>(mockContracts)
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
   const [viewingContract, setViewingContract] = useState<Contract | null>(null)
+
+  // Load contracts from database
+  useEffect(() => {
+    loadContracts()
+  }, [])
+
+  const loadContracts = async () => {
+    try {
+      setIsLoading(true)
+      const data = await contractsApi.getAll()
+      // Transform data to match our interface
+      const transformed = data.map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        description: c.description,
+        customer: {
+          name: c.customer_name,
+          email: c.customer_email,
+          company: c.customer_company,
+        },
+        status: c.status,
+        fileUrl: c.file_url,
+        fileName: c.file_name,
+        createdAt: c.created_at,
+        sentAt: c.sent_at,
+        signedAt: c.signed_at,
+        expiresAt: c.expires_at,
+        signatureUrl: c.signature_url,
+      }))
+      setContracts(transformed)
+    } catch (error) {
+      console.error('Error loading contracts:', error)
+      alert('Kon contracten niet laden')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Filter contracts
   const filteredContracts = contracts.filter(contract => {
@@ -479,22 +471,79 @@ export default function ContractsPage() {
     expired: contracts.filter(c => c.status === 'expired').length,
   }
 
-  const handleSave = (contractData: Partial<Contract>) => {
-    if (selectedContract) {
-      setContracts(contracts.map(c =>
-        c.id === selectedContract.id
-          ? { ...c, ...contractData } as Contract
-          : c
-      ))
-    } else {
-      const newContract: Contract = {
-        id: Date.now().toString(),
-        ...contractData,
-        status: 'draft',
-        createdAt: new Date().toISOString(),
-      } as Contract
-      setContracts([...contracts, newContract])
+  const handleSave = async (contractData: Partial<Contract>) => {
+    try {
+      if (selectedContract) {
+        // Edit existing
+        await contractsApi.update(selectedContract.id, {
+          title: contractData.title,
+          description: contractData.description,
+          customer_name: contractData.customer?.name,
+          customer_email: contractData.customer?.email,
+          customer_company: contractData.customer?.company,
+          expires_at: contractData.expiresAt,
+        })
+      } else {
+        // Create new
+        await contractsApi.create({
+          title: contractData.title!,
+          description: contractData.description,
+          customer_name: contractData.customer!.name,
+          customer_email: contractData.customer!.email,
+          customer_company: contractData.customer?.company,
+          file_name: contractData.fileName,
+          expires_at: contractData.expiresAt,
+        })
+      }
+      
+      // Reload contracts
+      await loadContracts()
+    } catch (error) {
+      console.error('Error saving contract:', error)
+      alert('Kon contract niet opslaan')
     }
+  }
+
+  const handleSend = async (contractId: string) => {
+    try {
+      await contractsApi.send(contractId)
+      await loadContracts()
+    } catch (error) {
+      console.error('Error sending contract:', error)
+      alert('Kon contract niet versturen')
+    }
+  }
+
+  const handleCancel = async (contractId: string) => {
+    if (!confirm('Weet je zeker dat je dit contract wilt annuleren?')) return
+    
+    try {
+      await contractsApi.cancel(contractId)
+      await loadContracts()
+    } catch (error) {
+      console.error('Error cancelling contract:', error)
+      alert('Kon contract niet annuleren')
+    }
+  }
+
+  const handleDelete = async (contractId: string) => {
+    if (!confirm('Weet je zeker dat je dit contract wilt verwijderen?')) return
+    
+    try {
+      await contractsApi.delete(contractId)
+      setContracts(contracts.filter(c => c.id !== contractId))
+    } catch (error) {
+      console.error('Error deleting contract:', error)
+      alert('Kon contract niet verwijderen')
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    )
   }
 
   const sendContract = (contractId: string) => {
