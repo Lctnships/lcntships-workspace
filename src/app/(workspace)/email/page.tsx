@@ -663,9 +663,10 @@ export default function EmailPage() {
                     selectedEmail?.id === email.id && 'bg-indigo-50'
                   )}
                 >
-                  <button
-                    onClick={(e) => toggleStar(e, email.id)}
-                    className="mt-0.5"
+                  <span
+                    role="button"
+                    onClick={(e) => toggleStar(e as unknown as React.MouseEvent, email.id)}
+                    className="mt-0.5 cursor-pointer"
                   >
                     <Star
                       className={cn(
@@ -675,7 +676,7 @@ export default function EmailPage() {
                           : 'text-gray-300 hover:text-gray-400'
                       )}
                     />
-                  </button>
+                  </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn(
