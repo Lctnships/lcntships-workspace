@@ -31,7 +31,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { studiosApi, type Studio } from '@/lib/supabase'
+import { studiosApi, partnersApi, type Studio } from '@/lib/supabase'
 
 const statusConfig = {
   active: {
@@ -128,6 +128,7 @@ interface StudioFormData {
   address: string
   city: string
   postalCode: string
+  country: string
   operatingHours: {
     day: string
     enabled: boolean
@@ -145,9 +146,11 @@ interface StudioFormData {
   pricePerHour: string
 }
 
-function AddStudioModal({ isOpen, onClose }: AddStudioModalProps) {
+function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps & { onStudioAdded?: () => void }) {
   const [currentStep, setCurrentStep] = useState(1)
   const [mounted, setMounted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [formData, setFormData] = useState<StudioFormData>({
     name: '',
     category: '',
@@ -156,6 +159,7 @@ function AddStudioModal({ isOpen, onClose }: AddStudioModalProps) {
     address: '',
     city: '',
     postalCode: '',
+    country: '',
     operatingHours: [
       { day: 'Monday', enabled: true, open: '09:00', close: '18:00' },
       { day: 'Tuesday', enabled: true, open: '09:00', close: '18:00' },
@@ -182,13 +186,80 @@ function AddStudioModal({ isOpen, onClose }: AddStudioModalProps) {
     setFormData(prev => ({ ...prev, [key]: value }))
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1)
     } else {
-      // Submit
-      console.log('Submit:', formData)
-      handleClose()
+      // Submit to Supabase
+      setIsSubmitting(true)
+      setSubmitError(null)
+      
+      try {
+        // Get the first partner as host (for now)
+        const partners = await partnersApi.getAll()
+        const hostId = partners[0]?.id
+        
+        // Build operating hours string
+        const hoursString = formData.operatingHours
+          .filter(h => h.enabled)
+          .map(h => `${h.day}: ${h.open}-${h.close}`)
+          .join(', ')
+        
+        // Create the studio
+        await studiosApi.create({
+          title: formData.name,
+          description: formData.description,
+          type: formData.category || 'music', // default
+          location: `${formData.city}, ${formData.country || 'Netherlands'}`,
+          address: formData.address,
+          city: formData.city,
+          country: formData.country || 'Netherlands',
+          price_per_hour: parseFloat(formData.pricePerHour) || 0,
+          capacity: parseInt(formData.capacity) || 1,
+          host_id: hostId,
+          status: 'active',
+          is_published: true,
+          amenities: [],
+          rules: [],
+          images: [],
+        })
+        
+        // Reset and close
+        setFormData({
+          name: '',
+          category: '',
+          contactPerson: '',
+          description: '',
+          address: '',
+          city: '',
+          postalCode: '',
+          country: '',
+          operatingHours: [
+            { day: 'Monday', enabled: true, open: '09:00', close: '18:00' },
+            { day: 'Tuesday', enabled: true, open: '09:00', close: '18:00' },
+            { day: 'Wednesday', enabled: true, open: '09:00', close: '18:00' },
+            { day: 'Thursday', enabled: true, open: '09:00', close: '18:00' },
+            { day: 'Friday', enabled: true, open: '09:00', close: '20:00' },
+            { day: 'Saturday', enabled: false, open: '10:00', close: '16:00' },
+            { day: 'Sunday', enabled: false, open: '10:00', close: '16:00' },
+          ],
+          coverImage: null,
+          additionalImages: [],
+          instagram: '',
+          website: '',
+          spaceName: '',
+          capacity: '',
+          pricePerHour: '',
+        })
+        setCurrentStep(1)
+        onStudioAdded?.()
+        handleClose()
+      } catch (error: any) {
+        console.error('Error creating studio:', error)
+        setSubmitError(error.message || 'Failed to create studio')
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -613,22 +684,38 @@ function AddStudioModal({ isOpen, onClose }: AddStudioModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 bg-white border-t border-gray-100">
+        <div className="p-6 bg-white border-t border-gray-100 space-y-4">
+          {submitError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {submitError}
+            </div>
+          )}
+          <div className="flex items-center justify-between">
           <Button
             variant="ghost"
             onClick={handleBack}
-            disabled={currentStep === 1}
+            disabled={currentStep === 1 || isSubmitting}
             className="rounded-full px-6"
           >
             <ChevronRight className="h-4 w-4 mr-2 rotate-180" />
             Back
           </Button>
 
-          <Button onClick={handleNext} className="rounded-full px-8 h-12 shadow-lg shadow-indigo-200">
-            {currentStep === 4 ? 'Publish Studio' : 'Next Step'}
-            {currentStep < 4 && <ChevronRight className="h-4 w-4 ml-2" />}
-            {currentStep === 4 && <Check className="h-4 w-4 ml-2" />}
+          <Button onClick={handleNext} disabled={isSubmitting} className="rounded-full px-8 h-12 shadow-lg shadow-indigo-200">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                {currentStep === 4 ? 'Publish Studio' : 'Next Step'}
+                {currentStep < 4 && <ChevronRight className="h-4 w-4 ml-2" />}
+                {currentStep === 4 && <Check className="h-4 w-4 ml-2" />}
+              </>
+            )}
           </Button>
+          </div>
         </div>
       </div>
     </div>,
@@ -646,27 +733,29 @@ export default function StudiosPage() {
   const [loading, setLoading] = useState(true)
 
   // Fetch studios from Supabase
-  useEffect(() => {
-    async function fetchStudios() {
-      try {
-        const data = await studiosApi.getAll()
-        setStudios((data || []).map(s => ({
-          id: s.id,
-          title: s.title || (s as any).name || '',
-          location: s.location || s.city || '',
-          capacity: s.capacity,
-          status: s.status,
-          images: s.images,
-          avg_rating: s.avg_rating,
-          total_reviews: s.total_reviews,
-        })))
-      } catch (error) {
-        console.error('Error fetching studios:', error)
-        setStudios([])
-      } finally {
-        setLoading(false)
-      }
+  const fetchStudios = async () => {
+    try {
+      setLoading(true)
+      const data = await studiosApi.getAll()
+      setStudios((data || []).map(s => ({
+        id: s.id,
+        title: s.title || (s as any).name || '',
+        location: s.location || s.city || '',
+        capacity: s.capacity,
+        status: s.status,
+        images: s.images,
+        avg_rating: s.avg_rating,
+        total_reviews: s.total_reviews,
+      })))
+    } catch (error) {
+      console.error('Error fetching studios:', error)
+      setStudios([])
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchStudios()
   }, [])
 
@@ -784,7 +873,11 @@ export default function StudiosPage() {
       )}
 
       {/* Add Studio Modal */}
-      <AddStudioModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <AddStudioModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)}
+        onStudioAdded={fetchStudios}
+      />
     </div>
   )
 }

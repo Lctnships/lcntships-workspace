@@ -296,59 +296,140 @@ export const partnersApi = {
   }
 }
 
-// Customers API functions (using customers table)
+// Customers API functions (linked to profiles/users)
 export const customersApi = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false })
+    try {
+      // First try customers table
+      const { data: customersData, error: customersError } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data as Customer[]
+      if (!customersError && customersData && customersData.length > 0) {
+        return customersData as Customer[]
+      }
+
+      // Fallback: use profiles table
+      console.info('Customers table empty or error, falling back to profiles')
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (profilesError) {
+        console.warn('Profiles fetch error:', profilesError.message)
+        return []
+      }
+
+      // Map profiles to customers format
+      return (profilesData || []).map((p: { id: string; email: string | null; full_name: string | null; created_at: string }) => ({
+        id: p.id,
+        user_id: p.id,
+        full_name: p.full_name || 'Unknown',
+        email: p.email || '',
+        phone: '',
+        company: '',
+        total_bookings: 0,
+        total_spent: 0,
+        created_at: p.created_at,
+        updated_at: p.created_at,
+      })) as Customer[]
+
+    } catch (err) {
+      console.warn('Customers fetch failed:', err)
+      return []
+    }
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('id', id)
-      .single()
+    try {
+      // Try customers table first
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-    if (error) throw error
-    return data as Customer
+      if (!customerError && customerData) {
+        return customerData as Customer
+      }
+
+      // Fallback: use profiles
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (profileError || !profileData) {
+        return null
+      }
+
+      return {
+        id: profileData.id,
+        user_id: profileData.id,
+        full_name: profileData.full_name || 'Unknown',
+        email: profileData.email || '',
+        phone: '',
+        company: '',
+        total_bookings: 0,
+        total_spent: 0,
+        created_at: profileData.created_at,
+        updated_at: profileData.created_at,
+      } as Customer
+
+    } catch (err) {
+      console.warn('Customer fetch failed:', err)
+      return null
+    }
   },
 
   async create(customer: Partial<Customer>) {
-    const { data, error } = await supabase
-      .from('customers')
-      .insert(customer)
-      .select()
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .insert(customer)
+        .select()
+        .single()
 
-    if (error) throw error
-    return data as Customer
+      if (error) throw error
+      return data as Customer
+    } catch (err) {
+      console.warn('Customer create failed:', err)
+      throw err
+    }
   },
 
   async update(id: string, customer: Partial<Customer>) {
-    const { data, error } = await supabase
-      .from('customers')
-      .update(customer)
-      .eq('id', id)
-      .select()
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .update(customer)
+        .eq('id', id)
+        .select()
+        .single()
 
-    if (error) throw error
-    return data as Customer
+      if (error) throw error
+      return data as Customer
+    } catch (err) {
+      console.warn('Customer update failed:', err)
+      throw err
+    }
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('customers')
-      .delete()
-      .eq('id', id)
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', id)
 
-    if (error) throw error
+      if (error) throw error
+    } catch (err) {
+      console.warn('Customer delete failed:', err)
+      throw err
+    }
   }
 }
 

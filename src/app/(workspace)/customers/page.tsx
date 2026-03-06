@@ -440,7 +440,13 @@ export default function CustomersPage() {
     async function fetchCustomers() {
       try {
         const data = await customersApi.getAll()
-        setCustomers((data || []).map((c: Customer) => {
+        // Handle case where customers table doesn't exist
+        if (!data || data.length === 0) {
+          console.info('No customers found or customers table not available')
+          setCustomers([])
+          return
+        }
+        setCustomers(data.map((c: Customer) => {
           const nameParts = (c.full_name || 'Unknown User').split(' ')
           const totalSpent = c.total_spent || 0
           const totalBookings = c.total_bookings || 0
@@ -462,7 +468,7 @@ export default function CustomersPage() {
           }
         }))
       } catch (error) {
-        console.error('Error fetching customers:', error)
+        console.warn('Customers fetch error (table may not exist):', error)
         setCustomers([])
       } finally {
         setLoading(false)
