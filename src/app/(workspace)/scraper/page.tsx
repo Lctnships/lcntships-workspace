@@ -32,6 +32,7 @@ import {
   Zap,
   Filter,
   Trash2,
+  Target,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -461,6 +462,40 @@ export default function ScraperPage() {
 
   const reScrapeOne = (lead: Lead) => startEnrichment([lead])
 
+  const [pipelineAdded, setPipelineAdded] = useState<Set<string>>(new Set())
+
+  const addToPipeline = async (lead: Lead) => {
+    const payload = {
+      company_name: lead.name,
+      email: lead.email || undefined,
+      phone: lead.phone || undefined,
+      city: lead.city || undefined,
+      address: lead.address || undefined,
+      website: lead.website || undefined,
+      status: 'cold' as const,
+      source: 'scraper',
+      notes: lead.notes || undefined,
+      instagram: lead.instagram || undefined,
+      facebook: lead.facebook || undefined,
+      linkedin: lead.linkedin || undefined,
+      twitter: lead.twitter || undefined,
+    }
+    const { data: existing } = await supabase.from('sales_leads').select('id').eq('company_name', lead.name).maybeSingle()
+    const { error } = existing
+      ? await supabase.from('sales_leads').update(payload).eq('id', existing.id)
+      : await supabase.from('sales_leads').insert(payload)
+    if (!error) {
+      setPipelineAdded(prev => new Set([...prev, lead.id]))
+      setTimeout(() => setPipelineAdded(prev => { const n = new Set(prev); n.delete(lead.id); return n }), 2000)
+    }
+  }
+
+  const bulkAddToPipeline = async () => {
+    if (selected.size === 0) return
+    const target = sorted.filter(l => selected.has(l.id))
+    await Promise.all(target.map(l => addToPipeline(l)))
+  }
+
   // ── Stats ─────────────────────────────────────────────────────────────────
 
   const totalLeads = leads.length
@@ -741,6 +776,9 @@ export default function ScraperPage() {
             <option value="">Status wijzigen...</option>
             {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+          <Button size="sm" variant="outline" onClick={bulkAddToPipeline} className="gap-1.5 bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+            <Target className="h-3.5 w-3.5" /> Naar Pipeline
+          </Button>
           <Button size="sm" variant="outline" onClick={bulkDelete} className="gap-1.5 bg-white text-red-500 border-red-200 hover:bg-red-50 ml-auto">
             <Trash2 className="h-3.5 w-3.5" /> Verwijder
           </Button>
@@ -902,6 +940,16 @@ export default function ScraperPage() {
                             <MapPin className="h-3.5 w-3.5 text-gray-300" />
                           </a>
                         )}
+                        <button
+                          onClick={() => addToPipeline(lead)}
+                          className={cn('p-1.5 rounded-lg transition-colors', pipelineAdded.has(lead.id) ? 'bg-indigo-100' : 'hover:bg-indigo-50')}
+                          title="Voeg toe aan sales pipeline"
+                        >
+                          {pipelineAdded.has(lead.id)
+                            ? <Check className="h-3.5 w-3.5 text-indigo-600" />
+                            : <Target className="h-3.5 w-3.5 text-indigo-300" />
+                          }
+                        </button>
                       </div>
                     </td>
                   </tr>
