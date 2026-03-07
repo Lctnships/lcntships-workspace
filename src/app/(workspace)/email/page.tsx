@@ -5,7 +5,6 @@ import {
   Mail,
   Inbox,
   Send,
-  Archive,
   Trash2,
   Star,
   Search,
@@ -15,7 +14,6 @@ import {
   Paperclip,
   Reply,
   Forward,
-  MoreVertical,
   X,
   Loader2,
   AlertCircle,
@@ -23,13 +21,14 @@ import {
   Settings,
   Filter,
   Download,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import { emailsApi, emailTemplatesApi, supabase } from '@/lib/supabase'
 
 // Types
 interface EmailMessage {
@@ -45,42 +44,20 @@ interface EmailMessage {
   isStarred: boolean
   folder: 'inbox' | 'sent' | 'drafts' | 'trash' | 'spam'
   threadId?: string
+  uid?: number
 }
 
-interface EmailAccount {
+interface ImapAccount {
   id: string
-  email: string
   name: string
-  provider: 'gmail' | 'outlook' | 'imap'
-  isConnected: boolean
+  user: string
+  password: string
+  imapHost: string
+  imapPort: number
+  smtpHost: string
+  smtpPort: number
+  tls: boolean
 }
-
-// Mock data for now - will be replaced with API calls
-const mockEmails: EmailMessage[] = [
-  {
-    id: '1',
-    subject: 'Welkom bij je nieuwe Email Client!',
-    from: { name: 'lcntships Team', email: 'team@lcntships.com' },
-    to: [{ name: 'Jij', email: 'jij@bedrijf.nl' }],
-    date: new Date().toISOString(),
-    body: 'Hallo!\n\nWelkom bij de nieuwe Email Client van lcntships. Hier kun je al je zakelijke emails beheren.\n\nMet vriendelijke groet,\nHet lcntships Team',
-    html: '<p>Hallo!</p><p>Welkom bij de nieuwe Email Client van lcntships.</p><p>Met vriendelijke groet,<br>Het lcntships Team</p>',
-    isRead: false,
-    isStarred: false,
-    folder: 'inbox',
-  },
-  {
-    id: '2',
-    subject: 'Re: Samenwerking voorstel',
-    from: { name: 'Jan Jansen', email: 'jan@studioamsterdam.nl' },
-    to: [{ name: 'Jij', email: 'jij@bedrijf.nl' }],
-    date: new Date(Date.now() - 86400000).toISOString(),
-    body: 'Beste,\n\nBedankt voor je mail. Ik ben zeker geïnteresseerd in een samenwerking.\n\nGroeten,\nJan',
-    isRead: true,
-    isStarred: true,
-    folder: 'inbox',
-  },
-]
 
 // Email Compose Modal
 interface ComposeModalProps {
@@ -102,7 +79,7 @@ function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState('')
+  // selectedTemplate managed inline
   const [showTemplates, setShowTemplates] = useState(false)
 
   useEffect(() => {
@@ -124,7 +101,7 @@ function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps
     if (template) {
       setSubject(template.subject)
       setBody(template.body)
-      setSelectedTemplate(templateId)
+
       setShowTemplates(false)
     }
   }
@@ -250,40 +227,80 @@ function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps
 }
 
 // Email Settings Modal
-function EmailSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<'accounts' | 'templates' | 'signatures'>('accounts')
+function EmailSettingsModal({
+  isOpen,
+  onClose,
+  accounts,
+  onAccountsChange,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  accounts: ImapAccount[]
+  onAccountsChange: (accounts: ImapAccount[]) => void
+}) {
+  const [activeTab, setActiveTab] = useState<'accounts' | 'templates'>('accounts')
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newTemplateSubject, setNewTemplateSubject] = useState('')
   const [newTemplateBody, setNewTemplateBody] = useState('')
   const [showAddTemplate, setShowAddTemplate] = useState(false)
+  const [showAddAccount, setShowAddAccount] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [testingId, setTestingId] = useState<string | null>(null)
+  const [testResult, setTestResult] = useState<Record<string, 'ok' | 'error'>>({})
+  const [form, setForm] = useState({
+    name: '', user: '', password: '', imapHost: '', imapPort: '993', smtpHost: '', smtpPort: '587', tls: true,
+  })
 
-  // Load templates from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('emailTemplates')
-    if (saved) {
-      setTemplates(JSON.parse(saved))
-    }
+    if (saved) setTemplates(JSON.parse(saved))
   }, [isOpen])
+
+  const saveAccount = () => {
+    if (!form.name || !form.user || !form.password || !form.imapHost || !form.smtpHost) return
+    const newAccount: ImapAccount = {
+      id: Date.now().toString(),
+      name: form.name, user: form.user, password: form.password,
+      imapHost: form.imapHost, imapPort: Number(form.imapPort),
+      smtpHost: form.smtpHost, smtpPort: Number(form.smtpPort), tls: form.tls,
+    }
+    const updated = [...accounts, newAccount]
+    onAccountsChange(updated)
+    localStorage.setItem('imapAccounts', JSON.stringify(updated))
+    setForm({ name: '', user: '', password: '', imapHost: '', imapPort: '993', smtpHost: '', smtpPort: '587', tls: true })
+    setShowAddAccount(false)
+  }
+
+  const deleteAccount = (id: string) => {
+    const updated = accounts.filter(a => a.id !== id)
+    onAccountsChange(updated)
+    localStorage.setItem('imapAccounts', JSON.stringify(updated))
+  }
+
+  const testAccount = async (account: ImapAccount) => {
+    setTestingId(account.id)
+    try {
+      const res = await fetch('/api/email/imap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host: account.imapHost, port: account.imapPort, user: account.user, password: account.password, tls: account.tls, limit: 1 }),
+      })
+      setTestResult(prev => ({ ...prev, [account.id]: res.ok ? 'ok' : 'error' }))
+    } catch {
+      setTestResult(prev => ({ ...prev, [account.id]: 'error' }))
+    } finally {
+      setTestingId(null)
+    }
+  }
 
   const saveTemplate = () => {
     if (!newTemplateName || !newTemplateSubject) return
-    
-    const newTemplate: EmailTemplate = {
-      id: Date.now().toString(),
-      name: newTemplateName,
-      subject: newTemplateSubject,
-      body: newTemplateBody,
-    }
-    
+    const newTemplate: EmailTemplate = { id: Date.now().toString(), name: newTemplateName, subject: newTemplateSubject, body: newTemplateBody }
     const updated = [...templates, newTemplate]
     setTemplates(updated)
     localStorage.setItem('emailTemplates', JSON.stringify(updated))
-    
-    setNewTemplateName('')
-    setNewTemplateSubject('')
-    setNewTemplateBody('')
-    setShowAddTemplate(false)
+    setNewTemplateName(''); setNewTemplateSubject(''); setNewTemplateBody(''); setShowAddTemplate(false)
   }
 
   const deleteTemplate = (id: string) => {
@@ -297,7 +314,6 @@ function EmailSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl m-4 flex flex-col max-h-[90vh]">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold">Email Instellingen</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -305,21 +321,14 @@ function EmailSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-gray-100">
-          {[
-            { id: 'accounts', label: 'Accounts', icon: Mail },
-            { id: 'templates', label: 'Templates', icon: Filter },
-            { id: 'signatures', label: 'Handtekeningen', icon: Check },
-          ].map(tab => (
+          {([{ id: 'accounts', label: 'Accounts', icon: Mail }, { id: 'templates', label: 'Templates', icon: Filter }] as const).map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
                 'flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab.id
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
               <tab.icon className="h-4 w-4" />
@@ -328,102 +337,93 @@ function EmailSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
           ))}
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-auto p-6">
           {activeTab === 'accounts' && (
             <div className="space-y-6">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-                  <div>
-                    <h3 className="font-medium text-amber-900">Email integratie binnenkort beschikbaar</h3>
-                    <p className="text-sm text-amber-700 mt-1">
-                      We werken aan een volledige IMAP/SMTP integratie zodat je alle je bedrijfsmails hier kunt beheren.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900">Verbonden Accounts</h3>
-                <div className="bg-gray-50 rounded-xl p-6 text-center text-gray-500">
-                  <Mail className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>Nog geen email accounts verbonden</p>
-                  <Button className="mt-4" disabled>
-                    Account toevoegen (binnenkort)
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'templates' && (
-            <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Email Templates</h3>
-                <Button
-                  size="sm"
-                  onClick={() => setShowAddTemplate(true)}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Template toevoegen
+                <h3 className="font-semibold text-gray-900">Email Accounts</h3>
+                <Button size="sm" onClick={() => setShowAddAccount(!showAddAccount)} className="gap-2">
+                  <Plus className="h-4 w-4" /> Account toevoegen
                 </Button>
               </div>
 
-              {showAddTemplate && (
-                <div className="bg-gray-50 rounded-xl p-4 space-y-4">
-                  <Input
-                    placeholder="Template naam (bijv. Welkomstmail)"
-                    value={newTemplateName}
-                    onChange={(e) => setNewTemplateName(e.target.value)}
-                  />
-                  <Input
-                    placeholder="Standaard onderwerp"
-                    value={newTemplateSubject}
-                    onChange={(e) => setNewTemplateSubject(e.target.value)}
-                  />
-                  <textarea
-                    placeholder="Template inhoud..."
-                    value={newTemplateBody}
-                    onChange={(e) => setNewTemplateBody(e.target.value)}
-                    rows={4}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  />
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={saveTemplate}>Opslaan</Button>
-                    <Button size="sm" variant="outline" onClick={() => setShowAddTemplate(false)}>
-                      Annuleren
-                    </Button>
+              {showAddAccount && (
+                <div className="bg-gray-50 rounded-xl p-5 space-y-4 border border-gray-200">
+                  <h4 className="font-medium text-gray-900">IMAP / SMTP Account</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Weergavenaam</label>
+                      <Input placeholder="bijv. info@lcntships.com" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Email adres</label>
+                      <Input placeholder="jij@jouwdomein.nl" value={form.user} onChange={e => setForm(f => ({ ...f, user: e.target.value }))} />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Wachtwoord</label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Wachtwoord of app-wachtwoord"
+                          value={form.password}
+                          onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                          className="pr-10"
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">IMAP Server</label>
+                      <Input placeholder="imap.jouwdomein.nl" value={form.imapHost} onChange={e => setForm(f => ({ ...f, imapHost: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">IMAP Poort</label>
+                      <Input placeholder="993" value={form.imapPort} onChange={e => setForm(f => ({ ...f, imapPort: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">SMTP Server</label>
+                      <Input placeholder="smtp.jouwdomein.nl" value={form.smtpHost} onChange={e => setForm(f => ({ ...f, smtpHost: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">SMTP Poort</label>
+                      <Input placeholder="587" value={form.smtpPort} onChange={e => setForm(f => ({ ...f, smtpPort: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button size="sm" onClick={saveAccount} disabled={!form.name || !form.user || !form.password || !form.imapHost || !form.smtpHost}>Opslaan</Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowAddAccount(false)}>Annuleren</Button>
                   </div>
                 </div>
               )}
 
-              {templates.length === 0 ? (
+              {accounts.length === 0 && !showAddAccount ? (
                 <div className="bg-gray-50 rounded-xl p-8 text-center text-gray-500">
-                  <Filter className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>Nog geen templates</p>
-                  <p className="text-sm mt-1">Maak templates om sneller emails te schrijven</p>
+                  <Mail className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Nog geen email accounts</p>
+                  <p className="text-sm mt-1">Voeg je IMAP account toe om emails te lezen</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {templates.map(template => (
-                    <div
-                      key={template.id}
-                      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-indigo-300 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{template.name}</h4>
-                          <p className="text-sm text-gray-500 mt-1">{template.subject}</p>
-                          {template.body && (
-                            <p className="text-sm text-gray-400 mt-2 line-clamp-2">{template.body}</p>
-                          )}
+                  {accounts.map(account => (
+                    <div key={account.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold">
+                          {account.name.charAt(0).toUpperCase()}
                         </div>
-                        <button
-                          onClick={() => deleteTemplate(template.id)}
-                          className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
-                        >
+                        <div>
+                          <p className="font-medium text-gray-900">{account.name}</p>
+                          <p className="text-sm text-gray-500">{account.user} · {account.imapHost}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {testResult[account.id] === 'ok' && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Verbonden</span>}
+                        {testResult[account.id] === 'error' && <span className="text-xs text-red-500 font-medium flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Mislukt</span>}
+                        <Button size="sm" variant="outline" onClick={() => testAccount(account)} disabled={testingId === account.id}>
+                          {testingId === account.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Test'}
+                        </Button>
+                        <button onClick={() => deleteAccount(account.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -434,13 +434,47 @@ function EmailSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
             </div>
           )}
 
-          {activeTab === 'signatures' && (
+          {activeTab === 'templates' && (
             <div className="space-y-6">
-              <h3 className="font-semibold text-gray-900">Email Handtekeningen</h3>
-              <div className="bg-gray-50 rounded-xl p-8 text-center text-gray-500">
-                <Check className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>Handtekeningen binnenkort beschikbaar</p>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Email Templates</h3>
+                <Button size="sm" onClick={() => setShowAddTemplate(true)} className="gap-2">
+                  <Plus className="h-4 w-4" /> Template toevoegen
+                </Button>
               </div>
+              {showAddTemplate && (
+                <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                  <Input placeholder="Template naam" value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} />
+                  <Input placeholder="Standaard onderwerp" value={newTemplateSubject} onChange={e => setNewTemplateSubject(e.target.value)} />
+                  <textarea placeholder="Template inhoud..." value={newTemplateBody} onChange={e => setNewTemplateBody(e.target.value)} rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={saveTemplate}>Opslaan</Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowAddTemplate(false)}>Annuleren</Button>
+                  </div>
+                </div>
+              )}
+              {templates.length === 0 ? (
+                <div className="bg-gray-50 rounded-xl p-8 text-center text-gray-500">
+                  <Filter className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Nog geen templates</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {templates.map(template => (
+                    <div key={template.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-medium text-gray-900">{template.name}</h4>
+                          <p className="text-sm text-gray-500 mt-1">{template.subject}</p>
+                        </div>
+                        <button onClick={() => deleteTemplate(template.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -451,7 +485,9 @@ function EmailSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
 // Main Email Page
 export default function EmailPage() {
-  const [emails, setEmails] = useState<EmailMessage[]>(mockEmails)
+  const [emails, setEmails] = useState<EmailMessage[]>([])
+  const [accounts, setAccounts] = useState<ImapAccount[]>([])
+  const [activeAccount, setActiveAccount] = useState<ImapAccount | null>(null)
   const [selectedFolder, setSelectedFolder] = useState<'inbox' | 'sent' | 'drafts' | 'trash' | 'spam'>('inbox')
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -460,13 +496,23 @@ export default function EmailPage() {
   const [loading, setLoading] = useState(false)
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
 
-  // Load templates
+  // Load accounts + templates from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('emailTemplates')
-    if (saved) {
-      setTemplates(JSON.parse(saved))
+    const savedAccounts = localStorage.getItem('imapAccounts')
+    if (savedAccounts) {
+      const parsed: ImapAccount[] = JSON.parse(savedAccounts)
+      setAccounts(parsed)
+      if (parsed.length > 0) setActiveAccount(parsed[0])
     }
+    const savedTemplates = localStorage.getItem('emailTemplates')
+    if (savedTemplates) setTemplates(JSON.parse(savedTemplates))
   }, [isSettingsOpen])
+
+  // Auto-load emails when activeAccount changes
+  useEffect(() => {
+    if (activeAccount) refreshInbox()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccount?.id])
 
   // Filter emails by folder and search
   const filteredEmails = emails.filter(email => {
@@ -514,11 +560,28 @@ export default function EmailPage() {
   }
 
   const refreshInbox = useCallback(async () => {
+    if (!activeAccount) return
     setLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setLoading(false)
-  }, [])
+    try {
+      const res = await fetch('/api/email/imap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: activeAccount.imapHost,
+          port: activeAccount.imapPort,
+          user: activeAccount.user,
+          password: activeAccount.password,
+          tls: activeAccount.tls,
+        }),
+      })
+      const data = await res.json()
+      if (data.emails) setEmails(data.emails)
+    } catch (err) {
+      console.error('IMAP fetch failed:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [activeAccount])
 
   // Folder config
   const folders = [
@@ -642,11 +705,17 @@ export default function EmailPage() {
             <div className="h-full flex flex-col items-center justify-center text-gray-400">
               <Inbox className="h-16 w-16 mb-4 text-gray-200" />
               <p className="text-lg font-medium text-gray-600">
-                {searchQuery ? 'Geen emails gevonden' : 'Inbox is leeg'}
+                {!activeAccount ? 'Geen account verbonden' : searchQuery ? 'Geen emails gevonden' : loading ? 'Emails laden...' : 'Inbox is leeg'}
               </p>
               <p className="text-sm mt-1">
-                {searchQuery ? 'Probeer een andere zoekterm' : 'Nieuwe emails verschijnen hier'}
+                {!activeAccount ? 'Ga naar Instellingen om een IMAP account toe te voegen' : searchQuery ? 'Probeer een andere zoekterm' : 'Nieuwe emails verschijnen hier'}
               </p>
+              {!activeAccount && (
+                <Button className="mt-4 gap-2" onClick={() => setIsSettingsOpen(true)}>
+                  <Settings className="h-4 w-4" />
+                  Account toevoegen
+                </Button>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -824,6 +893,12 @@ export default function EmailPage() {
       <EmailSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        accounts={accounts}
+        onAccountsChange={(updated) => {
+          setAccounts(updated)
+          if (updated.length > 0 && !activeAccount) setActiveAccount(updated[0])
+          else if (updated.length === 0) setActiveAccount(null)
+        }}
       />
     </div>
   )
