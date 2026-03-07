@@ -119,6 +119,14 @@ export interface SalesLead {
   assigned_to?: string
   created_at?: string
   updated_at?: string
+  // Enrichment fields
+  instagram?: string
+  facebook?: string
+  linkedin?: string
+  twitter?: string
+  enriched?: boolean
+  enriched_at?: string
+  enrichment_error?: string
 }
 
 export interface LeadContact {
