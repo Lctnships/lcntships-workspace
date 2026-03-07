@@ -244,7 +244,7 @@ export default function EnrichmentPage() {
         twitter: data.socials?.twitter || lead.twitter || null,
         enriched: true,
         enriched_at: new Date().toISOString(),
-        enrichment_error: null,
+        enrichment_error: undefined,
       }
       await supabase.from('sales_leads').update(updates).eq('id', lead.id)
       updateLead(lead.id, updates)
@@ -295,7 +295,7 @@ export default function EnrichmentPage() {
             twitter: data.socials?.twitter || null,
             enriched: true,
             enriched_at: new Date().toISOString(),
-            enrichment_error: null,
+            enrichment_error: undefined,
           }
           await supabase.from('sales_leads').update(updates).eq('id', lead.id)
           updateLead(lead.id, updates)
