@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Mail,
   Sparkles,
+  Zap,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,7 @@ const businessNavItems = [
 const growthNavItems = [
   { href: '/sales', label: 'Sales Pipeline', icon: Rocket },
   { href: '/apollo', label: 'Apollo', icon: Search },
+  { href: '/scraper', label: 'Lead Scraper', icon: Zap },
   { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
 ]
