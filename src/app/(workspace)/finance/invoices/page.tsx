@@ -325,7 +325,43 @@ function InvoiceModal({ isOpen, onClose, invoice, onSave }: InvoiceModalProps) {
 }
 
 // Invoice Detail View
-function InvoiceDetail({ invoice, onClose, onMarkPaid }: { invoice: Invoice; onClose: () => void; onMarkPaid: () => void }) {
+function InvoiceDetail({ invoice, onClose, onMarkPaid, onSend }: { invoice: Invoice; onClose: () => void; onMarkPaid: () => void; onSend?: () => void }) {
+  const [sending, setSending] = useState(false)
+  
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await fetch(`/api/invoices/pdf?id=${invoice.id}`)
+      if (!response.ok) throw new Error('PDF generation failed')
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${invoice.invoiceNumber}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('PDF download error:', error)
+      alert('Kon PDF niet downloaden')
+    }
+  }
+  
+  const handleSend = async () => {
+    if (!onSend) return
+    setSending(true)
+    try {
+      await onSend()
+      alert('Factuur verstuurd!')
+    } catch (error) {
+      console.error('Send error:', error)
+      alert('Kon factuur niet versturen')
+    } finally {
+      setSending(false)
+    }
+  }
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl m-4 flex flex-col max-h-[90vh]">
@@ -440,14 +476,28 @@ function InvoiceDetail({ invoice, onClose, onMarkPaid }: { invoice: Invoice; onC
         {/* Actions */}
         <div className="flex items-center justify-between p-6 border-t border-gray-100">
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleDownloadPDF}>
               <Download className="h-4 w-4" />
               PDF
             </Button>
-            {invoice.status !== 'paid' && (
-              <Button variant="outline" className="gap-2">
-                <Send className="h-4 w-4" />
-                Versturen
+            {invoice.status !== 'paid' && onSend && (
+              <Button 
+                variant="outline" 
+                className="gap-2" 
+                onClick={handleSend}
+                disabled={sending}
+              >
+                {sending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Versturen...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Versturen
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -618,6 +668,44 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Error deleting invoice:', error)
       alert('Kon factuur niet verwijderen')
+    }
+  }
+
+  const sendInvoice = async (invoiceId: string) => {
+    try {
+      const invoice = invoices.find(i => i.id === invoiceId)
+      if (!invoice) return
+      
+      // Generate PDF first
+      const pdfResponse = await fetch('/api/invoices/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId })
+      })
+      
+      if (!pdfResponse.ok) throw new Error('PDF generation failed')
+      const { pdfUrl } = await pdfResponse.json()
+      
+      // Send email
+      const emailResponse = await fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: { name: invoice.customer.name, email: invoice.customer.email },
+          subject: `Factuur ${invoice.invoiceNumber}`,
+          message: `Beste ${invoice.customer.name},\n\nHierbij ontvangt u factuur ${invoice.invoiceNumber}.\n\nTotaalbedrag: € ${invoice.total.toFixed(2)}\nVervaldatum: ${format(new Date(invoice.dueDate), 'd MMMM yyyy', { locale: nl })}\n\nMet vriendelijke groet,\nlcntships`,
+          from: 'lcntships <team@lcntships.com>',
+        })
+      })
+      
+      if (!emailResponse.ok) throw new Error('Email send failed')
+      
+      // Update status to sent
+      await invoicesApi.update(invoiceId, { status: 'sent' })
+      await loadInvoices()
+    } catch (error) {
+      console.error('Error sending invoice:', error)
+      throw error
     }
   }
 
@@ -825,6 +913,7 @@ export default function InvoicesPage() {
           invoice={viewingInvoice}
           onClose={() => setViewingInvoice(null)}
           onMarkPaid={() => markAsPaid(viewingInvoice.id)}
+          onSend={() => sendInvoice(viewingInvoice.id)}
         />
       )}
     </div>
