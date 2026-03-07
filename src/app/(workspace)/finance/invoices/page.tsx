@@ -86,14 +86,14 @@ function InvoiceModal({ isOpen, onClose, invoice, onSave }: InvoiceModalProps) {
       setCustomer(invoice.customer)
       setItems(invoice.items)
       setNotes(invoice.notes || '')
-      setIssueDate(format(new Date(invoice.issueDate), 'yyyy-MM-dd'))
-      setDueDate(format(new Date(invoice.dueDate), 'yyyy-MM-dd'))
+          setIssueDate(format(new Date(invoice.issueDate), 'yyyy-MM-dd'))
+          setDueDate(format(new Date(invoice.dueDate), 'yyyy-MM-dd'))
     } else {
       setCustomer({ name: '', email: '', company: '', address: '' })
-      setItems([{ id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0, total: 0 }])
+          setItems([{ id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0, total: 0 }])
       setNotes('')
-      setIssueDate(format(new Date(), 'yyyy-MM-dd'))
-      setDueDate(format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'))
+          setIssueDate(format(new Date(), 'yyyy-MM-dd'))
+          setDueDate(format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'))
     }
   }, [invoice, isOpen])
 

@@ -51,6 +51,18 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === 'click' && linkUrl && supabaseAdmin) {
+      // Validate URL to prevent open redirect attacks (OWASP A07)
+      let parsedUrl: URL
+      try {
+        parsedUrl = new URL(linkUrl)
+      } catch {
+        return new NextResponse('Invalid URL', { status: 400 })
+      }
+      const allowedHosts = ['lcntships.com', 'www.lcntships.com', 'localhost']
+      if (!allowedHosts.includes(parsedUrl.hostname)) {
+        return new NextResponse('Redirect not allowed', { status: 403 })
+      }
+
       await supabaseAdmin.from('email_tracking').insert({
         email_id: emailId,
         tracking_type: 'click',

@@ -10,10 +10,21 @@ const supabaseAdmin = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey)
   : null
 
+// Escape HTML to prevent XSS injection in PDF (OWASP A03)
+function escapeHtml(str: unknown): string {
+  if (str == null) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 // Invoice HTML template
 function generateInvoiceHTML(invoice: any) {
   const formatDate = (date: string) => new Date(date).toLocaleDateString('nl-NL')
-  const formatCurrency = (amount: number) => 
+  const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount)
 
   return `
@@ -161,10 +172,10 @@ function generateInvoiceHTML(invoice: any) {
     </div>
     <div class="address-block">
       <h3>Aan</h3>
-      <p><strong>${invoice.customer_name}</strong></p>
-      ${invoice.customer_company ? `<p>${invoice.customer_company}</p>` : ''}
-      ${invoice.customer_address ? invoice.customer_address.split('\n').map((line: string) => `<p>${line}</p>`).join('') : ''}
-      <p>${invoice.customer_email}</p>
+      <p><strong>${escapeHtml(invoice.customer_name)}</strong></p>
+      ${invoice.customer_company ? `<p>${escapeHtml(invoice.customer_company)}</p>` : ''}
+      ${invoice.customer_address ? invoice.customer_address.split('\n').map((line: string) => `<p>${escapeHtml(line)}</p>`).join('') : ''}
+      <p>${escapeHtml(invoice.customer_email)}</p>
     </div>
   </div>
 
@@ -180,8 +191,8 @@ function generateInvoiceHTML(invoice: any) {
     <tbody>
       ${invoice.items?.map((item: any) => `
         <tr>
-          <td>${item.description}</td>
-          <td class="text-right">${item.quantity}</td>
+          <td>${escapeHtml(item.description)}</td>
+          <td class="text-right">${escapeHtml(item.quantity)}</td>
           <td class="text-right">${formatCurrency(item.unit_price)}</td>
           <td class="text-right">${formatCurrency(item.total)}</td>
         </tr>

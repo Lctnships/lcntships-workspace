@@ -59,6 +59,7 @@ function AddSpaceModal({ isOpen, onClose }: AddSpaceModalProps) {
   const [size, setSize] = useState('')
   const [pricePerHour, setPricePerHour] = useState('')
 
+   
   useEffect(() => {
     setMounted(true)
   }, [])

@@ -312,6 +312,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
   }
 
   // Ensure component is mounted before using portal
+   
   useEffect(() => {
     setMounted(true)
   }, [])

@@ -1,0 +1,7 @@
+organization=lctnships
+projectKey=lctnships
+serverUrl=https://sonarcloud.io
+serverVersion=8.0.0.82486
+dashboardUrl=https://sonarcloud.io/dashboard?id=lctnships
+ceTaskId=AZzIYizBfNvZXMfF-v28
+ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZzIYizBfNvZXMfF-v28

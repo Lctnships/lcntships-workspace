@@ -297,7 +297,7 @@ function EnrollModal({ isOpen, onClose, sequence }: { isOpen: boolean; onClose: 
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl m-4 flex flex-col max-h-[80vh]">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold">Leads toevoegen aan "{sequence.name}"</h2>
+            <h2 className="text-xl font-bold">Leads toevoegen aan &quot;{sequence.name}&quot;</h2>
             <p className="text-sm text-gray-500 mt-1">
               {leads.length} leads geselecteerd
             </p>

@@ -38,6 +38,13 @@ type SortField = 'company_name' | 'city' | 'status' | 'enriched'
 type SortDir = 'asc' | 'desc'
 type FilterType = 'all' | 'with_email' | 'without_email' | 'not_scraped' | 'errors'
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
+  if (sortField !== field) return <ChevronUp className="h-3.5 w-3.5 text-gray-300" />
+  return sortDir === 'asc'
+    ? <ChevronUp className="h-3.5 w-3.5 text-indigo-600" />
+    : <ChevronDown className="h-3.5 w-3.5 text-indigo-600" />
+}
+
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).catch(() => {
     const el = document.createElement('textarea')
@@ -153,6 +160,7 @@ export default function EnrichmentPage() {
     setLoading(false)
   }, [])
 
+   
   useEffect(() => { loadLeads() }, [loadLeads])
 
   // Stats
@@ -199,12 +207,6 @@ export default function EnrichmentPage() {
     else { setSortField(field); setSortDir('asc') }
   }
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ChevronUp className="h-3.5 w-3.5 text-gray-300" />
-    return sortDir === 'asc'
-      ? <ChevronUp className="h-3.5 w-3.5 text-indigo-600" />
-      : <ChevronDown className="h-3.5 w-3.5 text-indigo-600" />
-  }
 
   // Selection
   const toggleSelect = (id: string) => {
@@ -585,12 +587,12 @@ export default function EnrichmentPage() {
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
                   <button onClick={() => toggleSort('company_name')} className="flex items-center gap-1 hover:text-gray-900">
-                    Naam <SortIcon field="company_name" />
+                    Naam <SortIcon field="company_name" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
                   <button onClick={() => toggleSort('city')} className="flex items-center gap-1 hover:text-gray-900">
-                    Stad <SortIcon field="city" />
+                    Stad <SortIcon field="city" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Website</th>
@@ -598,12 +600,12 @@ export default function EnrichmentPage() {
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Socials</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
                   <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-gray-900">
-                    Status <SortIcon field="status" />
+                    Status <SortIcon field="status" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
                   <button onClick={() => toggleSort('enriched')} className="flex items-center gap-1 hover:text-gray-900">
-                    Enrichment <SortIcon field="enriched" />
+                    Enrichment <SortIcon field="enriched" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Acties</th>

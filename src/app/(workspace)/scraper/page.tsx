@@ -790,7 +790,7 @@ export default function ScraperPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
           <Zap className="h-16 w-16 mx-auto mb-4 text-gray-200" />
           <h2 className="text-xl font-semibold text-gray-700">Zoek je eerste leads</h2>
-          <p className="text-gray-400 mt-2 text-sm">Typ een zoekopdracht hierboven, bijv. "podcast studio Amsterdam"</p>
+          <p className="text-gray-400 mt-2 text-sm">Typ een zoekopdracht hierboven, bijv. &quot;podcast studio Amsterdam&quot;</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">

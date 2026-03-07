@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       user,
       password,
       tls: tls !== false,
-      tlsOptions: { rejectUnauthorized: false },
+      tlsOptions: { rejectUnauthorized: true },
       authTimeout: 10000,
     },
   }

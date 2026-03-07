@@ -73,6 +73,7 @@ const activityIcons = {
 export function RecentActivity() {
   const [activities, setActivities] = useState<Activity[]>([])
 
+   
   useEffect(() => {
     setActivities(createMockActivities())
   }, [])

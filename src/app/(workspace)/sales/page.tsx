@@ -47,8 +47,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact } from '@/lib/supabase'
-import { UserPlus, Users } from 'lucide-react'
+import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact, supabase } from '@/lib/supabase'
+import { UserPlus, Users, ArrowUpDown } from 'lucide-react'
 
 const sourceColorMap: Record<string, string> = {
   'Apollo': 'bg-purple-100 text-purple-700',
@@ -905,680 +905,774 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
 }
 
 // Email Campaign Types
-interface EmailLead {
-  email: string
-  naam: string
-  studio: string
-  stad: string
-  [key: string]: string
-}
 
-interface SendResult {
-  email: string
-  status: 'pending' | 'sent' | 'failed'
-  error?: string
-  id?: string
-  timestamp?: string
-}
+// Simple Email Campaign Modal - Direct leads selection + compose
 
-const DEFAULT_EMAIL_TEMPLATE = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <p style="font-size: 16px; color: #1a1a1a;">Hey {naam},</p>
+// ==================== ENHANCED EMAIL CAMPAIGN MODAL ====================
+// 2-step flow: 1) Select leads, 2) Compose with React Email preview
 
-  <p style="font-size: 16px; color: #333; line-height: 1.6;">
-    Snelle vraag: als je gratis een professionele video, foto's en een eigen boekingspagina voor <strong>{studio}</strong> kon krijgen — zou je dat willen?
-  </p>
-
-  <p style="font-size: 16px; color: #333; line-height: 1.6;">
-    Wij doen dit voor creatieve studio's in Nederland. Geen kosten, geen verplichtingen.
-  </p>
-
-  <p style="font-size: 16px; margin-top: 24px;">
-    <a href="https://wa.me/31612345678?text=Hey%20Rivaldo%2C%20vertel%20me%20meer%20over%20lcntships"
-       style="display: inline-block; padding: 12px 24px; background: #4F46E5; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-      Stuur me een berichtje →
-    </a>
-  </p>
-
-  <p style="font-size: 14px; color: #666; margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
-    Rivaldo<br/>
-    <a href="https://lcntships.com" style="color: #4F46E5;">lcntships.com</a>
-  </p>
-</div>`
-
-const DEFAULT_EMAIL_SUBJECT = 'Vraagje over {studio}'
-
-const EMAIL_STEPS = [
-  { id: 1, label: 'Upload CSV', icon: Upload },
-  { id: 2, label: 'Template', icon: Mail },
-  { id: 3, label: 'Preview & Test', icon: Eye },
-  { id: 4, label: 'Versturen', icon: Send },
-]
-
-function personalise(text: string, lead: EmailLead): string {
-  let result = text
-  for (const [key, value] of Object.entries(lead)) {
-    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '')
-  }
-  return result
-}
-
-// Email Campaign Modal Component
 interface EmailCampaignModalProps {
   isOpen: boolean
   onClose: () => void
   salesLeads: SalesLead[]
 }
 
+interface LeadEmailHistory {
+  sent_at: string
+  subject: string
+}
+
+interface Attachment {
+  name: string
+  size: number
+  type: string
+  url: string
+}
+
+const RESEND_DOMAINS = [
+  'team@lcntships.com',
+  'info@lcntships.com',
+  'sales@lcntships.com',
+  'kim@lcntships.com',
+]
+
+const DEFAULT_EMAIL_SUBJECT = 'Samenwerking met {{studio}}'
+const DEFAULT_EMAIL_TEMPLATE = `Beste {{naam}},
+
+Leuk kennis te maken! Ik ben {{sender_name}} van LCTNSHIPS, een marketplace waar we studenten verbinden met bedrijven voor afstudeerstages.
+
+Ik zag dat {{studio}} gevestigd is in {{stad}}. We zijn momenteel op zoek naar samenwerkingspartners in de creatieve sector voor onze ambitieuze studenten.
+
+Zijn jullie open voor een kort gesprek over hoe we elkaar kunnen versterken?
+
+Met vriendelijke groet,
+{{sender_name}}
+LCTNSHIPS`
+
 function EmailCampaignModal({ isOpen, onClose, salesLeads }: EmailCampaignModalProps) {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [useExistingLeads, setUseExistingLeads] = useState(false)
-
-  // Step 1: CSV Upload
-  const [leads, setLeads] = useState<EmailLead[]>([])
-  const [csvError, setCsvError] = useState<string | null>(null)
-  const [csvFileName, setCsvFileName] = useState<string>('')
-  const [dragActive, setDragActive] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Step 2: Template
+  // Steps: 1 = select leads, 2 = compose
+  const [step, setStep] = useState<1 | 2>(1)
+  
+  // Selection
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
+  
+  // Compose
   const [subject, setSubject] = useState(DEFAULT_EMAIL_SUBJECT)
-  const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_EMAIL_TEMPLATE)
+  const [message, setMessage] = useState(DEFAULT_EMAIL_TEMPLATE)
+  const [senderName, setSenderName] = useState('Kim')
+  const [senderEmail, setSenderEmail] = useState(RESEND_DOMAINS[0])
+  
+  // CTA Buttons
+  const [primaryButtonText, setPrimaryButtonText] = useState('Bekijk onze website')
+  const [primaryButtonUrl, setPrimaryButtonUrl] = useState('https://lcntships.com')
+  const [secondaryButtonText, setSecondaryButtonText] = useState('Plan een gesprek')
+  const [secondaryButtonUrl, setSecondaryButtonUrl] = useState('https://cal.com/lcntships')
+  
+  // Attachments
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Sending
+  const [isSending, setIsSending] = useState(false)
+  const [sendProgress, setSendProgress] = useState({ current: 0, total: 0 })
+  const [sendResults, setSendResults] = useState<{ success: number, failed: number } | null>(null)
+  
+  // Email history per lead
+  const [emailHistory, setEmailHistory] = useState<Record<string, LeadEmailHistory[]>>({})
+  // Preview lead selector
+  const [previewLeadIndex, setPreviewLeadIndex] = useState(0)
+  // React Email preview HTML
+  const [previewHtml, setPreviewHtml] = useState<string>('')
+  const [isRenderingPreview, setIsRenderingPreview] = useState(false)
 
-  // Step 3: Test
-  const [testEmail, setTestEmail] = useState('')
-  const [testSending, setTestSending] = useState(false)
-  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
+  const leadsWithEmail = salesLeads.filter(lead => lead.email)
+  const selectedLeads = leadsWithEmail.filter(l => selectedLeadIds.includes(l.id))
 
-  // Step 4: Sending
-  const [sending, setSending] = useState(false)
-  const [paused, setPaused] = useState(false)
-  const [results, setResults] = useState<SendResult[]>([])
-  const [showConfirm, setShowConfirm] = useState(false)
-  const pausedRef = useRef(false)
-  const abortRef = useRef(false)
-
-  // Load leads from sales pipeline
-  const loadFromPipeline = () => {
-    const emailLeads: EmailLead[] = salesLeads
-      .filter(l => l.email)
-      .map(l => ({
-        email: l.email!,
-        naam: l.contact_name || '',
-        studio: l.company_name,
-        stad: l.city || '',
-      }))
-    if (emailLeads.length === 0) {
-      setCsvError('Geen leads met email gevonden in je pipeline')
-      return
-    }
-    setLeads(emailLeads)
-    setUseExistingLeads(true)
-    setCsvFileName('Sales Pipeline')
-  }
-
-  // CSV parsing
-  const handleCSVFile = useCallback((file: File) => {
-    setCsvError(null)
-    setCsvFileName(file.name)
-    setUseExistingLeads(false)
-
-    if (!file.name.endsWith('.csv')) {
-      setCsvError('Alleen CSV bestanden zijn toegestaan')
-      return
-    }
-
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (result) => {
-        if (result.errors.length > 0) {
-          setCsvError(`CSV parsing error: ${result.errors[0].message}`)
-          return
-        }
-
-        const headers = result.meta.fields || []
-        const columnMap: Record<string, string> = {}
-        for (const h of headers) {
-          const lower = h.toLowerCase().trim()
-          if (['email', 'e-mail', 'mail', 'emailaddress', 'email address'].includes(lower)) columnMap[h] = 'email'
-          else if (['naam', 'name', 'contact', 'contact_name', 'contactpersoon', 'first name'].includes(lower)) columnMap[h] = 'naam'
-          else if (['studio', 'company', 'company_name', 'bedrijf', 'bedrijfsnaam', 'company name'].includes(lower)) columnMap[h] = 'studio'
-          else if (['stad', 'city', 'plaats', 'company city'].includes(lower)) columnMap[h] = 'stad'
-          else columnMap[h] = lower.replace(/\s+/g, '_')
-        }
-
-        const firstNameCol = headers.find(h => h.toLowerCase().trim() === 'first name')
-        const lastNameCol = headers.find(h => h.toLowerCase().trim() === 'last name')
-
-        const parsed: EmailLead[] = []
-        const seen = new Set<string>()
-
-        for (const row of result.data) {
-          const mapped: Record<string, string> = {}
-          for (const [original, target] of Object.entries(columnMap)) {
-            if (row[original]) mapped[target] = row[original].trim()
+  // Fetch email history when modal opens
+  useEffect(() => {
+    if (!isOpen) return
+    
+    const fetchHistory = async () => {
+      const history: Record<string, LeadEmailHistory[]> = {}
+      
+      for (const lead of leadsWithEmail) {
+        try {
+          const response = await fetch(`/api/leads/${lead.id}/emails`)
+          if (response.ok) {
+            const emails = await response.json()
+            if (emails.length > 0) {
+              history[lead.id] = emails.map((e: any) => ({
+                sent_at: e.sent_at,
+                subject: e.subject
+              }))
+            }
           }
-          if (firstNameCol && lastNameCol && !mapped.naam) {
-            const first = row[firstNameCol]?.trim() || ''
-            const last = row[lastNameCol]?.trim() || ''
-            if (first || last) mapped.naam = `${first} ${last}`.trim()
-          }
-          if (!mapped.email) continue
-          const emailLower = mapped.email.toLowerCase()
-          if (seen.has(emailLower)) continue
-          seen.add(emailLower)
-          parsed.push(mapped as EmailLead)
+        } catch {
+          // Silent fail
         }
-
-        if (parsed.length === 0) {
-          setCsvError('Geen geldige leads gevonden (email kolom vereist)')
-          return
-        }
-        setLeads(parsed)
-      },
-      error: (err) => {
-        setCsvError(`Kon het bestand niet lezen: ${err.message}`)
-      },
-    })
-  }, [])
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(false)
-    if (e.dataTransfer.files[0]) handleCSVFile(e.dataTransfer.files[0])
-  }
-
-  // Test send
-  const handleTestSend = async () => {
-    if (!testEmail) return
-    setTestSending(true)
-    setTestResult(null)
-    const sampleLead = leads[0] || { email: testEmail, naam: 'Test Gebruiker', studio: 'Test Studio', stad: 'Amsterdam' }
-    try {
-      const res = await fetch('/api/email/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: testEmail, subject: personalise(subject, sampleLead), html: personalise(htmlTemplate, sampleLead) }),
-      })
-      setTestResult(res.ok ? 'success' : 'error')
-    } catch {
-      setTestResult('error')
-    } finally {
-      setTestSending(false)
-    }
-  }
-
-  // Bulk send
-  const startBulkSend = async () => {
-    setShowConfirm(false)
-    setSending(true)
-    setPaused(false)
-    pausedRef.current = false
-    abortRef.current = false
-
-    const initialResults: SendResult[] = leads.map(l => ({ email: l.email, status: 'pending' as const }))
-    setResults(initialResults)
-
-    const BATCH_SIZE = 100
-    const DELAY_MS = 1100
-
-    for (let i = 0; i < leads.length; i += BATCH_SIZE) {
-      if (abortRef.current) break
-      while (pausedRef.current) {
-        await new Promise(r => setTimeout(r, 500))
-        if (abortRef.current) break
       }
-      if (abortRef.current) break
+      
+      setEmailHistory(history)
+    }
+    
+    fetchHistory()
+  }, [isOpen, leadsWithEmail])
 
-      const batch = leads.slice(i, i + BATCH_SIZE)
+  const toggleAll = () => {
+    if (selectedLeadIds.length === leadsWithEmail.length) {
+      setSelectedLeadIds([])
+    } else {
+      setSelectedLeadIds(leadsWithEmail.map(l => l.id))
+    }
+  }
+
+  const toggleLead = (id: string) => {
+    setSelectedLeadIds(prev =>
+      prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
+    )
+  }
+
+  const removeSelected = () => {
+    setSelectedLeadIds([])
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    
+    Array.from(files).forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const newAttachment: Attachment = {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: event.target?.result as string
+        }
+        setAttachments(prev => [...prev, newAttachment])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const getPreview = (text: string, lead: SalesLead) => {
+    return text
+      .replace(/\{\{naam\}\}/g, lead.contact_name || 'daar')
+      .replace(/\{\{studio\}\}/g, lead.company_name || 'jullie studio')
+      .replace(/\{\{stad\}\}/g, lead.city || 'jullie stad')
+      .replace(/\{\{sender_name\}\}/g, senderName)
+  }
+
+  // Render React Email preview
+  useEffect(() => {
+    if (step !== 2 || selectedLeads.length === 0) return
+    
+    const renderPreview = async () => {
+      setIsRenderingPreview(true)
+      const lead = selectedLeads[previewLeadIndex]
+      
       try {
-        const res = await fetch('/api/email/send', {
+        const response = await fetch('/api/email/preview-render', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ leads: batch, subject, htmlTemplate, batchIndex: Math.floor(i / BATCH_SIZE) }),
+          body: JSON.stringify({
+            contactName: lead.contact_name || '',
+            companyName: lead.company_name,
+            message: getPreview(message, lead),
+            senderName,
+            senderEmail,
+            primaryButtonText,
+            primaryButtonUrl,
+            secondaryButtonText,
+            secondaryButtonUrl,
+            attachments,
+          }),
         })
-        const data = await res.json()
-        if (data.results) {
-          setResults(prev => {
-            const updated = [...prev]
-            for (const r of data.results) {
-              const idx = updated.findIndex(u => u.email === r.email)
-              if (idx !== -1) updated[idx] = { ...updated[idx], status: r.status, error: r.error, id: r.id, timestamp: new Date().toISOString() }
-            }
-            return updated
-          })
+        
+        if (response.ok) {
+          const { html } = await response.json()
+          setPreviewHtml(html)
         }
-      } catch {
-        setResults(prev => {
-          const updated = [...prev]
-          for (const lead of batch) {
-            const idx = updated.findIndex(u => u.email === lead.email)
-            if (idx !== -1) updated[idx] = { ...updated[idx], status: 'failed', error: 'Network error' }
-          }
-          return updated
-        })
+      } catch (error) {
+        console.error('Preview render error:', error)
+      } finally {
+        setIsRenderingPreview(false)
       }
+    }
+    
+    renderPreview()
+  }, [step, selectedLeads, previewLeadIndex, message, senderName, senderEmail, primaryButtonText, primaryButtonUrl, secondaryButtonText, secondaryButtonUrl, attachments])
 
-      if (i + BATCH_SIZE < leads.length && !abortRef.current) {
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
+  const handleSend = async () => {
+    if (selectedLeadIds.length === 0) return
+    
+    setIsSending(true)
+    setSendProgress({ current: 0, total: selectedLeadIds.length })
+    setSendResults(null)
+
+    let success = 0
+    let failed = 0
+
+    const BATCH_SIZE = 50
+    const DELAY_MS = 1000
+
+    // Get current user ID for tracking
+    const { data: { user } } = await supabase.auth.getUser()
+    const userId = user?.id
+
+    for (let i = 0; i < selectedLeads.length; i += BATCH_SIZE) {
+      const batch = selectedLeads.slice(i, i + BATCH_SIZE)
+      
+      const batchPromises = batch.map(async (lead) => {
+        try {
+          const response = await fetch('/api/email/bulk-send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: lead.email,
+              subject: getPreview(subject, lead),
+              text: getPreview(message, lead),
+              html: renderEmailHtml(lead),
+              from: senderEmail,
+              leadId: lead.id,
+              userId: userId,
+              attachments: attachments,
+            }),
+          })
+
+          if (response.ok) {
+            success++
+          } else {
+            failed++
+          }
+        } catch {
+          failed++
+        }
+      })
+
+      await Promise.all(batchPromises)
+      setSendProgress({ current: Math.min(i + BATCH_SIZE, selectedLeads.length), total: selectedLeads.length })
+
+      if (i + BATCH_SIZE < selectedLeads.length) {
         await new Promise(r => setTimeout(r, DELAY_MS))
       }
     }
-    setSending(false)
-  }
 
-  const togglePause = () => { pausedRef.current = !pausedRef.current; setPaused(pausedRef.current) }
-  const stopSending = () => { abortRef.current = true; pausedRef.current = false; setPaused(false) }
+    setSendResults({ success, failed })
+    setIsSending(false)
 
-  const retryFailed = async () => {
-    const failedLeads = results.filter(r => r.status === 'failed').map(r => leads.find(l => l.email === r.email)).filter(Boolean) as EmailLead[]
-    if (failedLeads.length === 0) return
-    setResults(prev => prev.map(r => r.status === 'failed' ? { ...r, status: 'pending' as const } : r))
-    setSending(true)
-    pausedRef.current = false
-    abortRef.current = false
-    const BATCH_SIZE = 100
-    const DELAY_MS = 1100
-    for (let i = 0; i < failedLeads.length; i += BATCH_SIZE) {
-      if (abortRef.current) break
-      const batch = failedLeads.slice(i, i + BATCH_SIZE)
-      try {
-        const res = await fetch('/api/email/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leads: batch, subject, htmlTemplate, batchIndex: i }) })
-        const data = await res.json()
-        if (data.results) {
-          setResults(prev => { const updated = [...prev]; for (const r of data.results) { const idx = updated.findIndex(u => u.email === r.email); if (idx !== -1) updated[idx] = { ...updated[idx], status: r.status, error: r.error, id: r.id, timestamp: new Date().toISOString() } }; return updated })
-        }
-      } catch { /* keep as failed */ }
-      if (i + BATCH_SIZE < failedLeads.length) await new Promise(r => setTimeout(r, DELAY_MS))
+    if (failed === 0) {
+      setTimeout(() => {
+        handleClose()
+      }, 2000)
     }
-    setSending(false)
   }
 
-  const exportResults = () => {
-    const csv = ['email,status,error,timestamp', ...results.map(r => `"${r.email}","${r.status}","${r.error || ''}","${r.timestamp || ''}"`)].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `email-resultaten-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const sentCount = results.filter(r => r.status === 'sent').length
-  const failedCount = results.filter(r => r.status === 'failed').length
-  const pendingCount = results.filter(r => r.status === 'pending').length
-  const emailProgressPercent = results.length > 0 ? ((sentCount + failedCount) / results.length) * 100 : 0
-  const isDone = results.length > 0 && pendingCount === 0 && !sending
-
-  const resetCampaign = () => {
-    setCurrentStep(1)
-    setLeads([])
-    setResults([])
-    setCsvFileName('')
-    setCsvError(null)
-    setSubject(DEFAULT_EMAIL_SUBJECT)
-    setHtmlTemplate(DEFAULT_EMAIL_TEMPLATE)
-    setUseExistingLeads(false)
-    setTestResult(null)
-    setTestEmail('')
+  const renderEmailHtml = (lead: SalesLead) => {
+    const personalizedMessage = getPreview(message, lead)
+      .replace(/\n/g, '<br>')
+    
+    const attachmentsHtml = attachments.length > 0 ? `
+      <div style="margin-top: 20px; padding: 12px; background: #f3f4f6; border-radius: 8px;">
+        <p style="margin: 0 0 8px 0; font-size: 12px; color: #6b7280; font-weight: 600;">Bijlagen (${attachments.length}):</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          ${attachments.map(att => `
+            <span style="padding: 4px 8px; background: white; border-radius: 4px; font-size: 12px; color: #374151;">
+              📎 ${att.name}
+            </span>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''
+    
+    const buttonsHtml = (primaryButtonText || secondaryButtonText) ? `
+      <div style="margin-top: 24px; padding: 20px 0; border-top: 1px solid #e5e7eb;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          ${primaryButtonText && primaryButtonUrl ? `
+            <a href="${primaryButtonUrl}" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">
+              ${primaryButtonText}
+            </a>
+          ` : ''}
+          ${secondaryButtonText && secondaryButtonUrl ? `
+            <a href="${secondaryButtonUrl}" style="display: inline-block; padding: 12px 24px; background: white; color: #2563eb; text-decoration: none; border-radius: 6px; font-weight: 500; border: 2px solid #2563eb;">
+              ${secondaryButtonText}
+            </a>
+          ` : ''}
+        </div>
+      </div>
+    ` : ''
+    
+    return `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px;">
+        <div style="margin-bottom: 20px;">
+          ${personalizedMessage}
+        </div>
+        ${buttonsHtml}
+        ${attachmentsHtml}
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+          <p style="margin: 0;">Verstuurd door ${senderName} via LCTNSHIPS</p>
+        </div>
+      </div>
+    `
   }
 
   const handleClose = () => {
-    if (sending) return
-    resetCampaign()
+    setStep(1)
+    setSelectedLeadIds([])
+    setSendResults(null)
+    setIsSending(false)
+    setAttachments([])
+    setPreviewLeadIndex(0)
     onClose()
+  }
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   if (!isOpen) return null
 
-  const pipelineLeadsWithEmail = salesLeads.filter(l => l.email).length
-
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-8 overflow-y-auto">
-      <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-5xl m-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-6xl max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Email Campagne</h2>
-            <p className="text-sm text-gray-500 mt-1">Verstuur bulk emails naar je leads</p>
-          </div>
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {leads.length > 0 && currentStep < 4 && (
-              <Badge className="bg-indigo-100 text-indigo-700">
-                <Users className="h-3.5 w-3.5 mr-1.5" />
-                {leads.length} leads
-              </Badge>
-            )}
-            <button onClick={handleClose} disabled={sending} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="h-5 w-5 text-gray-400" />
-            </button>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {step === 1 ? 'Selecteer Leads' : 'Schrijf Email'}
+            </h2>
+            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+              Stap {step} van 2
+            </span>
           </div>
+          <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X size={20} />
+          </button>
         </div>
 
-        {/* Step Indicator */}
-        <div className="flex items-center gap-2 p-6 pb-0">
-          {EMAIL_STEPS.map((step, i) => {
-            const Icon = step.icon
-            const isActive = currentStep === step.id
-            const isCompleted = currentStep > step.id
-            return (
-              <div key={step.id} className="flex items-center gap-2">
+        {/* Step 1: Select Leads */}
+        {step === 1 && (
+          <>
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-4">
                 <button
-                  onClick={() => { if (!sending && (step.id <= currentStep || (step.id === 2 && leads.length > 0))) setCurrentStep(step.id) }}
-                  disabled={sending}
-                  className={cn(
-                    'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all',
-                    isActive && 'bg-indigo-600 text-white shadow-md',
-                    isCompleted && !isActive && 'bg-indigo-100 text-indigo-700 cursor-pointer',
-                    !isActive && !isCompleted && 'bg-gray-100 text-gray-400',
-                    sending && 'cursor-not-allowed opacity-60'
-                  )}
+                  onClick={toggleAll}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  {isCompleted && !isActive ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                  <span className="hidden sm:inline">{step.label}</span>
+                  {selectedLeadIds.length === leadsWithEmail.length ? 'Deselecteer alle' : 'Selecteer alle'}
                 </button>
-                {i < EMAIL_STEPS.length - 1 && <ChevronRight className={cn('h-4 w-4', isCompleted ? 'text-indigo-400' : 'text-gray-300')} />}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {/* Step 1: CSV Upload or Pipeline */}
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              {leads.length === 0 ? (
-                <>
-                  {/* Use from pipeline button */}
-                  {pipelineLeadsWithEmail > 0 && (
-                    <button
-                      onClick={loadFromPipeline}
-                      className="w-full p-4 border-2 border-indigo-200 bg-indigo-50 rounded-2xl hover:bg-indigo-100 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-indigo-100">
-                          <Users className="h-5 w-5 text-indigo-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-indigo-900">Gebruik leads uit je Sales Pipeline</p>
-                          <p className="text-sm text-indigo-600">{pipelineLeadsWithEmail} leads met email adres</p>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-indigo-400 ml-auto" />
-                      </div>
-                    </button>
-                  )}
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-                    <div className="relative flex justify-center"><span className="bg-white px-4 text-sm text-gray-500">of upload een CSV</span></div>
-                  </div>
-
-                  <div
-                    className={cn(
-                      'border-2 border-dashed rounded-2xl p-12 text-center transition-colors',
-                      dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
-                    )}
-                    onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
-                    onDragLeave={() => setDragActive(false)}
-                    onDrop={handleDrop}
+                {selectedLeadIds.length > 0 && (
+                  <button
+                    onClick={removeSelected}
+                    className="text-sm text-red-600 hover:text-red-700"
                   >
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-2 text-lg">
-                      Sleep je CSV bestand hierheen of{' '}
-                      <button onClick={() => fileInputRef.current?.click()} className="text-indigo-600 font-semibold hover:underline">blader</button>
-                    </p>
-                    <p className="text-sm text-gray-400">Ondersteunt Apollo exports, standaard CSV, en custom formaten</p>
-                    <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleCSVFile(e.target.files[0])} />
-                  </div>
+                    Verwijder selectie ({selectedLeadIds.length})
+                  </button>
+                )}
+              </div>
+              <span className="text-sm text-gray-500">
+                {selectedLeadIds.length} van {leadsWithEmail.length} geselecteerd
+              </span>
+            </div>
 
-                  {csvError && (
-                    <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl text-red-700">
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                      <p>{csvError}</p>
-                    </div>
-                  )}
-                </>
+            <div className="flex-1 overflow-y-auto max-h-[50vh]">
+              {leadsWithEmail.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <p>Geen leads met emailadres gevonden</p>
+                </div>
               ) : (
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-emerald-50">
-                        {useExistingLeads ? <Users className="h-5 w-5 text-emerald-600" /> : <FileSpreadsheet className="h-5 w-5 text-emerald-600" />}
+                <div className="divide-y divide-gray-100">
+                  {leadsWithEmail.map(lead => {
+                    const history = emailHistory[lead.id] || []
+                    const isSelected = selectedLeadIds.includes(lead.id)
+                    
+                    return (
+                      <div
+                        key={lead.id}
+                        onClick={() => toggleLead(lead.id)}
+                        className={`p-4 cursor-pointer hover:bg-gray-50 flex items-start gap-3 ${
+                          isSelected ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <Check size={12} className="text-white" />}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">{lead.contact_name || 'Onbekend'}</p>
+                            <span className="text-gray-400">•</span>
+                            <p className="text-gray-600">{lead.company_name}</p>
+                          </div>
+                          <p className="text-sm text-gray-500">{lead.email}</p>
+                          {lead.city && <p className="text-xs text-gray-400 mt-1">📍 {lead.city}</p>}
+                          
+                          {/* Email History Note */}
+                          {history.length > 0 && (
+                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                              <p className="font-medium text-yellow-700 mb-1">
+                                📧 Eerder verstuurd ({history.length}x):
+                              </p>
+                              <ul className="space-y-0.5">
+                                {history.slice(0, 2).map((h, i) => (
+                                  <li key={i} className="text-yellow-600">
+                                    {formatDate(h.sent_at)} - {h.subject.slice(0, 50)}{h.subject.length > 50 ? '...' : ''}
+                                  </li>
+                                ))}
+                                {history.length > 2 && (
+                                  <li className="text-yellow-600">+ {history.length - 2} meer...</li>
+                                )}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <span className="font-medium text-gray-900">{csvFileName}</span>
-                        <p className="text-sm text-gray-500">{leads.length} unieke emails</p>
-                      </div>
-                    </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Step 1 */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between">
+              <button
+                onClick={handleClose}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={() => setStep(2)}
+                disabled={selectedLeadIds.length === 0}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                Volgende <ChevronRight size={16} />
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step 2: Compose */}
+        {step === 2 && (
+          <>
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left: Compose Form */}
+              <div className="w-1/2 border-r border-gray-200 overflow-y-auto p-5 space-y-5">
+                {/* Sender */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Je naam</label>
+                    <input
+                      type="text"
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Verstuur vanaf</label>
+                    <select
+                      value={senderEmail}
+                      onChange={(e) => setSenderEmail(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {RESEND_DOMAINS.map(domain => (
+                        <option key={domain} value={domain}>{domain}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Subject */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp</label>
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  { }
+                  <p className="text-xs text-gray-500 mt-1">
+                    Variabelen: {'{naam}'}, {'{studio}'}, {'{stad}'}, {'{sender_name}'}
+                  </p>
+                </div>
+
+                {/* Message */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bericht</label>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    rows={10}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                  />
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Call-to-Action Buttons</h4>
+                  
+                  {/* Primary Button */}
+                  <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-emerald-100 text-emerald-700"><Check className="h-3 w-3 mr-1" />{leads.length} leads</Badge>
-                      <button onClick={() => { setLeads([]); setCsvFileName(''); setCsvError(null); setUseExistingLeads(false) }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <X className="h-4 w-4 text-gray-400" />
-                      </button>
+                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                      <span className="text-sm font-medium text-gray-600">Primaire knop</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={primaryButtonText}
+                        onChange={(e) => setPrimaryButtonText(e.target.value)}
+                        placeholder="Button tekst"
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={primaryButtonUrl}
+                        onChange={(e) => setPrimaryButtonUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
                     </div>
                   </div>
+                  
+                  {/* Secondary Button */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-white border-2 border-blue-500"></div>
+                      <span className="text-sm font-medium text-gray-600">Secundaire knop</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={secondaryButtonText}
+                        onChange={(e) => setSecondaryButtonText(e.target.value)}
+                        placeholder="Button tekst"
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={secondaryButtonUrl}
+                        onChange={(e) => setSecondaryButtonUrl(e.target.value)}
+                        placeholder="https://cal.com/..."
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                  <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-600 mb-2">Beschikbare velden voor personalisatie:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.keys(leads[0] || {}).map(key => (
-                        <Badge key={key} className="bg-purple-100 text-purple-700 font-mono text-xs">{`{${key}}`}</Badge>
+                {/* Attachments */}
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-gray-700">Bijlagen ({attachments.length})</h4>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <Upload size={14} /> Toevoegen
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </div>
+                  
+                  {attachments.length > 0 && (
+                    <div className="space-y-2">
+                      {attachments.map((att, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileSpreadsheet size={16} className="text-gray-400 flex-shrink-0" />
+                            <span className="text-sm text-gray-700 truncate">{att.name}</span>
+                            <span className="text-xs text-gray-400">({formatFileSize(att.size)})</span>
+                          </div>
+                          <button
+                            onClick={() => removeAttachment(i)}
+                            className="p-1 hover:bg-gray-200 rounded text-gray-400"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                       ))}
                     </div>
-                  </div>
-
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    <div className="max-h-60 overflow-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 sticky top-0">
-                          <tr>
-                            <th className="text-left p-3 font-medium text-gray-600">#</th>
-                            <th className="text-left p-3 font-medium text-gray-600">Email</th>
-                            <th className="text-left p-3 font-medium text-gray-600">Naam</th>
-                            <th className="text-left p-3 font-medium text-gray-600">Studio</th>
-                            <th className="text-left p-3 font-medium text-gray-600">Stad</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {leads.slice(0, 15).map((lead, i) => (
-                            <tr key={i} className="hover:bg-gray-50">
-                              <td className="p-3 text-gray-400">{i + 1}</td>
-                              <td className="p-3 text-gray-900">{lead.email}</td>
-                              <td className="p-3 text-gray-600">{lead.naam || '-'}</td>
-                              <td className="p-3 text-gray-600">{lead.studio || '-'}</td>
-                              <td className="p-3 text-gray-600">{lead.stad || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {leads.length > 15 && (
-                      <div className="p-3 bg-gray-50 text-center text-sm text-gray-500">... en {leads.length - 15} meer</div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end mt-4">
-                    <Button onClick={() => setCurrentStep(2)} className="gap-2">Volgende: Template <ChevronRight className="h-4 w-4" /></Button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Step 2: Template Editor */}
-          {currentStep === 2 && (
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Onderwerp</label>
-                  <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Bijv. Vraagje over {studio}" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">HTML Body</label>
-                  <textarea value={htmlTemplate} onChange={(e) => setHtmlTemplate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm resize-none" rows={14} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-2">Variabelen:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.keys(leads[0] || { naam: '', studio: '', stad: '', email: '' }).map(key => (
-                      <button key={key} onClick={() => setHtmlTemplate(prev => prev + `{${key}}`)} className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-mono hover:bg-purple-200 transition-colors">{`{${key}}`}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900">Preview</h3>
-                  <Badge className="bg-purple-100 text-purple-700"><Sparkles className="h-3 w-3 mr-1" />Lead #1</Badge>
-                </div>
-                <div className="mb-3 p-3 bg-gray-50 rounded-xl">
-                  <p className="text-xs text-gray-500 mb-1">Onderwerp:</p>
-                  <p className="font-medium text-gray-900">{personalise(subject, leads[0] || { email: 'test@example.com', naam: 'Jan Jansen', studio: 'Studio Amsterdam', stad: 'Amsterdam' })}</p>
-                </div>
-                <div className="border border-gray-200 rounded-xl p-4 overflow-auto max-h-[350px]">
-                  <div dangerouslySetInnerHTML={{ __html: personalise(htmlTemplate, leads[0] || { email: 'test@example.com', naam: 'Jan Jansen', studio: 'Studio Amsterdam', stad: 'Amsterdam' }) }} />
-                </div>
-                <div className="flex justify-between mt-4">
-                  <Button variant="outline" onClick={() => setCurrentStep(1)}>Terug</Button>
-                  <Button onClick={() => setCurrentStep(3)} className="gap-2">Volgende: Preview & Test <ChevronRight className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Preview & Test */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <div className="p-6 bg-gray-50 rounded-2xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-xl bg-amber-50"><TestTube className="h-5 w-5 text-amber-600" /></div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Test Email Versturen</h3>
-                    <p className="text-sm text-gray-500">Stuur eerst een test naar je eigen email</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <input type="email" value={testEmail} onChange={(e) => { setTestEmail(e.target.value); setTestResult(null) }} placeholder="jouw@email.com" className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-                  <Button onClick={handleTestSend} disabled={testSending || !testEmail} variant="outline" className="gap-2">
-                    {testSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Test Versturen
-                  </Button>
-                </div>
-                {testResult === 'success' && <div className="flex items-center gap-2 mt-3 text-emerald-600"><CheckCircle2 className="h-4 w-4" /><span className="text-sm">Test email succesvol verstuurd!</span></div>}
-                {testResult === 'error' && <div className="flex items-center gap-2 mt-3 text-red-600"><XCircle className="h-4 w-4" /><span className="text-sm">Test email mislukt. Check je RESEND_API_KEY.</span></div>}
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50 rounded-xl"><p className="text-sm text-gray-500">Ontvangers</p><p className="text-2xl font-bold text-gray-900">{leads.length}</p></div>
-                <div className="p-4 bg-gray-50 rounded-xl"><p className="text-sm text-gray-500">Onderwerp</p><p className="text-sm font-medium text-gray-900 truncate">{subject}</p></div>
-                <div className="p-4 bg-gray-50 rounded-xl"><p className="text-sm text-gray-500">Geschatte duur</p><p className="text-2xl font-bold text-gray-900">~{Math.ceil(leads.length / 100 * 1.1)}s</p></div>
-              </div>
-
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(2)}>Terug</Button>
-                <Button onClick={() => setShowConfirm(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700"><Send className="h-4 w-4" />Start Campagne</Button>
-              </div>
-
-              {showConfirm && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center">
-                  <div className="absolute inset-0 bg-black/50" onClick={() => setShowConfirm(false)} />
-                  <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md m-4 p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-3 rounded-full bg-amber-100"><AlertTriangle className="h-6 w-6 text-amber-600" /></div>
-                      <div><h3 className="text-lg font-bold text-gray-900">Bevestig Verzending</h3><p className="text-sm text-gray-500">Dit kan niet ongedaan worden gemaakt</p></div>
-                    </div>
-                    <div className="p-4 bg-amber-50 rounded-xl mb-6"><p className="text-amber-800">Je staat op het punt <strong>{leads.length} emails</strong> te versturen vanuit <strong>rivaldo@lcntships.com</strong>.</p></div>
-                    <div className="flex gap-3">
-                      <Button variant="outline" onClick={() => setShowConfirm(false)} className="flex-1">Annuleren</Button>
-                      <Button onClick={() => { startBulkSend(); setCurrentStep(4) }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 gap-2"><Send className="h-4 w-4" />Ja, Verstuur</Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 4: Sending & Results */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">{isDone ? 'Campagne Voltooid' : sending ? (paused ? 'Gepauzeerd' : 'Versturen...') : 'Klaar om te starten'}</h3>
-                  {sending && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={togglePause} className="gap-2">{paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}{paused ? 'Hervatten' : 'Pauzeren'}</Button>
-                      <Button variant="outline" size="sm" onClick={stopSending} className="gap-2 text-red-600 hover:bg-red-50"><X className="h-4 w-4" />Stop</Button>
-                    </div>
                   )}
                 </div>
+              </div>
 
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                    <span>Verzonden: {sentCount + failedCount} / {results.length}</span>
-                    <span>{Math.round(emailProgressPercent)}%</span>
-                  </div>
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={cn('h-full rounded-full transition-all duration-300', isDone && failedCount === 0 ? 'bg-emerald-500' : 'bg-indigo-500')} style={{ width: `${emailProgressPercent}%` }} />
+              {/* Right: Live Preview */}
+              <div className="w-1/2 bg-gray-100 overflow-y-auto">
+                {/* Preview Header */}
+                <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Live Preview</span>
+                      {selectedLeads.length > 1 && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setPreviewLeadIndex(prev => Math.max(0, prev - 1))}
+                            disabled={previewLeadIndex === 0}
+                            className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
+                          >
+                            ←
+                          </button>
+                          <span className="text-xs text-gray-500">
+                            {previewLeadIndex + 1} / {selectedLeads.length}
+                          </span>
+                          <button
+                            onClick={() => setPreviewLeadIndex(prev => Math.min(selectedLeads.length - 1, prev + 1))}
+                            disabled={previewLeadIndex === selectedLeads.length - 1}
+                            className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
+                          >
+                            →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400">{selectedLeads.length} leads</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 bg-emerald-50 rounded-xl text-center"><CheckCircle2 className="h-5 w-5 text-emerald-600 mx-auto mb-1" /><p className="text-2xl font-bold text-emerald-700">{sentCount}</p><p className="text-xs text-emerald-600">Verstuurd</p></div>
-                  <div className="p-4 bg-red-50 rounded-xl text-center"><XCircle className="h-5 w-5 text-red-600 mx-auto mb-1" /><p className="text-2xl font-bold text-red-700">{failedCount}</p><p className="text-xs text-red-600">Mislukt</p></div>
-                  <div className="p-4 bg-gray-50 rounded-xl text-center"><Loader2 className={cn('h-5 w-5 text-gray-400 mx-auto mb-1', sending && !paused && 'animate-spin')} /><p className="text-2xl font-bold text-gray-700">{pendingCount}</p><p className="text-xs text-gray-500">Wachtend</p></div>
-                </div>
+                {selectedLeads.length > 0 && (
+                  <div className="p-6">
+                    {/* React Email Preview */}
+                    <div className="relative bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden max-w-2xl mx-auto">
+                      {isRenderingPreview && (
+                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                          <Loader2 size={24} className="animate-spin text-blue-500" />
+                        </div>
+                      )}
+                      
+                      {/* Email Header Info */}
+                      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-gray-500">Van:</span>
+                          <span className="font-medium">{senderName}</span>
+                          <span className="text-gray-400">&lt;{senderEmail}&gt;</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm mt-1">
+                          <span className="text-gray-500">Aan:</span>
+                          <span className="font-medium">{selectedLeads[previewLeadIndex].contact_name || selectedLeads[previewLeadIndex].email}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm mt-1">
+                          <span className="text-gray-500">Onderwerp:</span>
+                          <span className="font-medium">{getPreview(subject, selectedLeads[previewLeadIndex])}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Rendered React Email HTML */}
+                      <div 
+                        className="w-full"
+                        dangerouslySetInnerHTML={{ __html: previewHtml }}
+                      />
+                    </div>
 
-                {isDone && (
-                  <div className="flex gap-3 mt-6 pt-6 border-t border-gray-100">
-                    {failedCount > 0 && <Button variant="outline" onClick={retryFailed} className="gap-2"><RotateCcw className="h-4 w-4" />{failedCount} Opnieuw Proberen</Button>}
-                    <Button variant="outline" onClick={exportResults} className="gap-2"><Download className="h-4 w-4" />Export CSV</Button>
-                    <Button onClick={resetCampaign} className="gap-2 ml-auto"><Mail className="h-4 w-4" />Nieuwe Campagne</Button>
+                    {/* Recipient Summary */}
+                    <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 max-w-xl mx-auto overflow-hidden">
+                      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-gray-700">Ontvangers ({selectedLeads.length})</h4>
+                        {attachments.length > 0 && (
+                          <span className="text-xs text-gray-500">+ {attachments.length} bijlage(s)</span>
+                        )}
+                      </div>
+                      <div className="max-h-32 overflow-y-auto divide-y divide-gray-100">
+                        {selectedLeads.slice(0, 10).map(lead => (
+                          <div key={lead.id} className="px-4 py-2 flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-xs text-white font-medium">
+                                {(lead.contact_name || lead.company_name).charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-gray-700">{lead.contact_name || lead.company_name}</span>
+                              {lead.city && <span className="text-xs text-gray-400">• {lead.city}</span>}
+                            </div>
+                            <span className="text-gray-400 text-xs truncate max-w-[150px]">{lead.email}</span>
+                          </div>
+                        ))}
+                        {selectedLeads.length > 10 && (
+                          <div className="px-4 py-2 text-sm text-gray-500 text-center">
+                            + {selectedLeads.length - 10} meer...
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
+            </div>
 
-              {results.length > 0 && (
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="max-h-64 overflow-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-medium text-gray-600">#</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Email</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Status</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Details</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {results.map((result, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="p-3 text-gray-400">{i + 1}</td>
-                            <td className="p-3 text-gray-900">{result.email}</td>
-                            <td className="p-3">
-                              {result.status === 'sent' && <Badge className="bg-emerald-100 text-emerald-700"><Check className="h-3 w-3 mr-1" />Verstuurd</Badge>}
-                              {result.status === 'failed' && <Badge className="bg-red-100 text-red-700"><X className="h-3 w-3 mr-1" />Mislukt</Badge>}
-                              {result.status === 'pending' && <Badge className="bg-gray-100 text-gray-600"><Loader2 className={cn('h-3 w-3 mr-1', sending && !paused && 'animate-spin')} />Wachtend</Badge>}
-                            </td>
-                            <td className="p-3 text-gray-500 text-xs">{result.error || result.id || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+            {/* Footer Step 2 */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              {sendResults && (
+                <div className={`mb-3 p-3 rounded-lg text-sm ${
+                  sendResults.failed === 0 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {sendResults.failed === 0 ? (
+                    <p>✅ Alle {sendResults.success} emails succesvol verzonden!</p>
+                  ) : (
+                    <p>✅ {sendResults.success} verzonden, ❌ {sendResults.failed} mislukt</p>
+                  )}
+                </div>
+              )}
+
+              {isSending && (
+                <div className="mb-3">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Verzenden...</span>
+                    <span>{sendProgress.current} / {sendProgress.total}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full transition-all"
+                      style={{ width: `${sendProgress.total > 0 ? (sendProgress.current / sendProgress.total) * 100 : 0}%` }}
+                    />
                   </div>
                 </div>
               )}
+
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setStep(1)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  disabled={isSending}
+                >
+                  ← Terug
+                </button>
+                <button
+                  onClick={handleSend}
+                  disabled={isSending}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSending ? (
+                    <><Loader2 size={16} className="animate-spin" /> Verzenden...</>
+                  ) : (
+                    <><Send size={16} /> Verstuur naar {selectedLeadIds.length} leads</>
+                  )}
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
-// Lead Detail View Component
 interface LeadDetailProps {
   lead: SalesLead
   contacts: LeadContact[]
@@ -1826,6 +1920,7 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
   )
 }
 
+
 export default function SalesPage() {
   const [leads, setLeads] = useState<SalesLead[]>([])
   const [loading, setLoading] = useState(true)
@@ -1838,6 +1933,11 @@ export default function SalesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [showStatusDropdown, setShowStatusDropdown] = useState(false)
+  
+  // Sorting
+  const [sortBy, setSortBy] = useState<'name' | 'city' | 'company' | 'date'>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [showSortDropdown, setShowSortDropdown] = useState(false)
 
   const loadLeads = async () => {
     try {
@@ -1905,6 +2005,31 @@ export default function SalesPage() {
     const matchesStatus = !statusFilter || lead.status === statusFilter
 
     return matchesSearch && matchesStatus
+  }).sort((a, b) => {
+    let valA: string | Date, valB: string | Date
+    
+    switch (sortBy) {
+      case 'city':
+        valA = (a.city || '').toLowerCase()
+        valB = (b.city || '').toLowerCase()
+        break
+      case 'company':
+        valA = (a.company_name || '').toLowerCase()
+        valB = (b.company_name || '').toLowerCase()
+        break
+      case 'name':
+        valA = (a.contact_name || '').toLowerCase()
+        valB = (b.contact_name || '').toLowerCase()
+        break
+      case 'date':
+      default:
+        valA = new Date(a.created_at || 0)
+        valB = new Date(b.created_at || 0)
+    }
+    
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+    return 0
   })
 
   // Calculate stats
@@ -2115,6 +2240,54 @@ export default function SalesPage() {
                     </button>
                   )
                 })}
+              </div>
+            )}
+          </div>
+          
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <ArrowUpDown className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-700">
+                {sortBy === 'name' ? 'Naam' : sortBy === 'city' ? 'Stad' : sortBy === 'company' ? 'Bedrijf' : 'Datum'}
+              </span>
+              <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+            </button>
+
+            {showSortDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10">
+                {[
+                  { key: 'date', label: 'Datum' },
+                  { key: 'name', label: 'Contact naam' },
+                  { key: 'company', label: 'Bedrijf' },
+                  { key: 'city', label: 'Stad' },
+                ].map((option) => (
+                  <div
+                    key={option.key}
+                    className={cn(
+                      'w-full px-4 py-2 hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer',
+                      sortBy === option.key && 'bg-gray-50 font-medium'
+                    )}
+                  >
+                    <button
+                      onClick={() => { setSortBy(option.key as any); setShowSortDropdown(false) }}
+                      className="flex-1 text-left"
+                    >
+                      {option.label}
+                    </button>
+                    {sortBy === option.key && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc') }}
+                        className="text-gray-400 hover:text-gray-600 ml-2"
+                      >
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
