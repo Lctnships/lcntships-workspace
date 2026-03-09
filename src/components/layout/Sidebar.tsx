@@ -79,11 +79,11 @@ function NavSection({ title, items, collapsed, pathname }: NavSectionProps) {
             className={cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
               isActive
-                ? 'bg-indigo-50 text-indigo-600'
+                ? 'bg-gray-100 text-gray-900'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
             )}
           >
-            <Icon className={cn('h-5 w-5 flex-shrink-0', isActive ? 'text-indigo-600' : 'text-gray-400')} />
+            <Icon className={cn('h-5 w-5 flex-shrink-0', isActive ? 'text-gray-900' : 'text-gray-400')} />
             {!collapsed && <span>{item.label}</span>}
           </Link>
         )
@@ -119,9 +119,11 @@ export function Sidebar() {
       >
         {/* Logo */}
         <div className={cn('flex items-center h-16 px-4 border-b border-gray-100', collapsed ? 'justify-center' : 'gap-3')}>
-          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-            <Building2 className="h-5 w-5 text-white" />
-          </div>
+          <img
+            src="/lcntships-logo.png"
+            alt="lcntships"
+            className="w-9 h-9 object-contain"
+          />
           {!collapsed && (
             <div className="flex flex-col">
               <span className="font-bold text-gray-900">lcntships</span>

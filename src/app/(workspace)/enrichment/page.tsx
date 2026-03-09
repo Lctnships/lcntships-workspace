@@ -41,8 +41,8 @@ type FilterType = 'all' | 'with_email' | 'without_email' | 'not_scraped' | 'erro
 function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
   if (sortField !== field) return <ChevronUp className="h-3.5 w-3.5 text-gray-300" />
   return sortDir === 'asc'
-    ? <ChevronUp className="h-3.5 w-3.5 text-indigo-600" />
-    : <ChevronDown className="h-3.5 w-3.5 text-indigo-600" />
+    ? <ChevronUp className="h-3.5 w-3.5 text-gray-900" />
+    : <ChevronDown className="h-3.5 w-3.5 text-gray-900" />
 }
 
 function copyToClipboard(text: string) {
@@ -116,7 +116,7 @@ function EditEmailModal({ lead, onSave, onClose }: EditEmailModalProps) {
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={3}
-            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
             placeholder="Voeg notities toe..."
           />
         </div>
@@ -392,7 +392,7 @@ export default function EnrichmentPage() {
           { label: 'Totaal leads', value: total, icon: Users, color: 'text-gray-600', bg: 'bg-gray-50' },
           { label: 'Met email', value: withEmail, icon: Mail, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Zonder email', value: withoutEmail, icon: Globe, color: 'text-amber-600', bg: 'bg-amber-50' },
-          { label: 'Nog te scrapen', value: notScraped, icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: 'Nog te scrapen', value: notScraped, icon: Clock, color: 'text-gray-900', bg: 'bg-gray-100' },
           { label: 'Fouten', value: errors, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -472,7 +472,7 @@ export default function EnrichmentPage() {
             </div>
             <div className="w-full bg-gray-100 rounded-full h-2">
               <div
-                className={cn('h-2 rounded-full transition-all', paused ? 'bg-amber-400' : 'bg-indigo-600')}
+                className={cn('h-2 rounded-full transition-all', paused ? 'bg-amber-400' : 'bg-gray-900')}
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -516,7 +516,7 @@ export default function EnrichmentPage() {
         <select
           value={cityFilter}
           onChange={e => setCityFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
         >
           <option value="">Alle steden</option>
           {cities.map(c => <option key={c} value={c}>{c}</option>)}
@@ -530,8 +530,8 @@ export default function EnrichmentPage() {
 
       {/* Bulk actions */}
       {selected.size > 0 && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
-          <span className="text-sm font-medium text-indigo-700">{selected.size} geselecteerd</span>
+        <div className="bg-gray-100 border border-gray-300 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium text-black">{selected.size} geselecteerd</span>
           <Button size="sm" variant="outline" onClick={copyAllEmails} className="gap-2 bg-white">
             <Copy className="h-3.5 w-3.5" />
             Kopieer emails
@@ -550,17 +550,17 @@ export default function EnrichmentPage() {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          <button onClick={selectNone} className="text-sm text-indigo-600 hover:text-indigo-800 ml-auto">Deselecteer</button>
+          <button onClick={selectNone} className="text-sm text-gray-900 hover:text-gray-800 ml-auto">Deselecteer</button>
         </div>
       )}
 
       {/* Select helpers */}
       <div className="flex items-center gap-2 text-sm">
-        <button onClick={selectAll} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+        <button onClick={selectAll} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
           <CheckSquare className="h-3.5 w-3.5" /> Selecteer alles ({sorted.length})
         </button>
         <span className="text-gray-300">·</span>
-        <button onClick={selectWithEmail} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+        <button onClick={selectWithEmail} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
           <Mail className="h-3.5 w-3.5" /> Met email ({sorted.filter(l => l.email).length})
         </button>
         {selected.size > 0 && (
@@ -631,7 +631,7 @@ export default function EnrichmentPage() {
                   key={lead.id}
                   className={cn(
                     'hover:bg-gray-50 transition-colors',
-                    selected.has(lead.id) && 'bg-indigo-50/50'
+                    selected.has(lead.id) && 'bg-gray-100/50'
                   )}
                 >
                   <td className="px-4 py-3">
@@ -666,7 +666,7 @@ export default function EnrichmentPage() {
                         href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 max-w-[140px] truncate"
+                        className="text-gray-900 hover:text-gray-800 flex items-center gap-1 max-w-[140px] truncate"
                       >
                         <Globe className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="truncate">{lead.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
@@ -680,7 +680,7 @@ export default function EnrichmentPage() {
                     {lead.email ? (
                       <div className="flex items-center gap-1">
                         <span
-                          className="text-gray-700 max-w-[160px] truncate cursor-pointer hover:text-indigo-600"
+                          className="text-gray-700 max-w-[160px] truncate cursor-pointer hover:text-gray-900"
                           onClick={() => { copyToClipboard(lead.email!); setCopiedId(lead.id); setTimeout(() => setCopiedId(null), 1500) }}
                           title={lead.email}
                         >
@@ -757,10 +757,10 @@ export default function EnrichmentPage() {
                       {lead.website && (
                         <button
                           onClick={() => enrichSingle(lead)}
-                          className="p-1.5 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                           title="Opnieuw scrapen"
                         >
-                          <RefreshCw className="h-3.5 w-3.5 text-indigo-400" />
+                          <RefreshCw className="h-3.5 w-3.5 text-gray-700" />
                         </button>
                       )}
                     </div>

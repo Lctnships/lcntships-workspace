@@ -65,9 +65,9 @@ interface StagedFile {
 
 function TagBadge({ tag, onRemove }: { tag: string; onRemove: () => void }) {
   return (
-    <div className="flex h-8 items-center gap-2 rounded-full bg-indigo-100 border border-indigo-200 px-3">
-      <span className="text-indigo-600 text-xs font-semibold">{tag}</span>
-      <button onClick={onRemove} className="text-indigo-400 hover:text-indigo-600 transition-colors">
+    <div className="flex h-8 items-center gap-2 rounded-full bg-gray-200 border border-gray-300 px-3">
+      <span className="text-gray-900 text-xs font-semibold">{tag}</span>
+      <button onClick={onRemove} className="text-gray-700 hover:text-gray-900 transition-colors">
         <X className="h-3 w-3" />
       </button>
     </div>
@@ -140,7 +140,7 @@ export default function UploadPage() {
       {/* Header */}
       <header className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-white">
         <div className="flex items-center gap-4">
-          <div className="w-6 h-6 text-indigo-600">
+          <div className="w-6 h-6 text-gray-900">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z" fill="currentColor" />
             </svg>
@@ -167,8 +167,8 @@ export default function UploadPage() {
             className={cn(
               'flex-1 flex flex-col items-center justify-center rounded-[40px] border-2 border-dashed p-12 text-center transition-all min-h-[400px]',
               isDragging
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-indigo-200 bg-white hover:border-indigo-400 hover:bg-indigo-50/50'
+                ? 'border-gray-900 bg-gray-100'
+                : 'border-gray-300 bg-white hover:border-gray-700 hover:bg-gray-100/50'
             )}
           >
             <div className="flex flex-col items-center gap-8 max-w-[520px]">
@@ -176,7 +176,7 @@ export default function UploadPage() {
               <div
                 className={cn(
                   'flex items-center justify-center w-28 h-28 rounded-full transition-colors',
-                  isDragging ? 'bg-indigo-200 text-indigo-600' : 'bg-indigo-100 text-indigo-600'
+                  isDragging ? 'bg-gray-300 text-gray-900' : 'bg-gray-200 text-gray-900'
                 )}
               >
                 <CloudUpload className="h-14 w-14" />
@@ -192,7 +192,7 @@ export default function UploadPage() {
               </div>
 
               <Button
-                className="min-w-[180px] h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-indigo-200"
+                className="min-w-[180px] h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-gray-300"
                 onClick={() => {
                   // Trigger file input click
                   document.getElementById('file-input')?.click()
@@ -234,8 +234,8 @@ export default function UploadPage() {
                     className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                        <File className="h-5 w-5 text-indigo-600" />
+                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <File className="h-5 w-5 text-gray-900" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">{file.name}</p>
@@ -266,7 +266,7 @@ export default function UploadPage() {
                     className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200"
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className="h-5 w-5 text-indigo-600" />
+                      <Icon className="h-5 w-5 text-gray-900" />
                       <span className="text-sm font-medium text-gray-900">{item.name}</span>
                     </div>
                     <span className="text-xs text-gray-400 flex items-center gap-1">
@@ -296,7 +296,7 @@ export default function UploadPage() {
                 <select
                   value={selectedFolder}
                   onChange={(e) => setSelectedFolder(e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50 p-4 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all pr-12"
+                  className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50 p-4 text-base focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all pr-12"
                 >
                   {folders.map((folder) => (
                     <option key={folder.id} value={folder.id}>
@@ -304,7 +304,7 @@ export default function UploadPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-600 pointer-events-none" />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-900 pointer-events-none" />
               </div>
             </div>
 
@@ -330,12 +330,12 @@ export default function UploadPage() {
                         }
                       }}
                       placeholder="Tag name..."
-                      className="h-8 px-3 text-xs rounded-full border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                      className="h-8 px-3 text-xs rounded-full border border-gray-300 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none"
                       autoFocus
                     />
                     <button
                       onClick={addTag}
-                      className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors"
+                      className="h-8 w-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-black transition-colors"
                     >
                       <Check className="h-4 w-4" />
                     </button>
@@ -343,7 +343,7 @@ export default function UploadPage() {
                 ) : (
                   <button
                     onClick={() => setShowTagInput(true)}
-                    className="flex h-8 items-center gap-2 rounded-full border border-dashed border-gray-300 px-3 text-gray-500 hover:bg-white hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                    className="flex h-8 items-center gap-2 rounded-full border border-dashed border-gray-300 px-3 text-gray-500 hover:bg-white hover:border-gray-600 hover:text-gray-900 transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     <span className="text-xs">Add tag</span>
@@ -363,7 +363,7 @@ export default function UploadPage() {
                   onClick={() => setIsPrivate(!isPrivate)}
                   className={cn(
                     'relative w-11 h-6 rounded-full transition-colors',
-                    isPrivate ? 'bg-indigo-600' : 'bg-gray-200'
+                    isPrivate ? 'bg-gray-900' : 'bg-gray-200'
                   )}
                 >
                   <span
@@ -381,8 +381,8 @@ export default function UploadPage() {
               className={cn(
                 'w-full h-14 rounded-full text-base font-bold transition-all',
                 canUpload
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
-                  : 'bg-indigo-100 text-indigo-400 border border-indigo-200 cursor-not-allowed'
+                  ? 'bg-gray-900 text-white hover:bg-black shadow-lg shadow-gray-300'
+                  : 'bg-gray-200 text-gray-700 border border-gray-300 cursor-not-allowed'
               )}
               disabled={!canUpload}
             >
@@ -392,8 +392,8 @@ export default function UploadPage() {
           </div>
 
           {/* Quick Help */}
-          <div className="p-5 rounded-xl bg-indigo-50 border border-indigo-100 flex gap-4">
-            <Info className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+          <div className="p-5 rounded-xl bg-gray-100 border border-gray-200 flex gap-4">
+            <Info className="h-5 w-5 text-gray-900 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-gray-600 leading-relaxed">
               Files uploaded to <strong className="text-gray-900">Contracts</strong> will automatically be
               shared with the legal team and encrypted by default.
@@ -403,8 +403,8 @@ export default function UploadPage() {
       </main>
 
       {/* Background Decoration */}
-      <div className="fixed top-0 right-0 -z-10 w-1/3 h-1/3 bg-indigo-500/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="fixed bottom-0 left-0 -z-10 w-1/4 h-1/4 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none" />
+      <div className="fixed top-0 right-0 -z-10 w-1/3 h-1/3 bg-gray-900/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="fixed bottom-0 left-0 -z-10 w-1/4 h-1/4 bg-gray-900/10 blur-[100px] rounded-full pointer-events-none" />
     </div>
   )
 }

@@ -24,34 +24,34 @@ export function GoalTracker({
   return (
     <div className="space-y-6">
       {/* Main Goal Card */}
-      <Card className="bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white border-0">
+      <Card className="bg-gradient-to-br from-gray-900 via-gray-900 to-purple-600 text-white border-0">
         <CardContent className="p-8">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <div className="flex items-center gap-2 text-indigo-100">
+              <div className="flex items-center gap-2 text-gray-200">
                 <Target className="h-5 w-5" />
                 <span className="text-lg font-medium">Road to 1,000 Studios</span>
               </div>
               <div className="mt-4 flex items-baseline gap-2">
                 <span className="text-6xl font-bold">{currentStudios}</span>
-                <span className="text-2xl text-indigo-200">/ {goalStudios}</span>
+                <span className="text-2xl text-gray-300">/ {goalStudios}</span>
               </div>
-              <p className="mt-2 text-indigo-200">studios onboarded</p>
+              <p className="mt-2 text-gray-300">studios onboarded</p>
             </div>
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2 bg-white/20 rounded-full px-4 py-2">
                 <TrendingUp className="h-4 w-4" />
                 <span className="font-medium">+{weeklyGrowth} this week</span>
               </div>
-              <p className="text-sm text-indigo-200">~{weeksToGoal} weeks to goal</p>
+              <p className="text-sm text-gray-300">~{weeksToGoal} weeks to goal</p>
             </div>
           </div>
 
           <Progress value={percentage} className="h-4 bg-white/20 [&>div]:bg-white" />
 
           <div className="flex items-center justify-between mt-4 text-sm">
-            <span className="text-indigo-200">{percentage}% complete</span>
-            <span className="text-indigo-200">{remaining} studios to go</span>
+            <span className="text-gray-300">{percentage}% complete</span>
+            <span className="text-gray-300">{remaining} studios to go</span>
           </div>
         </CardContent>
       </Card>

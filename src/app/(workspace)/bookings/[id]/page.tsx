@@ -114,7 +114,7 @@ export default function BookingDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -159,7 +159,7 @@ export default function BookingDetailPage() {
       <div className="flex items-center gap-2">
         <Link
           href="/bookings"
-          className="text-gray-500 text-sm font-medium hover:text-indigo-600 transition-colors"
+          className="text-gray-500 text-sm font-medium hover:text-gray-900 transition-colors"
         >
           Bookings
         </Link>
@@ -206,7 +206,7 @@ export default function BookingDetailPage() {
         {/* Tabs */}
         <div className="px-8 bg-gray-50/50">
           <div className="flex border-b border-gray-100 gap-8">
-            <button className="flex flex-col items-center justify-center border-b-2 border-indigo-600 text-indigo-600 pb-3 pt-4">
+            <button className="flex flex-col items-center justify-center border-b-2 border-gray-900 text-gray-900 pb-3 pt-4">
               <p className="text-sm font-bold leading-normal tracking-wide">
                 Details
               </p>
@@ -231,13 +231,13 @@ export default function BookingDetailPage() {
             {/* Customer Information */}
             <section>
               <div className="flex items-center gap-2 mb-6">
-                <User className="h-5 w-5 text-indigo-600" />
+                <User className="h-5 w-5 text-gray-900" />
                 <h2 className="text-xl font-bold text-gray-900">
                   Customer Information
                 </h2>
               </div>
               <div className="flex items-start gap-6 bg-gray-50 p-6 rounded-3xl">
-                <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-2xl font-black">
+                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 text-2xl font-black">
                   {customer?.full_name
                     ? getInitials(customer.full_name)
                     : '??'}
@@ -258,7 +258,7 @@ export default function BookingDetailPage() {
                     {customer?.email ? (
                       <a
                         href={`mailto:${customer.email}`}
-                        className="text-gray-900 font-medium hover:text-indigo-600 underline decoration-gray-200"
+                        className="text-gray-900 font-medium hover:text-gray-900 underline decoration-gray-200"
                       >
                         {customer.email}
                       </a>
@@ -283,7 +283,7 @@ export default function BookingDetailPage() {
             {/* Studio Information */}
             <section>
               <div className="flex items-center gap-2 mb-6">
-                <MapPin className="h-5 w-5 text-indigo-600" />
+                <MapPin className="h-5 w-5 text-gray-900" />
                 <h2 className="text-xl font-bold text-gray-900">
                   Studio Details
                 </h2>
@@ -298,7 +298,7 @@ export default function BookingDetailPage() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-gray-900/40 to-transparent" />
                     <div className="absolute bottom-4 left-6 flex items-center gap-2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg">
-                      <MapPin className="h-4 w-4 text-indigo-600" />
+                      <MapPin className="h-4 w-4 text-gray-900" />
                       <span className="text-xs font-bold text-gray-900">
                         {studio?.location || '-'}
                       </span>
@@ -354,7 +354,7 @@ export default function BookingDetailPage() {
             {(booking.notes || booking.special_requests) && (
               <section>
                 <div className="flex items-center gap-2 mb-6">
-                  <Clock className="h-5 w-5 text-indigo-600" />
+                  <Clock className="h-5 w-5 text-gray-900" />
                   <h2 className="text-xl font-bold text-gray-900">Notes</h2>
                 </div>
                 <div className="bg-gray-50 p-6 rounded-3xl">
@@ -420,17 +420,17 @@ export default function BookingDetailPage() {
               </div>
 
               {/* Total Amount */}
-              <div className="bg-indigo-50 p-6 rounded-2xl mb-8 border border-indigo-100">
+              <div className="bg-gray-100 p-6 rounded-2xl mb-8 border border-gray-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-indigo-600 font-bold text-lg">
+                  <span className="text-gray-900 font-bold text-lg">
                     Total Amount
                   </span>
-                  <span className="text-indigo-600 font-black text-3xl">
+                  <span className="text-gray-900 font-black text-3xl">
                     {formatCurrency(totalPrice)}
                   </span>
                 </div>
                 {booking.payment_status && (
-                  <p className="text-indigo-400 text-[10px] font-bold uppercase tracking-widest mt-2 text-right">
+                  <p className="text-gray-700 text-[10px] font-bold uppercase tracking-widest mt-2 text-right">
                     Payment: {booking.payment_status}
                   </p>
                 )}
@@ -461,13 +461,13 @@ export default function BookingDetailPage() {
         {/* Sticky Action Footer */}
         <div className="p-6 bg-white border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Button className="rounded-full px-8 h-14 shadow-lg shadow-indigo-200">
+            <Button className="rounded-full px-8 h-14 shadow-lg shadow-gray-300">
               <CheckCircle className="h-5 w-5 mr-2" />
               Check-in Customer
             </Button>
             <Button
               variant="outline"
-              className="rounded-full px-6 h-14 border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+              className="rounded-full px-6 h-14 border-2 border-gray-300 text-gray-900 hover:bg-gray-100"
             >
               <Send className="h-5 w-5 mr-2" />
               Send Message

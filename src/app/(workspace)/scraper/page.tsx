@@ -131,7 +131,7 @@ function StatusBadge({ status, onChange }: { status: string; onChange?: (s: stri
       value={status}
       onChange={e => onChange(e.target.value)}
       onClick={e => e.stopPropagation()}
-      className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400', styles[status] || 'bg-gray-100 text-gray-500')}
+      className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-700', styles[status] || 'bg-gray-100 text-gray-500')}
     >
       {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
     </select>
@@ -169,7 +169,7 @@ function EditLeadModal({ lead, onSave, onClose }: { lead: Lead; onSave: (id: str
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Notities</label>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
             placeholder="Voeg notities toe..." />
         </div>
         <div className="flex gap-2 justify-end">
@@ -229,6 +229,16 @@ export default function ScraperPage() {
       .order('created_at', { ascending: false })
       .limit(200)
     if (leadsData) setLeads(leadsData as Lead[])
+
+    // Load pipeline company names to detect which scraper leads are already in pipeline
+    const { data: pipelineData } = await supabase
+      .from('sales_leads')
+      .select('company_name')
+    if (pipelineData && leadsData) {
+      const pipelineNames = new Set(pipelineData.map((p: { company_name: string }) => p.company_name))
+      const existingIds = new Set((leadsData as Lead[]).filter(l => pipelineNames.has(l.name)).map(l => l.id))
+      setPipelineExisting(existingIds)
+    }
 
     // Load usage + history
     const res = await fetch('/api/search-leads')
@@ -381,7 +391,8 @@ export default function ScraperPage() {
     return true
   })
 
-  const sorted = [...filtered].sort((a, b) => {
+  const deduplicated = filtered.filter((lead, index, self) => self.findIndex(l => l.id === lead.id) === index)
+  const sorted = [...deduplicated].sort((a, b) => {
     let av: string | number = '', bv: string | number = ''
     if (sortField === 'name') { av = a.name || ''; bv = b.name || '' }
     if (sortField === 'city') { av = a.city || ''; bv = b.city || '' }
@@ -400,7 +411,7 @@ export default function ScraperPage() {
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronUp className="h-3 w-3 text-gray-300" />
-    return sortDir === 'asc' ? <ChevronUp className="h-3 w-3 text-indigo-600" /> : <ChevronDown className="h-3 w-3 text-indigo-600" />
+    return sortDir === 'asc' ? <ChevronUp className="h-3 w-3 text-gray-900" /> : <ChevronDown className="h-3 w-3 text-gray-900" />
   }
 
   // ── Selection & bulk actions ──────────────────────────────────────────────
@@ -409,6 +420,7 @@ export default function ScraperPage() {
   const selectAll = () => setSelected(new Set(sorted.map(l => l.id)))
   const selectNone = () => setSelected(new Set())
   const selectWithEmail = () => setSelected(new Set(sorted.filter(l => l.email).map(l => l.id)))
+  const selectNewOnly = () => setSelected(new Set(sorted.filter(l => !pipelineExisting.has(l.id) && !pipelineAdded.has(l.id)).map(l => l.id)))
 
   const copyAllEmails = () => {
     const target = selected.size > 0 ? sorted.filter(l => selected.has(l.id)) : sorted
@@ -463,6 +475,8 @@ export default function ScraperPage() {
   const reScrapeOne = (lead: Lead) => startEnrichment([lead])
 
   const [pipelineAdded, setPipelineAdded] = useState<Set<string>>(new Set())
+  const [pipelineExisting, setPipelineExisting] = useState<Set<string>>(new Set())
+  const [pipelineToast, setPipelineToast] = useState<{ count: number; visible: boolean } | null>(null)
 
   const addToPipeline = async (lead: Lead) => {
     const payload = {
@@ -494,6 +508,12 @@ export default function ScraperPage() {
     if (selected.size === 0) return
     const target = sorted.filter(l => selected.has(l.id))
     await Promise.all(target.map(l => addToPipeline(l)))
+    // Update existing set so they show as "already in pipeline"
+    setPipelineExisting(prev => new Set([...prev, ...target.map(l => l.id)]))
+    // Show success toast
+    setPipelineToast({ count: target.length, visible: true })
+    setTimeout(() => setPipelineToast(null), 4000)
+    selectNone()
   }
 
   // ── Stats ─────────────────────────────────────────────────────────────────
@@ -512,7 +532,7 @@ export default function ScraperPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Zap className="h-6 w-6 text-indigo-500" />
+            <Zap className="h-6 w-6 text-gray-900" />
             Lead Scraper
           </h1>
           <p className="text-sm text-gray-500 mt-1">Vind bedrijven via Google Maps en scrape automatisch hun emails</p>
@@ -521,7 +541,7 @@ export default function ScraperPage() {
           <button
             onClick={() => setShowHistory(!showHistory)}
             className={cn('flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-colors',
-              showHistory ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50')}
+              showHistory ? 'bg-gray-100 border-gray-300 text-black' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50')}
           >
             <History className="h-4 w-4" />
             Geschiedenis
@@ -544,14 +564,14 @@ export default function ScraperPage() {
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
               placeholder="bijv. fotostudio Amsterdam, podcast studio Utrecht..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-gray-50"
             />
           </div>
 
           <select
             value={selectedType}
             onChange={e => { setSelectedType(e.target.value); if (e.target.value) setQuery('') }}
-            className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900"
           >
             <option value="">Type studio...</option>
             {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -560,7 +580,7 @@ export default function ScraperPage() {
           <select
             value={selectedCity}
             onChange={e => setSelectedCity(e.target.value)}
-            className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900"
           >
             <option value="">Alle steden</option>
             {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -587,7 +607,7 @@ export default function ScraperPage() {
             </div>
             <div className="w-full bg-gray-100 rounded-full h-1.5">
               <div
-                className={cn('h-1.5 rounded-full transition-all', usagePercent >= 80 ? 'bg-red-400' : usagePercent >= 60 ? 'bg-amber-400' : 'bg-indigo-500')}
+                className={cn('h-1.5 rounded-full transition-all', usagePercent >= 80 ? 'bg-red-400' : usagePercent >= 60 ? 'bg-amber-400' : 'bg-gray-900')}
                 style={{ width: `${Math.min(usagePercent, 100)}%` }}
               />
             </div>
@@ -653,7 +673,7 @@ export default function ScraperPage() {
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2">
                 <div
-                  className={cn('h-2 rounded-full transition-all', enrichPaused ? 'bg-amber-400' : 'bg-indigo-600')}
+                  className={cn('h-2 rounded-full transition-all', enrichPaused ? 'bg-amber-400' : 'bg-gray-900')}
                   style={{ width: `${enrichProgressPercent}%` }}
                 />
               </div>
@@ -686,7 +706,7 @@ export default function ScraperPage() {
             <p className="text-xs text-gray-500 mt-1">Met email</p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
-            <p className="text-2xl font-bold text-indigo-600">{notScraped}</p>
+            <p className="text-2xl font-bold text-gray-900">{notScraped}</p>
             <p className="text-xs text-gray-500 mt-1">Nog te scrapen</p>
           </div>
         </div>
@@ -743,12 +763,16 @@ export default function ScraperPage() {
       {/* ── Select helpers + bulk actions ──────────────────────────────────── */}
       {leads.length > 0 && (
         <div className="flex items-center gap-3 flex-wrap text-sm">
-          <button onClick={selectAll} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+          <button onClick={selectAll} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
             <CheckSquare className="h-3.5 w-3.5" /> Alles ({sorted.length})
           </button>
           <span className="text-gray-300">·</span>
-          <button onClick={selectWithEmail} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+          <button onClick={selectWithEmail} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
             <Mail className="h-3.5 w-3.5" /> Met email ({sorted.filter(l => l.email).length})
+          </button>
+          <span className="text-gray-300">·</span>
+          <button onClick={selectNewOnly} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
+            <Target className="h-3.5 w-3.5" /> Alleen nieuw ({sorted.filter(l => !pipelineExisting.has(l.id) && !pipelineAdded.has(l.id)).length})
           </button>
           {selected.size > 0 && (
             <>
@@ -760,8 +784,8 @@ export default function ScraperPage() {
       )}
 
       {selected.size > 0 && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
-          <span className="text-sm font-medium text-indigo-700">{selected.size} geselecteerd</span>
+        <div className="bg-gray-100 border border-gray-300 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium text-black">{selected.size} geselecteerd</span>
           <Button size="sm" variant="outline" onClick={copyAllEmails} className="gap-1.5 bg-white">
             <Copy className="h-3.5 w-3.5" /> Kopieer emails
           </Button>
@@ -776,7 +800,7 @@ export default function ScraperPage() {
             <option value="">Status wijzigen...</option>
             {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <Button size="sm" variant="outline" onClick={bulkAddToPipeline} className="gap-1.5 bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+          <Button size="sm" variant="outline" onClick={bulkAddToPipeline} className="gap-1.5 bg-white text-gray-900 border-gray-300 hover:bg-gray-100">
             <Target className="h-3.5 w-3.5" /> Naar Pipeline
           </Button>
           <Button size="sm" variant="outline" onClick={bulkDelete} className="gap-1.5 bg-white text-red-500 border-red-200 hover:bg-red-50 ml-auto">
@@ -845,7 +869,7 @@ export default function ScraperPage() {
                     </td>
                   </tr>
                 ) : sorted.map(lead => (
-                  <tr key={lead.id} className={cn('hover:bg-gray-50/80 transition-colors', selected.has(lead.id) && 'bg-indigo-50/40')}>
+                  <tr key={lead.id} className={cn('hover:bg-gray-50/80 transition-colors', selected.has(lead.id) && 'bg-gray-100/40')}>
                     <td className="px-4 py-3">
                       <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)} className="rounded" />
                     </td>
@@ -857,7 +881,7 @@ export default function ScraperPage() {
                         <div>
                           <p className="font-medium text-gray-900 max-w-[160px] truncate">{lead.name}</p>
                           {lead.notes && <p className="text-xs text-amber-600 truncate max-w-[160px]">{lead.notes}</p>}
-                          {lead._duplicate && <span className="text-xs text-indigo-400">al aanwezig</span>}
+                          {lead._duplicate && <span className="text-xs text-gray-700">al aanwezig</span>}
                         </div>
                       </div>
                     </td>
@@ -878,7 +902,7 @@ export default function ScraperPage() {
                       {lead.website ? (
                         <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
                           target="_blank" rel="noopener noreferrer"
-                          className="text-indigo-500 hover:text-indigo-700 flex items-center gap-1 max-w-[130px]">
+                          className="text-gray-900 hover:text-black flex items-center gap-1 max-w-[130px]">
                           <Globe className="h-3.5 w-3.5 flex-shrink-0" />
                           <span className="truncate text-xs">{lead.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
                           <ExternalLink className="h-3 w-3 flex-shrink-0" />
@@ -931,8 +955,8 @@ export default function ScraperPage() {
                           <Edit2 className="h-3.5 w-3.5 text-gray-400" />
                         </button>
                         {lead.website && (
-                          <button onClick={() => reScrapeOne(lead)} className="p-1.5 hover:bg-indigo-50 rounded-lg" title="Scrape opnieuw">
-                            <RefreshCw className="h-3.5 w-3.5 text-indigo-300" />
+                          <button onClick={() => reScrapeOne(lead)} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Scrape opnieuw">
+                            <RefreshCw className="h-3.5 w-3.5 text-gray-600" />
                           </button>
                         )}
                         {lead.google_url && (
@@ -942,12 +966,12 @@ export default function ScraperPage() {
                         )}
                         <button
                           onClick={() => addToPipeline(lead)}
-                          className={cn('p-1.5 rounded-lg transition-colors', pipelineAdded.has(lead.id) ? 'bg-indigo-100' : 'hover:bg-indigo-50')}
+                          className={cn('p-1.5 rounded-lg transition-colors', pipelineAdded.has(lead.id) ? 'bg-gray-200' : 'hover:bg-gray-100')}
                           title="Voeg toe aan sales pipeline"
                         >
                           {pipelineAdded.has(lead.id)
-                            ? <Check className="h-3.5 w-3.5 text-indigo-600" />
-                            : <Target className="h-3.5 w-3.5 text-indigo-300" />
+                            ? <Check className="h-3.5 w-3.5 text-gray-900" />
+                            : <Target className="h-3.5 w-3.5 text-gray-600" />
                           }
                         </button>
                       </div>
@@ -962,6 +986,24 @@ export default function ScraperPage() {
 
       {/* ── Edit modal ─────────────────────────────────────────────────────── */}
       {editLead && <EditLeadModal lead={editLead} onSave={saveLead} onClose={() => setEditLead(null)} />}
+
+      {/* ── Pipeline success toast ───────────────────────────────────────── */}
+      {pipelineToast?.visible && (
+        <div className="fixed bottom-6 right-6 z-50 animate-fade-in">
+          <div className="flex items-center gap-3 bg-gray-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500">
+              <Check className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">{pipelineToast.count} lead{pipelineToast.count !== 1 ? 's' : ''} toegevoegd aan pipeline</p>
+              <p className="text-xs text-gray-400">Bekijk ze in Sales Pipeline</p>
+            </div>
+            <button onClick={() => setPipelineToast(null)} className="ml-2 p-1 rounded-full hover:bg-gray-800">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

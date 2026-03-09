@@ -67,15 +67,15 @@ function StudioCard({ studio }: { studio: StudioDisplay }) {
 
   return (
     <Link href={`/studios/${studio.id}`} className="group">
-      <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+      <div className="flex flex-col bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100">
         {/* Image */}
-        <div className="relative p-4">
+        <div className="relative p-2.5">
           <div
-            className="w-full aspect-[16/10] bg-cover bg-center rounded-xl bg-gray-100"
+            className="w-full aspect-[16/9] bg-cover bg-center rounded-lg bg-gray-100"
             style={{ backgroundImage: `url(${image})` }}
           />
           <div className={cn(
-            'absolute top-6 right-6 px-3 py-1 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider rounded-full',
+            'absolute top-4 right-4 px-2.5 py-0.5 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider rounded-full',
             status.bgColor
           )}>
             {status.label}
@@ -83,26 +83,26 @@ function StudioCard({ studio }: { studio: StudioDisplay }) {
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6 flex flex-col gap-3">
+        <div className="px-4 pb-4 flex flex-col gap-2">
           <div>
-            <h3 className="text-gray-900 text-xl font-bold leading-tight group-hover:text-indigo-600 transition-colors">
+            <h3 className="text-gray-900 text-base font-bold leading-tight group-hover:text-gray-900 transition-colors">
               {studio.title}
             </h3>
-            <div className="flex items-center gap-1 mt-1 text-gray-500">
-              <MapPin className="h-3.5 w-3.5" />
-              <span className="text-sm font-medium">{studio.location}</span>
+            <div className="flex items-center gap-1 mt-0.5 text-gray-500">
+              <MapPin className="h-3 w-3" />
+              <span className="text-xs font-medium">{studio.location}</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 mt-2">
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full">
-              <Building2 className="h-4 w-4 text-indigo-600" />
-              <span className="text-xs font-semibold text-gray-700">{studio.capacity || 1} Capacity</span>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            <div className="flex items-center gap-1 px-2.5 py-0.5 bg-gray-50 rounded-full">
+              <Building2 className="h-3.5 w-3.5 text-gray-900" />
+              <span className="text-[11px] font-semibold text-gray-700">{studio.capacity || 1} Capacity</span>
             </div>
             {studio.avg_rating && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full">
-                <BarChart3 className="h-4 w-4 text-indigo-600" />
-                <span className="text-xs font-semibold text-gray-700">{studio.avg_rating} Rating</span>
+              <div className="flex items-center gap-1 px-2.5 py-0.5 bg-gray-50 rounded-full">
+                <BarChart3 className="h-3.5 w-3.5 text-gray-900" />
+                <span className="text-[11px] font-semibold text-gray-700">{studio.avg_rating} Rating</span>
               </div>
             )}
           </div>
@@ -315,7 +315,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
             <div className="absolute top-5 left-0 w-full h-1 bg-gray-200 -z-10" />
             {/* Active Progress Line */}
             <div
-              className="absolute top-5 left-0 h-1 bg-indigo-600 -z-10 transition-all duration-500"
+              className="absolute top-5 left-0 h-1 bg-gray-900 -z-10 transition-all duration-500"
               style={{ width: `${progressPercentage - 12.5}%` }}
             />
 
@@ -325,7 +325,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                   className={cn(
                     'w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors',
                     currentStep >= step.number
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-gray-900 text-white'
                       : 'bg-gray-200 text-gray-500'
                   )}
                 >
@@ -338,7 +338,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                 <span
                   className={cn(
                     'text-xs font-medium',
-                    currentStep >= step.number ? 'text-indigo-600' : 'text-gray-500'
+                    currentStep >= step.number ? 'text-gray-900' : 'text-gray-500'
                   )}
                 >
                   {step.label}
@@ -372,7 +372,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                   <select
                     value={formData.category}
                     onChange={(e) => updateFormData('category', e.target.value)}
-                    className="h-14 rounded-full px-6 border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="h-14 rounded-full px-6 border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900"
                   >
                     <option value="">Select a category</option>
                     <option value="yoga">Yoga</option>
@@ -403,7 +403,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                     placeholder="Tell potential clients about what makes your studio unique..."
                     value={formData.description}
                     onChange={(e) => updateFormData('description', e.target.value)}
-                    className="min-h-[160px] rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    className="min-h-[160px] rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
                   />
                   <p className="text-xs text-gray-500 px-2">Maximum 500 characters.</p>
                 </div>
@@ -417,7 +417,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
               {/* Location */}
               <div className="bg-white rounded-2xl p-8 border border-gray-100">
                 <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-indigo-600" />
+                  <MapPin className="h-5 w-5 text-gray-900" />
                   Where is your studio located?
                 </h3>
 
@@ -470,7 +470,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
               <div className="bg-white rounded-2xl p-8 border border-gray-100">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-indigo-600" />
+                    <Clock className="h-5 w-5 text-gray-900" />
                     Operating Hours
                   </h3>
                 </div>
@@ -492,7 +492,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                           onChange={() => toggleDayEnabled(index)}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600" />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900" />
                       </label>
                       <div className="flex-1 flex gap-2 items-center">
                         <input
@@ -504,7 +504,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                             newHours[index].open = e.target.value
                             updateFormData('operatingHours', newHours)
                           }}
-                          className="w-full p-2 text-sm bg-gray-50 border-none rounded-lg focus:ring-1 focus:ring-indigo-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          className="w-full p-2 text-sm bg-gray-50 border-none rounded-lg focus:ring-1 focus:ring-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         />
                         <span className="text-xs text-gray-400">to</span>
                         <input
@@ -516,7 +516,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                             newHours[index].close = e.target.value
                             updateFormData('operatingHours', newHours)
                           }}
-                          className="w-full p-2 text-sm bg-gray-50 border-none rounded-lg focus:ring-1 focus:ring-indigo-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          className="w-full p-2 text-sm bg-gray-50 border-none rounded-lg focus:ring-1 focus:ring-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -534,8 +534,8 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Cover Photo</h3>
                 <p className="text-sm text-gray-500 mb-6">This image appears at the top of your listing (Min 1920x1080).</p>
 
-                <div className="border-2 border-dashed border-indigo-200 bg-indigo-50/50 rounded-2xl p-12 flex flex-col items-center gap-4 cursor-pointer hover:border-indigo-400 transition-colors">
-                  <div className="bg-white p-4 rounded-full shadow-sm text-indigo-600">
+                <div className="border-2 border-dashed border-gray-300 bg-gray-100/50 rounded-2xl p-12 flex flex-col items-center gap-4 cursor-pointer hover:border-gray-700 transition-colors">
+                  <div className="bg-white p-4 rounded-full shadow-sm text-gray-900">
                     <Upload className="h-8 w-8" />
                   </div>
                   <div className="text-center">
@@ -552,7 +552,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                 <p className="text-sm text-gray-500 mb-6">Add up to 10 more images of your space and equipment.</p>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-indigo-400 transition-colors">
+                  <div className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-gray-700 transition-colors">
                     <Plus className="h-6 w-6 text-gray-400" />
                     <span className="text-xs font-medium text-gray-500">Add Photo</span>
                   </div>
@@ -650,10 +650,10 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
               </div>
 
               {/* Review Summary */}
-              <div className="bg-indigo-50 rounded-2xl p-8 border border-indigo-100">
+              <div className="bg-gray-100 rounded-2xl p-8 border border-gray-200">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-widest">Review Studio Details</h3>
-                  <button className="text-indigo-600 font-bold text-sm hover:underline">Edit All</button>
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Review Studio Details</h3>
+                  <button className="text-gray-900 font-bold text-sm hover:underline">Edit All</button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -665,14 +665,14 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
                     <div>
                       <p className="text-xs font-bold text-gray-400 uppercase mb-1">Location</p>
                       <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-indigo-600 mt-0.5" />
+                        <MapPin className="h-4 w-4 text-gray-900 mt-0.5" />
                         <p className="text-gray-600">{formData.address || formData.city || 'Not specified'}</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-white rounded-xl p-4 border border-gray-100 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900">
                       <Camera className="h-5 w-5" />
                     </div>
                     <p className="text-sm text-gray-500">Photos and media will be displayed on your listing.</p>
@@ -701,7 +701,7 @@ function AddStudioModal({ isOpen, onClose, onStudioAdded }: AddStudioModalProps 
             Back
           </Button>
 
-          <Button onClick={handleNext} disabled={isSubmitting} className="rounded-full px-8 h-12 shadow-lg shadow-indigo-200">
+          <Button onClick={handleNext} disabled={isSubmitting} className="rounded-full px-8 h-12 shadow-lg shadow-gray-300">
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -784,7 +784,7 @@ export default function StudiosPage() {
           </Button>
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="rounded-full h-11 px-6 gap-2 shadow-lg shadow-indigo-200"
+            className="rounded-full h-11 px-6 gap-2 shadow-lg shadow-gray-300"
           >
             <Plus className="h-4 w-4" />
             Add Studio
@@ -818,9 +818,9 @@ export default function StudiosPage() {
               <span className="text-gray-700 text-sm font-medium">Studio Type: {typeFilter}</span>
               <ChevronDown className="h-4 w-4 text-gray-500" />
             </button>
-            <button className="flex h-10 items-center gap-2 rounded-full bg-indigo-50 border border-indigo-200 px-4">
-              <span className="text-indigo-600 text-sm font-semibold">Status: {statusFilter}</span>
-              <ChevronDown className="h-4 w-4 text-indigo-600" />
+            <button className="flex h-10 items-center gap-2 rounded-full bg-gray-100 border border-gray-300 px-4">
+              <span className="text-gray-900 text-sm font-semibold">Status: {statusFilter}</span>
+              <ChevronDown className="h-4 w-4 text-gray-900" />
             </button>
           </div>
         </div>
@@ -829,7 +829,7 @@ export default function StudiosPage() {
       {/* Studios Grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
           <span className="ml-3 text-gray-500">Loading studios...</span>
         </div>
       ) : studios.length === 0 ? (
@@ -839,14 +839,14 @@ export default function StudiosPage() {
           <p className="text-gray-500 mb-6">Voeg je eerste studio toe om boekingen te ontvangen.</p>
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="rounded-full h-11 px-6 gap-2 shadow-lg shadow-indigo-200"
+            className="rounded-full h-11 px-6 gap-2 shadow-lg shadow-gray-300"
           >
             <Plus className="h-4 w-4" />
             Studio Toevoegen
           </Button>
         </div>
       ) : filteredStudios.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredStudios.map((studio) => (
             <StudioCard key={studio.id} studio={studio} />
           ))}
@@ -864,7 +864,7 @@ export default function StudiosPage() {
         <div className="flex justify-center py-6">
           <Button
             variant="outline"
-            className="rounded-full h-12 px-8 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+            className="rounded-full h-12 px-8 border-gray-900 text-gray-900 hover:bg-gray-100"
           >
             Load More Studios
             <ChevronDown className="h-4 w-4 ml-2" />

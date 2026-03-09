@@ -137,7 +137,7 @@ function AddSpaceModal({ isOpen, onClose }: AddSpaceModalProps) {
           <Button variant="outline" onClick={onClose} className="rounded-full px-6">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} className="rounded-full px-6 shadow-lg shadow-indigo-200">
+          <Button onClick={handleSubmit} className="rounded-full px-6 shadow-lg shadow-gray-300">
             Add Space
           </Button>
         </div>
@@ -179,7 +179,7 @@ export default function StudioDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
           <p className="text-gray-500 font-medium">Loading studio...</p>
         </div>
       </div>
@@ -217,7 +217,7 @@ export default function StudioDetailPage() {
       <div className="flex items-center gap-2">
         <Link
           href="/studios"
-          className="text-gray-500 text-sm font-medium hover:text-indigo-600 transition-colors"
+          className="text-gray-500 text-sm font-medium hover:text-gray-900 transition-colors"
         >
           Studios
         </Link>
@@ -272,7 +272,7 @@ export default function StudioDetailPage() {
           </Button>
           <Button
             onClick={() => setIsAddSpaceModalOpen(true)}
-            className="rounded-full h-11 px-6 gap-2 shadow-lg shadow-indigo-200"
+            className="rounded-full h-11 px-6 gap-2 shadow-lg shadow-gray-300"
           >
             <Plus className="h-4 w-4" />
             Add Space
@@ -416,7 +416,7 @@ export default function StudioDetailPage() {
             <div className="w-full aspect-square rounded-2xl bg-gray-200 overflow-hidden relative flex items-center justify-center">
               <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                 <div className="bg-white p-2 rounded-full shadow-lg">
-                  <MapPin className="h-8 w-8 text-indigo-600" />
+                  <MapPin className="h-8 w-8 text-gray-900" />
                 </div>
               </div>
             </div>
@@ -429,7 +429,7 @@ export default function StudioDetailPage() {
                   {[studio.city, studio.country].filter(Boolean).join(', ')}
                 </p>
               )}
-              <a href="#" className="text-indigo-600 text-sm font-semibold hover:underline flex items-center justify-center gap-1 mt-1">
+              <a href="#" className="text-gray-900 text-sm font-semibold hover:underline flex items-center justify-center gap-1 mt-1">
                 Get Directions
                 <ExternalLink className="h-3 w-3" />
               </a>

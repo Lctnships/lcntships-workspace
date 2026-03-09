@@ -54,7 +54,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (checked: b
       onClick={() => onChange(!checked)}
       className={cn(
         'relative w-11 h-6 rounded-full transition-colors',
-        checked ? 'bg-indigo-600' : 'bg-gray-200'
+        checked ? 'bg-gray-900' : 'bg-gray-200'
       )}
     >
       <span
@@ -74,7 +74,7 @@ function SmallToggle({ checked, onChange }: { checked: boolean; onChange: (check
       onClick={() => onChange(!checked)}
       className={cn(
         'relative w-9 h-5 rounded-full transition-colors',
-        checked ? 'bg-indigo-600' : 'bg-gray-200'
+        checked ? 'bg-gray-900' : 'bg-gray-200'
       )}
     >
       <span
@@ -139,7 +139,7 @@ export default function SettingsPage() {
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all',
                   isActive
-                    ? 'bg-indigo-100 text-indigo-600'
+                    ? 'bg-gray-200 text-gray-900'
                     : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                 )}
               >
@@ -183,7 +183,7 @@ export default function SettingsPage() {
                       <Input className="md:col-span-3 h-12 rounded-xl bg-gray-50" placeholder="Street Address" />
                       <Input className="h-12 rounded-xl bg-gray-50" placeholder="City" />
                       <Input className="h-12 rounded-xl bg-gray-50" placeholder="Postal Code" />
-                      <select className="h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                      <select className="h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
                         <option>Netherlands</option>
                         <option>Belgium</option>
                         <option>Germany</option>
@@ -211,7 +211,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="mt-8 flex justify-end">
-                  <Button className="rounded-xl shadow-md shadow-indigo-200">
+                  <Button className="rounded-xl shadow-md shadow-gray-300">
                     Save Changes
                     <Check className="h-4 w-4 ml-2" />
                   </Button>
@@ -228,13 +228,13 @@ export default function SettingsPage() {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-2xl font-bold cursor-pointer relative group overflow-hidden">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-gray-700 to-purple-500 flex items-center justify-center text-white text-2xl font-bold cursor-pointer relative group overflow-hidden">
                     RR
                     <div className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center text-white text-xs font-medium">
                       Change
                     </div>
                   </div>
-                  <button className="text-indigo-600 text-sm font-semibold hover:underline">Remove</button>
+                  <button className="text-gray-900 text-sm font-semibold hover:underline">Remove</button>
                 </div>
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                   <div>
@@ -296,8 +296,8 @@ export default function SettingsPage() {
             {/* Login Methods */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                  <Lock className="h-5 w-5 text-indigo-600" />
+                <div className="w-10 h-10 rounded-xl bg-gray-200 flex items-center justify-center">
+                  <Lock className="h-5 w-5 text-gray-900" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Login Methods</h3>
@@ -624,7 +624,7 @@ export default function SettingsPage() {
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Brand Colors</h3>
                     <div className="flex gap-4">
                       <div className="flex flex-col gap-1">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-600 border border-gray-200 shadow-sm cursor-pointer" />
+                        <div className="w-10 h-10 rounded-lg bg-gray-900 border border-gray-200 shadow-sm cursor-pointer" />
                         <span className="text-xs text-gray-500 text-center">Primary</span>
                       </div>
                       <div className="flex flex-col gap-1">

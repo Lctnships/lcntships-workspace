@@ -105,7 +105,7 @@ function EmptyState({
       {actionLabel && actionHref && (
         <Link
           href={actionHref}
-          className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-black transition-colors"
         >
           <Plus className="h-4 w-4" />
           {actionLabel}
@@ -135,11 +135,11 @@ function RevenueChart({ revenue, payouts }: { revenue: number; payouts: number }
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700">Revenue</span>
-          <span className="text-sm font-bold text-indigo-600">{formatCurrency(revenue)}</span>
+          <span className="text-sm font-bold text-gray-900">{formatCurrency(revenue)}</span>
         </div>
         <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full rounded-full bg-indigo-500 transition-all duration-700"
+            className="h-full rounded-full bg-gray-900 transition-all duration-700"
             style={{ width: `${(revenue / maxValue) * 100}%` }}
           />
         </div>
@@ -229,8 +229,8 @@ export default function DashboardPage() {
           change: stats.pendingBookingsCount > 0 ? `${stats.pendingBookingsCount} pending` : 'Geen pending',
           trend: stats.activeBookingsCount > 0 ? 'up' : 'neutral',
           icon: Calendar,
-          iconBg: 'bg-indigo-100',
-          iconColor: 'text-indigo-600',
+          iconBg: 'bg-gray-200',
+          iconColor: 'text-gray-900',
         },
         {
           label: 'Partners',
@@ -258,8 +258,8 @@ export default function DashboardPage() {
     id: booking.id || index,
     type: 'booking' as const,
     icon: Calendar,
-    iconBg: 'bg-indigo-100',
-    iconColor: 'text-indigo-600',
+    iconBg: 'bg-gray-200',
+    iconColor: 'text-gray-900',
     title: `Boeking ${booking.status || 'aangemaakt'}`,
     description: booking.studio?.title || 'Studio',
     time: booking.created_at
@@ -374,7 +374,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-indigo-500" />
+                <span className="w-3 h-3 rounded-full bg-gray-900" />
                 <span className="text-sm text-gray-600 font-medium">Revenue</span>
               </div>
               <div className="flex items-center gap-2">
@@ -403,7 +403,7 @@ export default function DashboardPage() {
             {recentActivity.length > 0 && (
               <Link
                 href="/bookings"
-                className="text-sm text-indigo-600 font-semibold hover:text-indigo-700 flex items-center gap-1"
+                className="text-sm text-gray-900 font-semibold hover:text-black flex items-center gap-1"
               >
                 Bekijk alles <ArrowUpRight className="h-4 w-4" />
               </Link>
@@ -482,7 +482,7 @@ export default function DashboardPage() {
           ) : studios.length > 0 ? (
             <div className="space-y-5">
               {studios.map((studio, index) => {
-                const colors = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500']
+                const colors = ['bg-gray-900', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500']
                 const isActive = studio.status === 'active'
                 return (
                   <div key={studio.id}>
@@ -595,7 +595,7 @@ export default function DashboardPage() {
                       <span className="bg-white px-3 py-1 rounded-full text-sm font-bold text-gray-700 shadow-sm">
                         {task.count}
                       </span>
-                      <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                      <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-gray-900 transition-colors" />
                     </div>
                   </Link>
                 )

@@ -33,7 +33,6 @@ import {
   ChevronDown,
   Sparkles,
   Send,
-  Eye,
   Play,
   Pause,
   RotateCcw,
@@ -47,7 +46,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact, supabase } from '@/lib/supabase'
+import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact } from '@/lib/supabase'
 import { UserPlus, Users, ArrowUpDown } from 'lucide-react'
 
 const sourceColorMap: Record<string, string> = {
@@ -64,7 +63,7 @@ const statusColorMap: Record<string, { bg: string; text: string; dot: string }> 
   'cold': { bg: 'bg-slate-100', text: 'text-slate-700', dot: 'bg-slate-400' },
   'warm': { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-400' },
   'hot': { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
-  'negotiation': { bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+  'negotiation': { bg: 'bg-gray-200', text: 'text-black', dot: 'bg-gray-900' },
   'closed': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   'lost': { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
 }
@@ -300,7 +299,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
               type="text"
               value={formData.company_name}
               onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="Bijv. Studio Amsterdam"
               required
             />
@@ -315,7 +314,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 placeholder="Amsterdam"
               />
             </div>
@@ -327,7 +326,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                 type="url"
                 value={formData.website}
                 onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 placeholder="https://www.studio.nl"
               />
             </div>
@@ -341,7 +340,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
               <select
                 value={formData.source}
                 onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               >
                 <option value="Manual">Handmatig</option>
                 <option value="Apollo">Apollo</option>
@@ -358,7 +357,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as 'cold' | 'warm' | 'hot' | 'negotiation' | 'closed' | 'lost' })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               >
                 <option value="cold">Cold</option>
                 <option value="warm">Warm</option>
@@ -382,7 +381,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
               <button
                 type="button"
                 onClick={addContact}
-                className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                className="flex items-center gap-1.5 text-sm text-gray-900 hover:text-black font-medium transition-colors"
               >
                 <UserPlus className="h-4 w-4" />
                 Contact toevoegen
@@ -400,7 +399,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                       className={cn(
                         'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
                         contact.is_primary
-                          ? 'bg-indigo-100 text-indigo-700'
+                          ? 'bg-gray-200 text-black'
                           : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
                       )}
                     >
@@ -423,28 +422,28 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                       type="text"
                       value={contact.name}
                       onChange={(e) => updateContact(index, 'name', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
                       placeholder="Naam *"
                     />
                     <input
                       type="text"
                       value={contact.role}
                       onChange={(e) => updateContact(index, 'role', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
                       placeholder="Functie (bijv. Manager)"
                     />
                     <input
                       type="email"
                       value={contact.email}
                       onChange={(e) => updateContact(index, 'email', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
                       placeholder="Email"
                     />
                     <input
                       type="tel"
                       value={contact.phone}
                       onChange={(e) => updateContact(index, 'phone', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
                       placeholder="Telefoon"
                     />
                   </div>
@@ -460,7 +459,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
               rows={3}
               placeholder="Extra informatie over deze lead..."
             />
@@ -763,7 +762,7 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
               <div
                 className={cn(
                   'border-2 border-dashed rounded-2xl p-8 text-center transition-colors',
-                  dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                  dragActive ? 'border-gray-900 bg-gray-100' : 'border-gray-200 hover:border-gray-300'
                 )}
                 onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
                 onDragLeave={() => setDragActive(false)}
@@ -774,7 +773,7 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
                   Sleep je CSV bestand hierheen of{' '}
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-indigo-600 font-medium hover:underline"
+                    className="text-gray-900 font-medium hover:underline"
                   >
                     blader
                   </button>
@@ -904,775 +903,6 @@ function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalProps) {
   )
 }
 
-// Email Campaign Types
-
-// Simple Email Campaign Modal - Direct leads selection + compose
-
-// ==================== ENHANCED EMAIL CAMPAIGN MODAL ====================
-// 2-step flow: 1) Select leads, 2) Compose with React Email preview
-
-interface EmailCampaignModalProps {
-  isOpen: boolean
-  onClose: () => void
-  salesLeads: SalesLead[]
-}
-
-interface LeadEmailHistory {
-  sent_at: string
-  subject: string
-}
-
-interface Attachment {
-  name: string
-  size: number
-  type: string
-  url: string
-}
-
-const RESEND_DOMAINS = [
-  'team@lcntships.com',
-  'info@lcntships.com',
-  'sales@lcntships.com',
-  'kim@lcntships.com',
-]
-
-const DEFAULT_EMAIL_SUBJECT = 'Samenwerking met {{studio}}'
-const DEFAULT_EMAIL_TEMPLATE = `Beste {{naam}},
-
-Leuk kennis te maken! Ik ben {{sender_name}} van LCTNSHIPS, een marketplace waar we studenten verbinden met bedrijven voor afstudeerstages.
-
-Ik zag dat {{studio}} gevestigd is in {{stad}}. We zijn momenteel op zoek naar samenwerkingspartners in de creatieve sector voor onze ambitieuze studenten.
-
-Zijn jullie open voor een kort gesprek over hoe we elkaar kunnen versterken?
-
-Met vriendelijke groet,
-{{sender_name}}
-LCTNSHIPS`
-
-function EmailCampaignModal({ isOpen, onClose, salesLeads }: EmailCampaignModalProps) {
-  // Steps: 1 = select leads, 2 = compose
-  const [step, setStep] = useState<1 | 2>(1)
-  
-  // Selection
-  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
-  
-  // Compose
-  const [subject, setSubject] = useState(DEFAULT_EMAIL_SUBJECT)
-  const [message, setMessage] = useState(DEFAULT_EMAIL_TEMPLATE)
-  const [senderName, setSenderName] = useState('Kim')
-  const [senderEmail, setSenderEmail] = useState(RESEND_DOMAINS[0])
-  
-  // CTA Buttons
-  const [primaryButtonText, setPrimaryButtonText] = useState('Bekijk onze website')
-  const [primaryButtonUrl, setPrimaryButtonUrl] = useState('https://lcntships.com')
-  const [secondaryButtonText, setSecondaryButtonText] = useState('Plan een gesprek')
-  const [secondaryButtonUrl, setSecondaryButtonUrl] = useState('https://cal.com/lcntships')
-  
-  // Attachments
-  const [attachments, setAttachments] = useState<Attachment[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
-  // Sending
-  const [isSending, setIsSending] = useState(false)
-  const [sendProgress, setSendProgress] = useState({ current: 0, total: 0 })
-  const [sendResults, setSendResults] = useState<{ success: number, failed: number } | null>(null)
-  
-  // Email history per lead
-  const [emailHistory, setEmailHistory] = useState<Record<string, LeadEmailHistory[]>>({})
-  // Preview lead selector
-  const [previewLeadIndex, setPreviewLeadIndex] = useState(0)
-  // React Email preview HTML
-  const [previewHtml, setPreviewHtml] = useState<string>('')
-  const [isRenderingPreview, setIsRenderingPreview] = useState(false)
-
-  const leadsWithEmail = salesLeads.filter(lead => lead.email)
-  const selectedLeads = leadsWithEmail.filter(l => selectedLeadIds.includes(l.id))
-
-  // Fetch email history when modal opens
-  useEffect(() => {
-    if (!isOpen) return
-    
-    const fetchHistory = async () => {
-      const history: Record<string, LeadEmailHistory[]> = {}
-      
-      for (const lead of leadsWithEmail) {
-        try {
-          const response = await fetch(`/api/leads/${lead.id}/emails`)
-          if (response.ok) {
-            const emails = await response.json()
-            if (emails.length > 0) {
-              history[lead.id] = emails.map((e: any) => ({
-                sent_at: e.sent_at,
-                subject: e.subject
-              }))
-            }
-          }
-        } catch {
-          // Silent fail
-        }
-      }
-      
-      setEmailHistory(history)
-    }
-    
-    fetchHistory()
-  }, [isOpen, leadsWithEmail])
-
-  const toggleAll = () => {
-    if (selectedLeadIds.length === leadsWithEmail.length) {
-      setSelectedLeadIds([])
-    } else {
-      setSelectedLeadIds(leadsWithEmail.map(l => l.id))
-    }
-  }
-
-  const toggleLead = (id: string) => {
-    setSelectedLeadIds(prev =>
-      prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
-    )
-  }
-
-  const removeSelected = () => {
-    setSelectedLeadIds([])
-  }
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
-    
-    Array.from(files).forEach(file => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const newAttachment: Attachment = {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          url: event.target?.result as string
-        }
-        setAttachments(prev => [...prev, newAttachment])
-      }
-      reader.readAsDataURL(file)
-    })
-  }
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const getPreview = (text: string, lead: SalesLead) => {
-    return text
-      .replace(/\{\{naam\}\}/g, lead.contact_name || 'daar')
-      .replace(/\{\{studio\}\}/g, lead.company_name || 'jullie studio')
-      .replace(/\{\{stad\}\}/g, lead.city || 'jullie stad')
-      .replace(/\{\{sender_name\}\}/g, senderName)
-  }
-
-  // Render React Email preview
-  useEffect(() => {
-    if (step !== 2 || selectedLeads.length === 0) return
-    
-    const renderPreview = async () => {
-      setIsRenderingPreview(true)
-      const lead = selectedLeads[previewLeadIndex]
-      
-      try {
-        const response = await fetch('/api/email/preview-render', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contactName: lead.contact_name || '',
-            companyName: lead.company_name,
-            message: getPreview(message, lead),
-            senderName,
-            senderEmail,
-            primaryButtonText,
-            primaryButtonUrl,
-            secondaryButtonText,
-            secondaryButtonUrl,
-            attachments,
-          }),
-        })
-        
-        if (response.ok) {
-          const { html } = await response.json()
-          setPreviewHtml(html)
-        }
-      } catch (error) {
-        console.error('Preview render error:', error)
-      } finally {
-        setIsRenderingPreview(false)
-      }
-    }
-    
-    renderPreview()
-  }, [step, selectedLeads, previewLeadIndex, message, senderName, senderEmail, primaryButtonText, primaryButtonUrl, secondaryButtonText, secondaryButtonUrl, attachments])
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B'
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  }
-
-  const handleSend = async () => {
-    if (selectedLeadIds.length === 0) return
-    
-    setIsSending(true)
-    setSendProgress({ current: 0, total: selectedLeadIds.length })
-    setSendResults(null)
-
-    let success = 0
-    let failed = 0
-
-    const BATCH_SIZE = 50
-    const DELAY_MS = 1000
-
-    // Get current user ID for tracking
-    const { data: { user } } = await supabase.auth.getUser()
-    const userId = user?.id
-
-    for (let i = 0; i < selectedLeads.length; i += BATCH_SIZE) {
-      const batch = selectedLeads.slice(i, i + BATCH_SIZE)
-      
-      const batchPromises = batch.map(async (lead) => {
-        try {
-          const response = await fetch('/api/email/bulk-send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: lead.email,
-              subject: getPreview(subject, lead),
-              text: getPreview(message, lead),
-              html: renderEmailHtml(lead),
-              from: senderEmail,
-              leadId: lead.id,
-              userId: userId,
-              attachments: attachments,
-            }),
-          })
-
-          if (response.ok) {
-            success++
-          } else {
-            failed++
-          }
-        } catch {
-          failed++
-        }
-      })
-
-      await Promise.all(batchPromises)
-      setSendProgress({ current: Math.min(i + BATCH_SIZE, selectedLeads.length), total: selectedLeads.length })
-
-      if (i + BATCH_SIZE < selectedLeads.length) {
-        await new Promise(r => setTimeout(r, DELAY_MS))
-      }
-    }
-
-    setSendResults({ success, failed })
-    setIsSending(false)
-
-    if (failed === 0) {
-      setTimeout(() => {
-        handleClose()
-      }, 2000)
-    }
-  }
-
-  const renderEmailHtml = (lead: SalesLead) => {
-    const personalizedMessage = getPreview(message, lead)
-      .replace(/\n/g, '<br>')
-    
-    const attachmentsHtml = attachments.length > 0 ? `
-      <div style="margin-top: 20px; padding: 12px; background: #f3f4f6; border-radius: 8px;">
-        <p style="margin: 0 0 8px 0; font-size: 12px; color: #6b7280; font-weight: 600;">Bijlagen (${attachments.length}):</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-          ${attachments.map(att => `
-            <span style="padding: 4px 8px; background: white; border-radius: 4px; font-size: 12px; color: #374151;">
-              📎 ${att.name}
-            </span>
-          `).join('')}
-        </div>
-      </div>
-    ` : ''
-    
-    const buttonsHtml = (primaryButtonText || secondaryButtonText) ? `
-      <div style="margin-top: 24px; padding: 20px 0; border-top: 1px solid #e5e7eb;">
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          ${primaryButtonText && primaryButtonUrl ? `
-            <a href="${primaryButtonUrl}" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">
-              ${primaryButtonText}
-            </a>
-          ` : ''}
-          ${secondaryButtonText && secondaryButtonUrl ? `
-            <a href="${secondaryButtonUrl}" style="display: inline-block; padding: 12px 24px; background: white; color: #2563eb; text-decoration: none; border-radius: 6px; font-weight: 500; border: 2px solid #2563eb;">
-              ${secondaryButtonText}
-            </a>
-          ` : ''}
-        </div>
-      </div>
-    ` : ''
-    
-    return `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px;">
-        <div style="margin-bottom: 20px;">
-          ${personalizedMessage}
-        </div>
-        ${buttonsHtml}
-        ${attachmentsHtml}
-        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
-          <p style="margin: 0;">Verstuurd door ${senderName} via LCTNSHIPS</p>
-        </div>
-      </div>
-    `
-  }
-
-  const handleClose = () => {
-    setStep(1)
-    setSelectedLeadIds([])
-    setSendResults(null)
-    setIsSending(false)
-    setAttachments([])
-    setPreviewLeadIndex(0)
-    onClose()
-  }
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-6xl max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {step === 1 ? 'Selecteer Leads' : 'Schrijf Email'}
-            </h2>
-            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-              Stap {step} van 2
-            </span>
-          </div>
-          <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Step 1: Select Leads */}
-        {step === 1 && (
-          <>
-            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={toggleAll}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  {selectedLeadIds.length === leadsWithEmail.length ? 'Deselecteer alle' : 'Selecteer alle'}
-                </button>
-                {selectedLeadIds.length > 0 && (
-                  <button
-                    onClick={removeSelected}
-                    className="text-sm text-red-600 hover:text-red-700"
-                  >
-                    Verwijder selectie ({selectedLeadIds.length})
-                  </button>
-                )}
-              </div>
-              <span className="text-sm text-gray-500">
-                {selectedLeadIds.length} van {leadsWithEmail.length} geselecteerd
-              </span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto max-h-[50vh]">
-              {leadsWithEmail.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <p>Geen leads met emailadres gevonden</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {leadsWithEmail.map(lead => {
-                    const history = emailHistory[lead.id] || []
-                    const isSelected = selectedLeadIds.includes(lead.id)
-                    
-                    return (
-                      <div
-                        key={lead.id}
-                        onClick={() => toggleLead(lead.id)}
-                        className={`p-4 cursor-pointer hover:bg-gray-50 flex items-start gap-3 ${
-                          isSelected ? 'bg-blue-50' : ''
-                        }`}
-                      >
-                        <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
-                        }`}>
-                          {isSelected && <Check size={12} className="text-white" />}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900">{lead.contact_name || 'Onbekend'}</p>
-                            <span className="text-gray-400">•</span>
-                            <p className="text-gray-600">{lead.company_name}</p>
-                          </div>
-                          <p className="text-sm text-gray-500">{lead.email}</p>
-                          {lead.city && <p className="text-xs text-gray-400 mt-1">📍 {lead.city}</p>}
-                          
-                          {/* Email History Note */}
-                          {history.length > 0 && (
-                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                              <p className="font-medium text-yellow-700 mb-1">
-                                📧 Eerder verstuurd ({history.length}x):
-                              </p>
-                              <ul className="space-y-0.5">
-                                {history.slice(0, 2).map((h, i) => (
-                                  <li key={i} className="text-yellow-600">
-                                    {formatDate(h.sent_at)} - {h.subject.slice(0, 50)}{h.subject.length > 50 ? '...' : ''}
-                                  </li>
-                                ))}
-                                {history.length > 2 && (
-                                  <li className="text-yellow-600">+ {history.length - 2} meer...</li>
-                                )}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Footer Step 1 */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between">
-              <button
-                onClick={handleClose}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                Annuleren
-              </button>
-              <button
-                onClick={() => setStep(2)}
-                disabled={selectedLeadIds.length === 0}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                Volgende <ChevronRight size={16} />
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Step 2: Compose */}
-        {step === 2 && (
-          <>
-            <div className="flex flex-1 overflow-hidden">
-              {/* Left: Compose Form */}
-              <div className="w-1/2 border-r border-gray-200 overflow-y-auto p-5 space-y-5">
-                {/* Sender */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Je naam</label>
-                    <input
-                      type="text"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Verstuur vanaf</label>
-                    <select
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {RESEND_DOMAINS.map(domain => (
-                        <option key={domain} value={domain}>{domain}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Subject */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp</label>
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  { }
-                  <p className="text-xs text-gray-500 mt-1">
-                    Variabelen: {'{naam}'}, {'{studio}'}, {'{stad}'}, {'{sender_name}'}
-                  </p>
-                </div>
-
-                {/* Message */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bericht</label>
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    rows={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                  />
-                </div>
-
-                {/* CTA Buttons */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Call-to-Action Buttons</h4>
-                  
-                  {/* Primary Button */}
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                      <span className="text-sm font-medium text-gray-600">Primaire knop</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={primaryButtonText}
-                        onChange={(e) => setPrimaryButtonText(e.target.value)}
-                        placeholder="Button tekst"
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <input
-                        type="text"
-                        value={primaryButtonUrl}
-                        onChange={(e) => setPrimaryButtonUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Secondary Button */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-white border-2 border-blue-500"></div>
-                      <span className="text-sm font-medium text-gray-600">Secundaire knop</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={secondaryButtonText}
-                        onChange={(e) => setSecondaryButtonText(e.target.value)}
-                        placeholder="Button tekst"
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <input
-                        type="text"
-                        value={secondaryButtonUrl}
-                        onChange={(e) => setSecondaryButtonUrl(e.target.value)}
-                        placeholder="https://cal.com/..."
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Attachments */}
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-medium text-gray-700">Bijlagen ({attachments.length})</h4>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                    >
-                      <Upload size={14} /> Toevoegen
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </div>
-                  
-                  {attachments.length > 0 && (
-                    <div className="space-y-2">
-                      {attachments.map((att, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <FileSpreadsheet size={16} className="text-gray-400 flex-shrink-0" />
-                            <span className="text-sm text-gray-700 truncate">{att.name}</span>
-                            <span className="text-xs text-gray-400">({formatFileSize(att.size)})</span>
-                          </div>
-                          <button
-                            onClick={() => removeAttachment(i)}
-                            className="p-1 hover:bg-gray-200 rounded text-gray-400"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: Live Preview */}
-              <div className="w-1/2 bg-gray-100 overflow-y-auto">
-                {/* Preview Header */}
-                <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Live Preview</span>
-                      {selectedLeads.length > 1 && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setPreviewLeadIndex(prev => Math.max(0, prev - 1))}
-                            disabled={previewLeadIndex === 0}
-                            className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
-                          >
-                            ←
-                          </button>
-                          <span className="text-xs text-gray-500">
-                            {previewLeadIndex + 1} / {selectedLeads.length}
-                          </span>
-                          <button
-                            onClick={() => setPreviewLeadIndex(prev => Math.min(selectedLeads.length - 1, prev + 1))}
-                            disabled={previewLeadIndex === selectedLeads.length - 1}
-                            className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
-                          >
-                            →
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400">{selectedLeads.length} leads</span>
-                  </div>
-                </div>
-
-                {selectedLeads.length > 0 && (
-                  <div className="p-6">
-                    {/* React Email Preview */}
-                    <div className="relative bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden max-w-2xl mx-auto">
-                      {isRenderingPreview && (
-                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-                          <Loader2 size={24} className="animate-spin text-blue-500" />
-                        </div>
-                      )}
-                      
-                      {/* Email Header Info */}
-                      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-500">Van:</span>
-                          <span className="font-medium">{senderName}</span>
-                          <span className="text-gray-400">&lt;{senderEmail}&gt;</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm mt-1">
-                          <span className="text-gray-500">Aan:</span>
-                          <span className="font-medium">{selectedLeads[previewLeadIndex].contact_name || selectedLeads[previewLeadIndex].email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm mt-1">
-                          <span className="text-gray-500">Onderwerp:</span>
-                          <span className="font-medium">{getPreview(subject, selectedLeads[previewLeadIndex])}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Rendered React Email HTML */}
-                      <div 
-                        className="w-full"
-                        dangerouslySetInnerHTML={{ __html: previewHtml }}
-                      />
-                    </div>
-
-                    {/* Recipient Summary */}
-                    <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 max-w-xl mx-auto overflow-hidden">
-                      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-gray-700">Ontvangers ({selectedLeads.length})</h4>
-                        {attachments.length > 0 && (
-                          <span className="text-xs text-gray-500">+ {attachments.length} bijlage(s)</span>
-                        )}
-                      </div>
-                      <div className="max-h-32 overflow-y-auto divide-y divide-gray-100">
-                        {selectedLeads.slice(0, 10).map(lead => (
-                          <div key={lead.id} className="px-4 py-2 flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-xs text-white font-medium">
-                                {(lead.contact_name || lead.company_name).charAt(0).toUpperCase()}
-                              </div>
-                              <span className="text-gray-700">{lead.contact_name || lead.company_name}</span>
-                              {lead.city && <span className="text-xs text-gray-400">• {lead.city}</span>}
-                            </div>
-                            <span className="text-gray-400 text-xs truncate max-w-[150px]">{lead.email}</span>
-                          </div>
-                        ))}
-                        {selectedLeads.length > 10 && (
-                          <div className="px-4 py-2 text-sm text-gray-500 text-center">
-                            + {selectedLeads.length - 10} meer...
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Footer Step 2 */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              {sendResults && (
-                <div className={`mb-3 p-3 rounded-lg text-sm ${
-                  sendResults.failed === 0 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {sendResults.failed === 0 ? (
-                    <p>✅ Alle {sendResults.success} emails succesvol verzonden!</p>
-                  ) : (
-                    <p>✅ {sendResults.success} verzonden, ❌ {sendResults.failed} mislukt</p>
-                  )}
-                </div>
-              )}
-
-              {isSending && (
-                <div className="mb-3">
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Verzenden...</span>
-                    <span>{sendProgress.current} / {sendProgress.total}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-500 h-2 rounded-full transition-all"
-                      style={{ width: `${sendProgress.total > 0 ? (sendProgress.current / sendProgress.total) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-between">
-                <button
-                  onClick={() => setStep(1)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                  disabled={isSending}
-                >
-                  ← Terug
-                </button>
-                <button
-                  onClick={handleSend}
-                  disabled={isSending}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isSending ? (
-                    <><Loader2 size={16} className="animate-spin" /> Verzenden...</>
-                  ) : (
-                    <><Send size={16} /> Verstuur naar {selectedLeadIds.length} leads</>
-                  )}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
 interface LeadDetailProps {
   lead: SalesLead
   contacts: LeadContact[]
@@ -1733,7 +963,7 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
                 href={lead.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+                className="inline-flex items-center gap-2 text-gray-900 hover:text-black transition-colors"
               >
                 <Globe className="h-4 w-4" />
                 <span>{lead.website}</span>
@@ -1755,8 +985,8 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
               <div className="space-y-3">
                 {contacts.map((contact) => (
                   <div key={contact.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-indigo-600 font-semibold text-sm">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                      <span className="text-gray-900 font-semibold text-sm">
                         {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                       </span>
                     </div>
@@ -1764,7 +994,7 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-gray-900">{contact.name}</span>
                         {contact.is_primary && (
-                          <Badge className="bg-indigo-100 text-indigo-700 text-xs">Primair</Badge>
+                          <Badge className="bg-gray-200 text-black text-xs">Primair</Badge>
                         )}
                         {contact.role && (
                           <span className="text-sm text-gray-500">{contact.role}</span>
@@ -1772,13 +1002,13 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
                       </div>
                       <div className="flex flex-wrap gap-4 text-sm">
                         {contact.email && (
-                          <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-gray-600 hover:text-indigo-600 transition-colors">
+                          <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 transition-colors">
                             <Mail className="h-3.5 w-3.5" />
                             {contact.email}
                           </a>
                         )}
                         {contact.phone && (
-                          <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 text-gray-600 hover:text-indigo-600 transition-colors">
+                          <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 transition-colors">
                             <Phone className="h-3.5 w-3.5" />
                             {contact.phone}
                           </a>
@@ -1793,8 +1023,8 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
               <div className="grid grid-cols-2 gap-4">
                 {lead.contact_name && (
                   <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <span className="text-indigo-600 font-semibold">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-900 font-semibold">
                         {lead.contact_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                       </span>
                     </div>
@@ -1926,7 +1156,6 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCSVModal, setShowCSVModal] = useState(false)
-  const [showEmailCampaign, setShowEmailCampaign] = useState(false)
   const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null)
   const [editLead, setEditLead] = useState<SalesLead | null>(null)
   const [leadContacts, setLeadContacts] = useState<LeadContact[]>([])
@@ -2043,7 +1272,7 @@ export default function SalesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -2122,7 +1351,7 @@ export default function SalesPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Hero Section - Road to 1000 */}
-      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 rounded-3xl p-8 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-br from-gray-900 via-purple-600 to-black rounded-3xl p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
@@ -2130,14 +1359,14 @@ export default function SalesPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Target className="h-5 w-5 text-indigo-200" />
-                <span className="text-indigo-200 text-sm font-medium">Company Goal</span>
+                <Target className="h-5 w-5 text-gray-300" />
+                <span className="text-gray-300 text-sm font-medium">Company Goal</span>
               </div>
               <h1 className="text-3xl font-bold">Road to 1,000 Studios</h1>
             </div>
             <div className="text-right">
               <div className="text-5xl font-bold">{currentStudios}</div>
-              <div className="text-indigo-200">of {goalStudios.toLocaleString()} studios</div>
+              <div className="text-gray-300">of {goalStudios.toLocaleString()} studios</div>
             </div>
           </div>
 
@@ -2158,7 +1387,7 @@ export default function SalesPage() {
                       ? 'bg-emerald-400 border-emerald-300'
                       : 'bg-white/20 border-white/40'
                   )} />
-                  <span className="text-xs text-indigo-200">{milestone.label}</span>
+                  <span className="text-xs text-gray-300">{milestone.label}</span>
                 </div>
               ))}
             </div>
@@ -2167,19 +1396,19 @@ export default function SalesPage() {
           <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/20">
             <div className="text-center">
               <div className="text-2xl font-bold">{leads.filter(l => l.status !== 'closed' && l.status !== 'lost').length}</div>
-              <div className="text-indigo-200 text-sm">Active Leads</div>
+              <div className="text-gray-300 text-sm">Active Leads</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold">{closedLeads.length}</div>
-              <div className="text-indigo-200 text-sm">Closed</div>
+              <div className="text-gray-300 text-sm">Closed</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold">{conversionRate}%</div>
-              <div className="text-indigo-200 text-sm">Conversion Rate</div>
+              <div className="text-gray-300 text-sm">Conversion Rate</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold">{totalLeads}</div>
-              <div className="text-indigo-200 text-sm">Total Leads</div>
+              <div className="text-gray-300 text-sm">Total Leads</div>
             </div>
           </div>
         </div>
@@ -2196,7 +1425,7 @@ export default function SalesPage() {
               placeholder="Zoeken..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-64"
+              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent w-64"
             />
           </div>
 
@@ -2294,10 +1523,12 @@ export default function SalesPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowEmailCampaign(true)} className="gap-2">
-            <Send className="h-4 w-4" />
-            Email Campagne
-          </Button>
+          <Link href="/marketing/campaign">
+            <Button variant="outline" className="gap-2">
+              <Send className="h-4 w-4" />
+              Email Campagne
+            </Button>
+          </Link>
 
           <Link href="/sales/sequences">
             <Button variant="outline" className="gap-2">
@@ -2405,11 +1636,7 @@ export default function SalesPage() {
         onClose={() => setShowCSVModal(false)}
         onSuccess={loadLeads}
       />
-      <EmailCampaignModal
-        isOpen={showEmailCampaign}
-        onClose={() => setShowEmailCampaign(false)}
-        salesLeads={leads}
-      />
+
     </div>
   )
 }

@@ -79,7 +79,7 @@ export function TodayBookings() {
             className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
           >
             <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-indigo-100 text-indigo-600 text-sm font-medium">
+              <AvatarFallback className="bg-gray-200 text-gray-900 text-sm font-medium">
                 {getInitials(booking.customerName)}
               </AvatarFallback>
             </Avatar>

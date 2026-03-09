@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 focus-visible:ring-indigo-500",
+          "bg-gray-900 text-white shadow-sm hover:bg-gray-900 focus-visible:ring-gray-900",
         destructive:
           "bg-red-500 text-white shadow-sm hover:bg-red-600 focus-visible:ring-red-500",
         outline:
@@ -17,7 +17,7 @@ const buttonVariants = cva(
         secondary:
           "bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-200 focus-visible:ring-gray-500",
         ghost: "hover:bg-gray-100 hover:text-gray-900",
-        link: "text-indigo-500 underline-offset-4 hover:underline",
+        link: "text-gray-900 underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",

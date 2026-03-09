@@ -5,11 +5,13 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
   Text,
   Tailwind,
+  Hr,
   Row,
   Column,
 } from '@react-email/components'
@@ -29,121 +31,235 @@ interface CampaignEmailProps {
 }
 
 export default function CampaignEmail({
-  contactName,
-  companyName,
-  message,
-  senderName,
-  senderEmail,
-  primaryButtonText = 'Bekijk onze website',
-  primaryButtonUrl = 'https://lcntships.com',
-  secondaryButtonText,
-  secondaryButtonUrl,
+  contactName = '',
+  companyName = '',
+  message = '',
+  senderName = 'Rivaldo',
+  senderEmail = 'rivaldo@lcntships.com',
+  primaryButtonText = 'Plan een gesprek',
+  primaryButtonUrl = 'https://calendly.com/rivaldorose/30min',
+  secondaryButtonText = 'Bekijk onze website',
+  secondaryButtonUrl = 'https://lcntships.com',
   attachments = [],
 }: CampaignEmailProps) {
-  const previewText = `${senderName} van LCTNSHIPS wil graag contact met ${companyName}`
+  const previewText = `${senderName} van lcntships wil graag contact met ${companyName}`
+  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://lcntships.com'}/lcntships-logo.png`
+
+  const personalizedMessage = message
+    .replace(/{company_name}/g, companyName)
+    .replace(/{contact_name}/g, contactName)
+    .replace(/\{\{company_name\}\}/g, companyName)
+    .replace(/\{\{contact_name\}\}/g, contactName)
+
+  const paragraphs = personalizedMessage
+    .replace(/<\/?p>/g, '\n')
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<[^>]*>/g, '')
+    .split('\n')
+    .map(p => p.trim())
+    .filter(p => p.length > 0)
 
   return (
-    <Html>
-      <Head />
+    <Html lang="nl">
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>{`
+          @media only screen and (max-width: 620px) {
+            .email-container { width: 100% !important; border-radius: 0 !important; }
+            .email-padding { padding-left: 20px !important; padding-right: 20px !important; }
+            .email-footer { padding-left: 20px !important; padding-right: 20px !important; }
+            .feature-card { padding: 16px !important; }
+            .cta-button { font-size: 14px !important; padding: 14px 20px !important; }
+            .heading-text { font-size: 20px !important; }
+            .body-text { font-size: 16px !important; }
+          }
+        `}</style>
+      </Head>
       <Preview>{previewText}</Preview>
       <Tailwind
         config={{
           theme: {
             extend: {
               colors: {
-                brand: {
-                  50: '#eef2ff',
-                  100: '#e0e7ff',
-                  500: '#6366f1',
-                  600: '#4f46e5',
-                  700: '#4338ca',
-                },
+                primary: '#1152d4',
               },
             },
           },
         }}
       >
-        <Body className="bg-gray-50 font-sans py-4">
-          <Container className="mx-auto max-w-[600px] bg-white rounded-lg overflow-hidden shadow-lg">
+        <Body className="bg-[#f6f6f8] font-sans" style={{ margin: 0, padding: '40px 0' }}>
+          <Container className="email-container" style={{ maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff', borderRadius: '12px', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
             {/* Header */}
-            <Section className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
-              <Text className="text-white text-2xl font-bold text-center m-0">
-                lcntships
-              </Text>
-              <Text className="text-white/80 text-sm text-center m-0 mt-1">
-                Verbinden van studenten met creatieve studio&apos;s
-              </Text>
+            <Section style={{ paddingTop: '40px', paddingBottom: '24px', textAlign: 'center' }}>
+              <Img
+                src={logoUrl}
+                width="100"
+                height="100"
+                alt="lcntships"
+                style={{ margin: '0 auto' }}
+              />
             </Section>
 
             {/* Content */}
-            <Section className="px-8 py-8">
-              <Heading className="text-2xl font-bold text-gray-900 mb-4">
-                {contactName ? `Hallo ${contactName},` : 'Hallo,'}
+            <Section className="email-padding" style={{ paddingLeft: '40px', paddingRight: '40px', paddingBottom: '40px' }}>
+              {/* Greeting */}
+              <Heading className="heading-text" style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 16px 0', fontFamily: 'Georgia, serif' }}>
+                Hey {contactName || 'daar'},
               </Heading>
 
-              <Text className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
-                {message}
+              {/* Message paragraphs */}
+              {paragraphs.map((paragraph, i) => (
+                <Text key={i} className="body-text" style={{ fontSize: '16px', lineHeight: '1.6', color: '#475569', margin: '0 0 14px 0' }}>
+                  {paragraph}
+                </Text>
+              ))}
+
+              {paragraphs.length === 0 && (
+                <>
+                  <Text className="body-text" style={{ fontSize: '16px', lineHeight: '1.6', color: '#475569', margin: '0 0 14px 0' }}>
+                    Ik zag <strong style={{ color: '#1152d4', fontWeight: 'bold' }}>{companyName}</strong> online en jullie ruimte ziet er sterk uit.
+                  </Text>
+                  <Text className="body-text" style={{ fontSize: '16px', lineHeight: '1.6', color: '#475569', margin: '0 0 14px 0' }}>
+                    lcntships helpt creatieve ruimtes hun bereik te vergroten en boekingen te automatiseren zonder gedoe. We verbinden jouw studio direct met de juiste creators.
+                  </Text>
+                </>
+              )}
+
+              {/* Feature Cards */}
+              <Section style={{ marginTop: '28px', marginBottom: '28px' }}>
+                <Section className="feature-card" style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '10px' }}>
+                  <Row>
+                    <Column style={{ width: '40px', verticalAlign: 'top' }}>
+                      <Text style={{ fontSize: '22px', margin: 0, lineHeight: '1' }}>📅</Text>
+                    </Column>
+                    <Column style={{ paddingLeft: '10px' }}>
+                      <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 2px 0', fontSize: '14px' }}>Eigen boekingspagina met kalender</Text>
+                      <Text style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>Nooit meer dubbele boekingen of handmatig overleg.</Text>
+                    </Column>
+                  </Row>
+                </Section>
+
+                <Section className="feature-card" style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '10px' }}>
+                  <Row>
+                    <Column style={{ width: '40px', verticalAlign: 'top' }}>
+                      <Text style={{ fontSize: '22px', margin: 0, lineHeight: '1' }}>🎬</Text>
+                    </Column>
+                    <Column style={{ paddingLeft: '10px' }}>
+                      <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 2px 0', fontSize: '14px' }}>Professionele foto&apos;s + promo video</Text>
+                      <Text style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>Wij zorgen voor de visuals die huurders overtuigen.</Text>
+                    </Column>
+                  </Row>
+                </Section>
+
+                <Section className="feature-card" style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '10px' }}>
+                  <Row>
+                    <Column style={{ width: '40px', verticalAlign: 'top' }}>
+                      <Text style={{ fontSize: '22px', margin: 0, lineHeight: '1' }}>🌍</Text>
+                    </Column>
+                    <Column style={{ paddingLeft: '10px' }}>
+                      <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 2px 0', fontSize: '14px' }}>Zichtbaarheid bij creators in heel NL</Text>
+                      <Text style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>Directe toegang tot ons groeiende netwerk van creators.</Text>
+                    </Column>
+                  </Row>
+                </Section>
+              </Section>
+
+              {/* Tagline */}
+              <Text style={{ color: '#1152d4', fontWeight: 'bold', fontSize: '16px', textAlign: 'center', margin: '0 0 24px 0', fontFamily: 'Georgia, serif' }}>
+                Geen kosten. Geen exclusiviteit.
               </Text>
 
-              {/* CTA Buttons */}
-              {(primaryButtonText || secondaryButtonText) && (
-                <Section className="my-8">
-                  <Row>
-                    {primaryButtonText && primaryButtonUrl && (
-                      <Column className="pr-2">
-                        <Button
-                          href={primaryButtonUrl}
-                          className="bg-[#4f46e5] text-white px-6 py-3 rounded-lg font-semibold text-sm no-underline inline-block"
-                        >
-                          {primaryButtonText}
-                        </Button>
-                      </Column>
-                    )}
-                    {secondaryButtonText && secondaryButtonUrl && (
-                      <Column className="pl-2">
-                        <Button
-                          href={secondaryButtonUrl}
-                          className="bg-white text-[#4f46e5] border-2 border-[#4f46e5] px-6 py-3 rounded-lg font-semibold text-sm no-underline inline-block"
-                        >
-                          {secondaryButtonText}
-                        </Button>
-                      </Column>
-                    )}
-                  </Row>
+              {/* CTA Buttons - inline-block so they don't overflow on mobile */}
+              {primaryButtonText && primaryButtonUrl && (
+                <Section style={{ textAlign: 'center', marginBottom: '12px' }}>
+                  <Button
+                    href={primaryButtonUrl}
+                    className="cta-button"
+                    style={{
+                      backgroundColor: '#0f172a',
+                      color: '#ffffff',
+                      borderRadius: '10px',
+                      fontWeight: 'bold',
+                      fontSize: '15px',
+                      padding: '14px 32px',
+                      textDecoration: 'none',
+                      display: 'inline-block',
+                      textAlign: 'center',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {primaryButtonText}
+                  </Button>
+                </Section>
+              )}
+              {secondaryButtonText && secondaryButtonUrl && (
+                <Section style={{ textAlign: 'center' }}>
+                  <Button
+                    href={secondaryButtonUrl}
+                    className="cta-button"
+                    style={{
+                      backgroundColor: '#ffffff',
+                      color: '#334155',
+                      borderRadius: '10px',
+                      fontWeight: 'bold',
+                      fontSize: '15px',
+                      padding: '12px 32px',
+                      textDecoration: 'none',
+                      display: 'inline-block',
+                      textAlign: 'center',
+                      border: '2px solid #e2e8f0',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {secondaryButtonText}
+                  </Button>
                 </Section>
               )}
 
               {/* Attachments */}
               {attachments.length > 0 && (
-                <Section className="bg-gray-50 rounded-lg p-4 my-6">
-                  <Text className="text-gray-600 text-sm font-semibold m-0 mb-3">
-                    📎 Bijlagen ({attachments.length})
+                <Section style={{ marginTop: '28px', padding: '14px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                  <Text style={{ color: '#475569', fontSize: '13px', fontWeight: 'bold', margin: '0 0 6px 0' }}>
+                    Bijlagen ({attachments.length})
                   </Text>
                   {attachments.map((att, i) => (
-                    <Text key={i} className="text-gray-500 text-sm m-0 py-1">
-                      • {att.name}
+                    <Text key={i} style={{ color: '#64748b', fontSize: '13px', margin: '0 0 4px 0' }}>
+                      📎 {att.name}
                     </Text>
                   ))}
                 </Section>
               )}
-
-              <Text className="text-gray-500 text-sm mt-8">
-                Met vriendelijke groet,
-                <br />
-                <strong className="text-gray-900">{senderName}</strong>
-                <br />
-                <span className="text-[#4f46e5]">LCTNSHIPS</span>
-              </Text>
             </Section>
 
             {/* Footer */}
-            <Section className="bg-gray-100 px-8 py-6 border-t border-gray-200">
-              <Text className="text-gray-400 text-xs text-center m-0">
-                Verstuurd door {senderName} ({senderEmail}) via LCTNSHIPS
+            <Section className="email-footer" style={{ backgroundColor: '#f8fafc', padding: '36px 40px', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
+              <Img
+                src={logoUrl}
+                width="48"
+                height="48"
+                alt="lcntships"
+                style={{ margin: '0 auto 10px auto' }}
+              />
+              <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 4px 0', fontSize: '13px' }}>
+                {senderName} — Oprichter lcntships
               </Text>
-              <Text className="text-gray-400 text-xs text-center mt-2">
-                © {new Date().getFullYear()} lcntships. Alle rechten voorbehouden.
-              </Text>
+              <Link
+                href="https://lcntships.com"
+                style={{ fontSize: '13px', color: '#1152d4', textDecoration: 'none' }}
+              >
+                lcntships.com
+              </Link>
+
+              <Hr style={{ borderColor: '#e2e8f0', margin: '24px 0' }} />
+
+              <Link
+                href="#"
+                style={{ fontSize: '11px', color: '#94a3b8', textDecoration: 'underline' }}
+              >
+                Afmelden voor deze mails
+              </Link>
             </Section>
           </Container>
         </Body>

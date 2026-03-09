@@ -50,7 +50,7 @@ export default function LoginPage() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="flex justify-center mb-4">
-          <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
+          <div className="w-14 h-14 bg-gradient-to-br from-gray-900 to-purple-600 rounded-2xl flex items-center justify-center">
             <Building2 className="h-8 w-8 text-white" />
           </div>
         </div>
@@ -114,7 +114,7 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account?{' '}
-          <a href="#" className="text-indigo-600 hover:underline">
+          <a href="#" className="text-gray-900 hover:underline">
             Contact admin
           </a>
         </p>

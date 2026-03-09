@@ -70,7 +70,7 @@ const platformConfig: Record<Platform, { icon: typeof Instagram; color: string; 
 
 const statusConfig: Record<PostStatus, { label: string; color: string }> = {
   draft: { label: 'Draft', color: 'bg-gray-100 text-gray-600 border-gray-200' },
-  scheduled: { label: 'Scheduled', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+  scheduled: { label: 'Scheduled', color: 'bg-gray-100 text-gray-900 border-gray-300' },
   published: { label: 'Published', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
 }
 
@@ -114,7 +114,7 @@ function StatCard({ icon: Icon, label, value, change, iconBg }: {
   iconBg: string
 }) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col gap-3 hover:border-indigo-200 transition-colors">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col gap-3 hover:border-gray-300 transition-colors">
       <div className="flex justify-between items-start">
         <div className={cn('p-2.5 rounded-xl', iconBg)}>
           <Icon className="h-5 w-5" />
@@ -182,15 +182,15 @@ function CreatePostModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
                       className={cn(
                         'group flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all',
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50'
+                          ? 'border-gray-900 bg-gray-100'
                           : 'border-gray-200 hover:bg-gray-50'
                       )}
                     >
                       <PlatformIcon platform={platform} size="sm" />
-                      <span className={cn('font-medium text-sm', isSelected ? 'text-indigo-600' : 'text-gray-700')}>
+                      <span className={cn('font-medium text-sm', isSelected ? 'text-gray-900' : 'text-gray-700')}>
                         {config.name}
                       </span>
-                      {isSelected && <Check className="h-4 w-4 text-indigo-600" />}
+                      {isSelected && <Check className="h-4 w-4 text-gray-900" />}
                     </button>
                   )
                 })}
@@ -206,19 +206,19 @@ function CreatePostModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
                   Generate Caption
                 </button>
               </div>
-              <div className="border border-gray-200 rounded-xl bg-gray-50 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 transition-all overflow-hidden">
+              <div className="border border-gray-200 rounded-xl bg-gray-50 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-300 transition-all overflow-hidden">
                 <div className="flex items-center gap-1 p-2 border-b border-gray-200 bg-white">
-                  <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                     <Bold className="h-4 w-4" />
                   </button>
-                  <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                     <Italic className="h-4 w-4" />
                   </button>
                   <div className="w-px h-5 bg-gray-200 mx-1" />
-                  <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                     <Link2 className="h-4 w-4" />
                   </button>
-                  <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                     <Smile className="h-4 w-4" />
                   </button>
                   <div className="flex-1" />
@@ -236,13 +236,13 @@ function CreatePostModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
             {/* Media Upload */}
             <div className="space-y-3">
               <label className="text-gray-900 text-sm font-semibold">Media</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center gap-3 bg-gray-50 hover:bg-gray-100 hover:border-indigo-300 transition-colors cursor-pointer group">
-                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center gap-3 bg-gray-50 hover:bg-gray-100 hover:border-gray-600 transition-colors cursor-pointer group">
+                <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 group-hover:scale-110 transition-transform">
                   <ImageIcon className="h-6 w-6" />
                 </div>
                 <div className="text-center">
                   <p className="text-gray-900 font-medium text-sm">Drag & drop photos or videos here</p>
-                  <p className="text-gray-500 text-xs mt-1">or <span className="text-indigo-600 underline">Browse files</span></p>
+                  <p className="text-gray-500 text-xs mt-1">or <span className="text-gray-900 underline">Browse files</span></p>
                 </div>
               </div>
             </div>
@@ -260,7 +260,7 @@ function CreatePostModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
                     onClick={() => setScheduleNow(!scheduleNow)}
                     className={cn(
                       'relative w-11 h-6 rounded-full transition-colors',
-                      scheduleNow ? 'bg-indigo-600' : 'bg-gray-200'
+                      scheduleNow ? 'bg-gray-900' : 'bg-gray-200'
                     )}
                   >
                     <span
@@ -326,7 +326,7 @@ function CreatePostModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
                 </div>
                 <div className="bg-white">
                   <div className="flex items-center gap-2 p-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-400 p-[2px]">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-900 to-purple-400 p-[2px]">
                       <div className="w-full h-full rounded-full bg-white" />
                     </div>
                     <div className="flex flex-col">
@@ -367,7 +367,7 @@ function CreatePostModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
             <Button variant="outline" onClick={onClose} className="rounded-xl">
               Save as Draft
             </Button>
-            <Button className="rounded-xl shadow-lg shadow-indigo-200">
+            <Button className="rounded-xl shadow-lg shadow-gray-300">
               <Calendar className="h-4 w-4 mr-2" />
               Schedule Post
             </Button>
@@ -423,7 +423,7 @@ function PostDetailSidebar({ post, isOpen, onClose }: { post: MarketingPost | nu
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Content Preview</h3>
-            <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1 transition-colors">
+            <button className="text-gray-900 hover:text-gray-800 text-sm font-medium flex items-center gap-1 transition-colors">
               View live post
               <ExternalLink className="h-4 w-4" />
             </button>
@@ -482,7 +482,7 @@ function AIContentAssistant({ isOpen, onClose }: { isOpen: boolean; onClose: () 
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-50">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-200 text-gray-900">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
@@ -513,7 +513,7 @@ function AIContentAssistant({ isOpen, onClose }: { isOpen: boolean; onClose: () 
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="e.g., Launching our Summer Sale for the new sneaker collection..."
-                  className="min-h-[96px] rounded-xl bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-200"
+                  className="min-h-[96px] rounded-xl bg-gray-50 border-gray-200 focus:border-gray-900 focus:ring-gray-300"
                 />
               </div>
 
@@ -522,7 +522,7 @@ function AIContentAssistant({ isOpen, onClose }: { isOpen: boolean; onClose: () 
                 <select
                   value={contentType}
                   onChange={(e) => setContentType(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 focus:border-indigo-500 focus:ring-indigo-200"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 focus:border-gray-900 focus:ring-gray-300"
                 >
                   <option value="">Select content type</option>
                   <option value="spotlight">Studio spotlight</option>
@@ -533,7 +533,7 @@ function AIContentAssistant({ isOpen, onClose }: { isOpen: boolean; onClose: () 
               </div>
             </div>
 
-            <Button className="w-full rounded-xl h-12 shadow-lg shadow-indigo-200">
+            <Button className="w-full rounded-xl h-12 shadow-lg shadow-gray-300">
               <Sparkles className="h-4 w-4 mr-2" />
               Generate Ideas
             </Button>
@@ -554,7 +554,7 @@ function AIContentAssistant({ isOpen, onClose }: { isOpen: boolean; onClose: () 
             {ideas.map((idea, index) => (
               <div
                 key={idea.id}
-                className="group flex flex-row items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 hover:border-indigo-300 hover:shadow-md transition-all duration-200"
+                className="group flex flex-row items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 hover:border-gray-600 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex-shrink-0 mt-0.5">
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs">
@@ -565,7 +565,7 @@ function AIContentAssistant({ isOpen, onClose }: { isOpen: boolean; onClose: () 
                   <p className="text-[15px] text-gray-700 font-medium leading-relaxed">{idea.content}</p>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-xs text-gray-400 font-medium">{idea.type}</span>
-                    <Button size="sm" variant="ghost" className="text-indigo-600 hover:text-white hover:bg-indigo-600 rounded-lg">
+                    <Button size="sm" variant="ghost" className="text-gray-900 hover:text-white hover:bg-gray-900 rounded-lg">
                       <Plus className="h-4 w-4 mr-1" />
                       Use This
                     </Button>
@@ -600,7 +600,7 @@ function ListView({ posts, onPostClick }: { posts: MarketingPost[]; onPostClick:
               <tr
                 key={post.id}
                 onClick={() => onPostClick(post)}
-                className="group hover:bg-indigo-50/50 transition-colors cursor-pointer"
+                className="group hover:bg-gray-100/50 transition-colors cursor-pointer"
               >
                 <td className="py-4 px-6 align-middle">
                   <StatusBadge status={post.status} />
@@ -665,7 +665,7 @@ function CalendarView({ posts, onPostClick }: { posts: MarketingPost[]; onPostCl
   const timeSlots = [
     { label: 'Morning', icon: Sunrise, color: 'text-orange-400' },
     { label: 'Afternoon', icon: Sun, color: 'text-yellow-500' },
-    { label: 'Evening', icon: Moon, color: 'text-indigo-400' },
+    { label: 'Evening', icon: Moon, color: 'text-gray-700' },
   ]
 
   const getPostForSlot = (date: number, slot: string): MarketingPost | undefined => {
@@ -694,14 +694,14 @@ function CalendarView({ posts, onPostClick }: { posts: MarketingPost[]; onPostCl
             key={day}
             className={cn(
               'p-4 text-center border-r border-gray-100 last:border-r-0',
-              index === 1 && 'bg-indigo-50 relative'
+              index === 1 && 'bg-gray-100 relative'
             )}
           >
-            {index === 1 && <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600" />}
-            <span className={cn('block text-xs font-medium uppercase', index === 1 ? 'text-indigo-600 font-bold' : 'text-gray-500')}>
+            {index === 1 && <div className="absolute top-0 left-0 w-full h-1 bg-gray-900" />}
+            <span className={cn('block text-xs font-medium uppercase', index === 1 ? 'text-gray-900 font-bold' : 'text-gray-500')}>
               {day}
             </span>
-            <span className={cn('block text-lg font-bold', index === 1 ? 'text-indigo-600' : 'text-gray-900')}>
+            <span className={cn('block text-lg font-bold', index === 1 ? 'text-gray-900' : 'text-gray-900')}>
               {dates[index]}
             </span>
           </div>
@@ -725,7 +725,7 @@ function CalendarView({ posts, onPostClick }: { posts: MarketingPost[]; onPostCl
                   key={`${date}-${label}`}
                   className={cn(
                     'border-r border-gray-100 last:border-r-0 p-2 transition-colors',
-                    isToday && 'bg-indigo-50 hover:bg-indigo-100',
+                    isToday && 'bg-gray-100 hover:bg-gray-200',
                     isWeekend && !isToday && 'bg-gray-50/30',
                     !isToday && !isWeekend && 'hover:bg-gray-50'
                   )}
@@ -752,7 +752,7 @@ function CalendarView({ posts, onPostClick }: { posts: MarketingPost[]; onPostCl
                       </div>
                     </div>
                   ) : isToday && label === 'Evening' ? (
-                    <button className="w-full h-full rounded-xl border-2 border-dashed border-indigo-300 flex flex-col items-center justify-center gap-1 text-indigo-500 hover:bg-white/50 hover:border-indigo-500 hover:text-indigo-600 transition-all group">
+                    <button className="w-full h-full rounded-xl border-2 border-dashed border-gray-600 flex flex-col items-center justify-center gap-1 text-gray-900 hover:bg-white/50 hover:border-gray-900 hover:text-gray-900 transition-all group">
                       <Plus className="h-6 w-6 group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-bold">Schedule</span>
                     </button>
@@ -784,7 +784,7 @@ function DraftsView({ posts, onPostClick }: { posts: MarketingPost[]; onPostClic
             'flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-xl pl-3 pr-4 transition-colors',
             selectedPlatform === 'all'
               ? 'bg-gray-900 text-white'
-              : 'bg-white border border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600'
+              : 'bg-white border border-gray-200 text-gray-700 hover:border-gray-600 hover:text-gray-900'
           )}
         >
           <LayoutGrid className="h-4 w-4" />
@@ -801,7 +801,7 @@ function DraftsView({ posts, onPostClick }: { posts: MarketingPost[]; onPostClic
                 'flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-xl pl-3 pr-4 transition-colors',
                 selectedPlatform === platform
                   ? 'bg-gray-900 text-white'
-                  : 'bg-white border border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:border-gray-600 hover:text-gray-900'
               )}
             >
               <Icon className="h-4 w-4" />
@@ -817,10 +817,10 @@ function DraftsView({ posts, onPostClick }: { posts: MarketingPost[]; onPostClic
           <div
             key={post.id}
             onClick={() => onPostClick(post)}
-            className="group flex flex-col bg-white rounded-2xl p-3 shadow-sm hover:shadow-xl hover:shadow-indigo-100 border border-transparent hover:border-indigo-200 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+            className="group flex flex-col bg-white rounded-2xl p-3 shadow-sm hover:shadow-xl hover:shadow-gray-200 border border-transparent hover:border-gray-300 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
           >
             <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-3">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center p-6">
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center p-6">
                 <div className="text-center text-white">
                   <FileEdit className="h-10 w-10 mx-auto mb-2 opacity-80" />
                   <p className="font-bold text-lg leading-snug">{post.title}</p>
@@ -838,7 +838,7 @@ function DraftsView({ posts, onPostClick }: { posts: MarketingPost[]; onPostClic
               </div>
               <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed">{post.content}</p>
               <div className="mt-2 flex gap-2 pt-2 border-t border-gray-100">
-                <Button size="sm" variant="ghost" className="flex-1 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white">
+                <Button size="sm" variant="ghost" className="flex-1 rounded-lg bg-gray-100 hover:bg-gray-900 text-gray-900 hover:text-white">
                   Edit
                 </Button>
                 <Button size="sm" variant="ghost" className="rounded-lg hover:bg-red-50 hover:text-red-500 text-gray-400">
@@ -850,9 +850,9 @@ function DraftsView({ posts, onPostClick }: { posts: MarketingPost[]; onPostClic
         ))}
 
         {/* Create New Draft Card */}
-        <div className="group flex flex-col items-center justify-center bg-gray-50 rounded-2xl p-6 border-2 border-dashed border-gray-300 hover:border-indigo-400 hover:bg-white transition-all cursor-pointer min-h-[340px]">
+        <div className="group flex flex-col items-center justify-center bg-gray-50 rounded-2xl p-6 border-2 border-dashed border-gray-300 hover:border-gray-700 hover:bg-white transition-all cursor-pointer min-h-[340px]">
           <div className="h-16 w-16 rounded-full bg-white flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
-            <Plus className="h-8 w-8 text-indigo-600" />
+            <Plus className="h-8 w-8 text-gray-900" />
           </div>
           <h3 className="text-gray-900 font-bold text-lg text-center">Create New Draft</h3>
           <p className="text-gray-500 text-sm text-center mt-1">Start writing for any platform</p>
@@ -900,7 +900,7 @@ export default function MarketingPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
           <p className="text-gray-500 text-sm font-medium">Marketing posts laden...</p>
         </div>
       </div>
@@ -925,7 +925,7 @@ export default function MarketingPage() {
               <Sparkles className="h-4 w-4 mr-2" />
               AI Ideas
             </Button>
-            <Button onClick={() => setIsCreateModalOpen(true)} className="rounded-xl shadow-lg shadow-indigo-200">
+            <Button onClick={() => setIsCreateModalOpen(true)} className="rounded-xl shadow-lg shadow-gray-300">
               <Plus className="h-4 w-4 mr-2" />
               Create Post
             </Button>
@@ -939,7 +939,7 @@ export default function MarketingPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-1">Nog geen marketing posts</h2>
           <p className="text-gray-500 text-sm mb-6">Maak je eerste post aan</p>
-          <Button onClick={() => setIsCreateModalOpen(true)} className="rounded-xl shadow-lg shadow-indigo-200">
+          <Button onClick={() => setIsCreateModalOpen(true)} className="rounded-xl shadow-lg shadow-gray-300">
             <Plus className="h-4 w-4 mr-2" />
             Create Post
           </Button>
@@ -968,7 +968,7 @@ export default function MarketingPage() {
             <Sparkles className="h-4 w-4 mr-2" />
             AI Ideas
           </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)} className="rounded-xl shadow-lg shadow-indigo-200">
+          <Button onClick={() => setIsCreateModalOpen(true)} className="rounded-xl shadow-lg shadow-gray-300">
             <Plus className="h-4 w-4 mr-2" />
             Create Post
           </Button>
@@ -1005,7 +1005,7 @@ export default function MarketingPage() {
             className={cn(
               'flex items-center gap-2 border-b-[3px] pb-3 px-1 transition-colors',
               viewMode === 'list'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-gray-900 text-gray-900'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
@@ -1017,7 +1017,7 @@ export default function MarketingPage() {
             className={cn(
               'flex items-center gap-2 border-b-[3px] pb-3 px-1 transition-colors',
               viewMode === 'calendar'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-gray-900 text-gray-900'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
@@ -1029,7 +1029,7 @@ export default function MarketingPage() {
             className={cn(
               'flex items-center gap-2 border-b-[3px] pb-3 px-1 transition-colors',
               viewMode === 'drafts'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-gray-900 text-gray-900'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >

@@ -28,7 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn, formatCurrency } from '@/lib/utils'
 import { transactionsApi, financeApi } from '@/lib/supabase'
 
-const studioColors = ['bg-indigo-500', 'bg-emerald-500', 'bg-orange-500', 'bg-purple-500']
+const studioColors = ['bg-gray-900', 'bg-emerald-500', 'bg-orange-500', 'bg-purple-500']
 
 export default function FinancePage() {
   const [dateRange] = useState('Last 30 Days')
@@ -60,7 +60,7 @@ export default function FinancePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -141,16 +141,16 @@ export default function FinancePage() {
 
         {/* Pending Payouts */}
         <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-indigo-500/5 to-transparent rounded-bl-3xl" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-gray-900/5 to-transparent rounded-bl-3xl" />
           <CardContent className="p-6 relative">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-gray-500">Pending Payouts</p>
-              <Clock className="h-5 w-5 text-indigo-500" />
+              <Clock className="h-5 w-5 text-gray-900" />
             </div>
             <div>
               <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{formatCurrency(overview?.pendingPayouts ?? 0)}</h3>
               <div className="flex items-center gap-1 mt-1">
-                <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-wider">
+                <span className="px-1.5 py-0.5 rounded-md bg-gray-200 text-gray-900 text-[10px] font-bold uppercase tracking-wider">
                   Arriving Thu
                 </span>
               </div>
@@ -198,7 +198,7 @@ export default function FinancePage() {
                 <path d="M0,80 C10,75 20,60 30,65 C40,70 50,40 60,35 C70,30 80,45 90,20 L100,25" fill="none" stroke="#6366F1" strokeLinecap="round" strokeWidth="3" vectorEffect="non-scaling-stroke" />
               </svg>
               {/* Hover Tooltip Indicator */}
-              <div className="absolute top-[20%] left-[90%] w-3 h-3 bg-white border-2 border-indigo-500 rounded-full shadow-md z-10" />
+              <div className="absolute top-[20%] left-[90%] w-3 h-3 bg-white border-2 border-gray-900 rounded-full shadow-md z-10" />
               <div className="absolute top-[5%] left-[78%] bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg z-20">
                 Jan 28: $38,420
               </div>
@@ -224,7 +224,7 @@ export default function FinancePage() {
                   <h3 className="text-base font-bold text-gray-900">Next Payout</h3>
                   <p className="text-sm text-gray-500 mt-1">Scheduled for Thursday</p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900">
                   <Building2 className="h-5 w-5" />
                 </div>
               </div>
@@ -314,7 +314,7 @@ export default function FinancePage() {
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "h-8 w-8 rounded-full flex items-center justify-center",
-                          tx.type === 'payment' ? 'bg-indigo-100 text-indigo-600' : 'bg-orange-100 text-orange-600'
+                          tx.type === 'payment' ? 'bg-gray-200 text-gray-900' : 'bg-orange-100 text-orange-600'
                         )}>
                           {tx.type === 'payment' ? (
                             <ArrowDownLeft className="h-4 w-4" />
@@ -360,7 +360,7 @@ export default function FinancePage() {
         </div>
 
         <div className="px-6 py-4 border-t border-gray-100 flex justify-center">
-          <Button variant="ghost" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 gap-1">
+          <Button variant="ghost" className="text-sm font-medium text-gray-900 hover:text-black gap-1">
             View all transactions
             <ArrowRight className="h-4 w-4" />
           </Button>
@@ -369,8 +369,8 @@ export default function FinancePage() {
 
       {/* Quick Actions Footer */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-indigo-300 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-indigo-600 transition-colors">
+        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
+          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
             <Building2 className="h-5 w-5" />
           </div>
           <div>
@@ -378,8 +378,8 @@ export default function FinancePage() {
             <p className="text-xs text-gray-500">Manage payout methods</p>
           </div>
         </button>
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-indigo-300 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-indigo-600 transition-colors">
+        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
+          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
             <FileText className="h-5 w-5" />
           </div>
           <div>
@@ -387,8 +387,8 @@ export default function FinancePage() {
             <p className="text-xs text-gray-500">Download tax documents</p>
           </div>
         </button>
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-indigo-300 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-indigo-600 transition-colors">
+        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
+          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
             <Download className="h-5 w-5" />
           </div>
           <div>
@@ -396,8 +396,8 @@ export default function FinancePage() {
             <p className="text-xs text-gray-500">Download CSV or PDF</p>
           </div>
         </button>
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-indigo-300 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-indigo-600 transition-colors">
+        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
+          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
             <Wallet className="h-5 w-5" />
           </div>
           <div>

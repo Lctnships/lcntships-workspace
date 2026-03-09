@@ -71,9 +71,9 @@ const typeConfig = {
   vip: {
     label: 'VIP',
     emoji: '🌟',
-    bgColor: 'bg-indigo-50',
-    textColor: 'text-indigo-600',
-    borderColor: 'border-indigo-200',
+    bgColor: 'bg-gray-100',
+    textColor: 'text-gray-900',
+    borderColor: 'border-gray-300',
   },
   new: {
     label: 'New',
@@ -196,7 +196,7 @@ function AddCustomerModal({ isOpen, onClose }: AddCustomerModalProps) {
                 placeholder="Add any specific requirements or notes about the customer..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full rounded-xl bg-gray-50 border border-gray-200 p-4 min-h-[100px] text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full rounded-xl bg-gray-50 border border-gray-200 p-4 min-h-[100px] text-sm resize-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
               />
             </div>
           </form>
@@ -207,7 +207,7 @@ function AddCustomerModal({ isOpen, onClose }: AddCustomerModalProps) {
           <Button variant="outline" onClick={onClose} className="h-11 px-5 rounded-xl">
             Cancel
           </Button>
-          <Button onClick={onClose} className="h-11 px-6 rounded-xl shadow-lg shadow-indigo-200">
+          <Button onClick={onClose} className="h-11 px-6 rounded-xl shadow-lg shadow-gray-300">
             <UserPlus className="h-4 w-4 mr-2" />
             Add Customer
           </Button>
@@ -262,7 +262,7 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
                     className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-full bg-indigo-100 border-4 border-white shadow-lg flex items-center justify-center text-indigo-600 font-bold text-2xl">
+                  <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center text-gray-900 font-bold text-2xl">
                     {customer.firstName[0]}{customer.lastName[0]}
                   </div>
                 )}
@@ -288,12 +288,12 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
-                <a href={`mailto:${customer.email}`} className="flex items-center gap-1.5 hover:text-indigo-600 transition-colors">
+                <a href={`mailto:${customer.email}`} className="flex items-center gap-1.5 hover:text-gray-900 transition-colors">
                   <Mail className="h-4 w-4" />
                   {customer.email}
                 </a>
               </div>
-              <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 transition-colors mb-2">
+              <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-2">
                 <Phone className="h-4 w-4" />
                 {customer.phone}
               </a>
@@ -306,7 +306,7 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
             {/* Quick Stats */}
             <section>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
+                <TrendingUp className="h-4 w-4 text-gray-900" />
                 Quick Stats
               </h3>
               <div className="grid grid-cols-2 gap-3">
@@ -314,28 +314,28 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
                   <div className="text-gray-500 text-sm font-medium">Total Bookings</div>
                   <div className="flex items-end justify-between">
                     <span className="text-3xl font-bold text-gray-900">{customer.totalBookings}</span>
-                    <Calendar className="h-8 w-8 text-indigo-200" />
+                    <Calendar className="h-8 w-8 text-gray-300" />
                   </div>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between h-28">
                   <div className="text-gray-500 text-sm font-medium">Total Spent</div>
                   <div className="flex items-end justify-between">
                     <span className="text-3xl font-bold text-gray-900">€{(customer.totalSpent / 1000).toFixed(1)}k</span>
-                    <span className="text-3xl text-indigo-200">€</span>
+                    <span className="text-3xl text-gray-300">€</span>
                   </div>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between h-28">
                   <div className="text-gray-500 text-sm font-medium">Avg. Booking</div>
                   <div className="flex items-end justify-between">
                     <span className="text-3xl font-bold text-gray-900">€{customer.avgBooking}</span>
-                    <TrendingUp className="h-8 w-8 text-indigo-200" />
+                    <TrendingUp className="h-8 w-8 text-gray-300" />
                   </div>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between h-28">
                   <div className="text-gray-500 text-sm font-medium">Fav. Studio</div>
                   <div className="flex items-end justify-between">
                     <span className="text-xl font-bold text-gray-900 truncate">{customer.favStudio}</span>
-                    <Sparkles className="h-8 w-8 text-indigo-200" />
+                    <Sparkles className="h-8 w-8 text-gray-300" />
                   </div>
                 </div>
               </div>
@@ -345,7 +345,7 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
             <section>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-indigo-600" />
+                  <Calendar className="h-4 w-4 text-gray-900" />
                   Recent History
                 </h3>
               </div>
@@ -357,11 +357,11 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
             {/* Preferences */}
             <section>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-indigo-600" />
+                <Sparkles className="h-4 w-4 text-gray-900" />
                 Preferences & Tags
               </h3>
               <div className="flex flex-wrap gap-2">
-                <button className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-dashed border-gray-300 hover:border-indigo-400 hover:text-indigo-600 transition-colors text-gray-400">
+                <button className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-dashed border-gray-300 hover:border-gray-700 hover:text-gray-900 transition-colors text-gray-400">
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
@@ -370,7 +370,7 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
             {/* Internal Notes */}
             <section>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Lock className="h-4 w-4 text-indigo-600" />
+                <Lock className="h-4 w-4 text-gray-900" />
                 Internal Notes
               </h3>
               <div className="flex flex-col gap-3">
@@ -388,10 +388,10 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Add a private note for the team..."
-                    className="w-full text-sm rounded-lg border-gray-200 bg-white focus:border-indigo-500 focus:ring-indigo-500 resize-none pr-10"
+                    className="w-full text-sm rounded-lg border-gray-200 bg-white focus:border-gray-900 focus:ring-gray-900 resize-none pr-10"
                     rows={2}
                   />
-                  <button className="absolute bottom-2 right-2 p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors">
+                  <button className="absolute bottom-2 right-2 p-1 text-gray-900 hover:bg-gray-100 rounded transition-colors">
                     <Send className="h-5 w-5" />
                   </button>
                 </div>
@@ -407,13 +407,13 @@ function CustomerDetailSidebar({ customer, isOpen, onClose }: CustomerDetailSide
               <MessageCircle className="h-4 w-4 mr-2" />
               Message
             </Button>
-            <Button className="flex-[2] h-11 rounded-xl shadow-lg shadow-indigo-200">
+            <Button className="flex-[2] h-11 rounded-xl shadow-lg shadow-gray-300">
               <Plus className="h-4 w-4 mr-2" />
               Create Booking
             </Button>
           </div>
           <div className="text-center">
-            <button className="text-xs text-gray-400 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1 mx-auto">
+            <button className="text-xs text-gray-400 hover:text-gray-900 transition-colors flex items-center justify-center gap-1 mx-auto">
               View full customer profile
               <ExternalLink className="h-3 w-3" />
             </button>
@@ -502,7 +502,7 @@ export default function CustomersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -526,7 +526,7 @@ export default function CustomersPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button className="h-11 px-5 rounded-xl shadow-lg shadow-indigo-200" onClick={() => setIsAddModalOpen(true)}>
+            <Button className="h-11 px-5 rounded-xl shadow-lg shadow-gray-300" onClick={() => setIsAddModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
             </Button>
@@ -549,7 +549,7 @@ export default function CustomersPage() {
           {/* Empty State Content */}
           <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
             <div className="relative mb-8">
-              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-200 to-orange-100 rounded-full blur-2xl transform scale-110 opacity-60" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-gray-300 to-orange-100 rounded-full blur-2xl transform scale-110 opacity-60" />
               <div className="relative bg-white p-6 rounded-full shadow-lg ring-1 ring-gray-100">
                 <div className="bg-gradient-to-b from-gray-50 to-white w-24 h-24 rounded-full flex items-center justify-center border border-gray-100">
                   <div className="relative">
@@ -571,13 +571,13 @@ export default function CustomersPage() {
 
             <div className="mt-8 flex flex-col gap-3">
               <Button
-                className="h-12 px-6 rounded-xl shadow-lg shadow-indigo-200"
+                className="h-12 px-6 rounded-xl shadow-lg shadow-gray-300"
                 onClick={() => setIsAddModalOpen(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Customer Manually
               </Button>
-              <button className="text-sm font-medium text-indigo-600 hover:underline">
+              <button className="text-sm font-medium text-gray-900 hover:underline">
                 Learn how to import customers
               </button>
             </div>
@@ -601,7 +601,7 @@ export default function CustomersPage() {
         </div>
         <Button
           variant="outline"
-          className="h-11 px-5 rounded-xl border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white"
+          className="h-11 px-5 rounded-xl border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white"
           onClick={() => setIsAddModalOpen(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -614,8 +614,8 @@ export default function CustomersPage() {
         <div className="flex flex-col justify-between gap-4 p-5 rounded-[20px] bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start">
             <p className="text-gray-500 text-sm font-medium">Total Customers</p>
-            <div className="p-1.5 rounded-lg bg-indigo-50">
-              <Users className="h-5 w-5 text-indigo-600" />
+            <div className="p-1.5 rounded-lg bg-gray-100">
+              <Users className="h-5 w-5 text-gray-900" />
             </div>
           </div>
           <div>
@@ -689,7 +689,7 @@ export default function CustomersPage() {
         <select
           value={typeFilter || ''}
           onChange={(e) => setTypeFilter(e.target.value || null)}
-          className="h-12 px-4 pr-10 bg-white rounded-xl border border-gray-200 text-sm font-medium text-gray-900 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer appearance-none"
+          className="h-12 px-4 pr-10 bg-white rounded-xl border border-gray-200 text-sm font-medium text-gray-900 shadow-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 cursor-pointer appearance-none"
         >
           <option value="">Customer Type</option>
           <option value="vip">VIP</option>
@@ -700,7 +700,7 @@ export default function CustomersPage() {
         <select
           value={lastActiveFilter}
           onChange={(e) => setLastActiveFilter(e.target.value)}
-          className="h-12 px-4 pr-10 bg-white rounded-xl border border-gray-200 text-sm font-medium text-gray-900 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer appearance-none"
+          className="h-12 px-4 pr-10 bg-white rounded-xl border border-gray-200 text-sm font-medium text-gray-900 shadow-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 cursor-pointer appearance-none"
         >
           <option value="all">Last Active</option>
           <option value="week">This Week</option>
@@ -729,7 +729,7 @@ export default function CustomersPage() {
             onClick={() => setTypeFilter(null)}
             className={cn(
               'py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors',
-              !typeFilter ? 'border-indigo-600 text-indigo-600 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
+              !typeFilter ? 'border-gray-900 text-gray-900 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
             All Customers
@@ -738,7 +738,7 @@ export default function CustomersPage() {
             onClick={() => setTypeFilter('vip')}
             className={cn(
               'py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors',
-              typeFilter === 'vip' ? 'border-indigo-600 text-indigo-600 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
+              typeFilter === 'vip' ? 'border-gray-900 text-gray-900 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
             VIP
@@ -747,7 +747,7 @@ export default function CustomersPage() {
             onClick={() => setTypeFilter('regular')}
             className={cn(
               'py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors',
-              typeFilter === 'regular' ? 'border-indigo-600 text-indigo-600 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
+              typeFilter === 'regular' ? 'border-gray-900 text-gray-900 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
             Regular
@@ -756,7 +756,7 @@ export default function CustomersPage() {
             onClick={() => setTypeFilter('new')}
             className={cn(
               'py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors',
-              typeFilter === 'new' ? 'border-indigo-600 text-indigo-600 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
+              typeFilter === 'new' ? 'border-gray-900 text-gray-900 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
             New This Month
@@ -765,7 +765,7 @@ export default function CustomersPage() {
             onClick={() => setTypeFilter('inactive')}
             className={cn(
               'py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors',
-              typeFilter === 'inactive' ? 'border-indigo-600 text-indigo-600 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
+              typeFilter === 'inactive' ? 'border-gray-900 text-gray-900 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
             Inactive
@@ -805,7 +805,7 @@ export default function CustomersPage() {
                               className="w-10 h-10 rounded-full object-cover border border-gray-200"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm border border-indigo-200">
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-bold text-sm border border-gray-300">
                               {customer.firstName[0]}{customer.lastName[0]}
                             </div>
                           )}
@@ -848,14 +848,14 @@ export default function CustomersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="relative h-8 flex items-center justify-end">
                         <button
-                          className="group-hover:hidden text-gray-400 hover:text-indigo-600 transition-colors"
+                          className="group-hover:hidden text-gray-400 hover:text-gray-900 transition-colors"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <MoreHorizontal className="h-5 w-5" />
                         </button>
                         <div className="hidden group-hover:flex items-center gap-2">
                           <button
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                             title="Message"
                             onClick={(e) => e.stopPropagation()}
                           >

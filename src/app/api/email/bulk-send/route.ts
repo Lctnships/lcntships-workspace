@@ -7,9 +7,10 @@ const resend = resendApiKey ? new Resend(resendApiKey) : null
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-const supabaseAdmin = supabaseUrl && serviceKey 
-  ? createClient(supabaseUrl, serviceKey)
+const supabaseAdmin = supabaseUrl && (serviceKey || anonKey)
+  ? createClient(supabaseUrl, (serviceKey || anonKey)!)
   : null
 
 export async function POST(request: NextRequest) {
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Save to sent_emails table
     if (supabaseAdmin && leadId && userId) {
-      await supabaseAdmin.from('sent_emails').insert({
+      const { error: dbError } = await supabaseAdmin.from('sent_emails').insert({
         lead_id: leadId,
         user_id: userId,
         subject,
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
         sent_at: new Date().toISOString(),
         status: 'sent',
       })
+      if (dbError) {
+        console.error('Failed to log sent email:', dbError)
+      }
     }
 
     return NextResponse.json({ 

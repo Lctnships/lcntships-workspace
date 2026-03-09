@@ -39,7 +39,7 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
             <GripVertical className="h-4 w-4 text-gray-400" />
           </div>
           <Avatar className="h-10 w-10 flex-shrink-0">
-            <AvatarFallback className="bg-indigo-100 text-indigo-600 text-sm">
+            <AvatarFallback className="bg-gray-200 text-gray-900 text-sm">
               {getInitials(lead.company_name)}
             </AvatarFallback>
           </Avatar>

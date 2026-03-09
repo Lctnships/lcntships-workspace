@@ -66,7 +66,7 @@ export function Header({ title }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 pl-2">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-indigo-100 text-indigo-600 text-sm">LC</AvatarFallback>
+                <AvatarFallback className="bg-gray-200 text-gray-900 text-sm">LC</AvatarFallback>
               </Avatar>
               <span className="hidden sm:inline text-sm font-medium text-gray-700">Admin</span>
             </Button>

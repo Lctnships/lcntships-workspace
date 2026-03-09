@@ -53,7 +53,7 @@ function getDocTypeIcon(type?: string): { icon: any; iconBg: string; iconColor: 
       return { icon: Video, iconBg: 'bg-pink-100', iconColor: 'text-pink-600' }
     case 'audio':
     case 'mp3':
-      return { icon: Music, iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600' }
+      return { icon: Music, iconBg: 'bg-gray-200', iconColor: 'text-gray-900' }
     default:
       return { icon: File, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' }
   }
@@ -78,7 +78,7 @@ const folderColors = [
   { id: 'purple', color: 'bg-purple-500' },
   { id: 'orange', color: 'bg-orange-500' },
   { id: 'pink', color: 'bg-pink-500' },
-  { id: 'indigo', color: 'bg-indigo-500' },
+  { id: 'dark', color: 'bg-gray-900' },
 ]
 
 // Modal Components
@@ -107,7 +107,7 @@ function CreateDocumentModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             className={cn(
               'flex-1 py-4 text-sm font-bold transition-colors',
               activeTab === 'template'
-                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                ? 'text-gray-900 border-b-2 border-gray-900'
                 : 'text-gray-400 hover:text-gray-600'
             )}
           >
@@ -118,7 +118,7 @@ function CreateDocumentModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             className={cn(
               'flex-1 py-4 text-sm font-bold transition-colors',
               activeTab === 'upload'
-                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                ? 'text-gray-900 border-b-2 border-gray-900'
                 : 'text-gray-400 hover:text-gray-600'
             )}
           >
@@ -154,8 +154,8 @@ function CreateDocumentModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                         className={cn(
                           'p-4 rounded-2xl border-2 text-left transition-all',
                           selectedTemplate === template.id
-                            ? 'border-indigo-600 bg-indigo-50'
-                            : 'border-gray-100 hover:border-indigo-200 hover:bg-gray-50'
+                            ? 'border-gray-900 bg-gray-100'
+                            : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
                         )}
                       >
                         <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
@@ -172,9 +172,9 @@ function CreateDocumentModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           ) : (
             <div className="space-y-6">
               {/* Upload Area */}
-              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors cursor-pointer">
-                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-4">
-                  <Upload className="h-8 w-8 text-indigo-600" />
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center hover:border-gray-700 hover:bg-gray-100/50 transition-colors cursor-pointer">
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-4">
+                  <Upload className="h-8 w-8 text-gray-900" />
                 </div>
                 <p className="text-lg font-bold text-gray-900 mb-2">Drop files here or click to upload</p>
                 <p className="text-sm text-gray-500">
@@ -311,8 +311,8 @@ function UploadProgressOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: 
           {/* File 2 - In Progress */}
           <div className="p-4 bg-gray-50 rounded-2xl">
             <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-indigo-600" />
+              <div className="w-12 h-12 rounded-xl bg-gray-200 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-gray-900" />
               </div>
               <div className="flex-1">
                 <p className="font-bold text-gray-900">Invoice_Dec_2024.pdf</p>
@@ -322,7 +322,7 @@ function UploadProgressOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: 
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                className="h-full bg-gray-900 rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
@@ -382,7 +382,7 @@ export default function DocumentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -414,7 +414,7 @@ export default function DocumentsPage() {
           <h2 className="text-xl font-bold text-gray-900 mb-2">Nog geen documenten</h2>
           <p className="text-gray-500 mb-6">Upload je eerste document</p>
           <Link href="/upload">
-            <Button className="rounded-xl h-11 px-6 shadow-lg shadow-indigo-200">
+            <Button className="rounded-xl h-11 px-6 shadow-lg shadow-gray-300">
               <Upload className="h-4 w-4 mr-2" />
               Document uploaden
             </Button>
@@ -456,7 +456,7 @@ export default function DocumentsPage() {
             New Folder
           </Button>
           <Button
-            className="rounded-xl h-11 px-5 shadow-lg shadow-indigo-200"
+            className="rounded-xl h-11 px-5 shadow-lg shadow-gray-300"
             onClick={() => setShowCreateDocModal(true)}
           >
             <FilePlus className="h-4 w-4 mr-2" />
@@ -484,7 +484,7 @@ export default function DocumentsPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
               <option>All Types</option>
               <option>PDF</option>
@@ -496,7 +496,7 @@ export default function DocumentsPage() {
             <select
               value={folderFilter}
               onChange={(e) => setFolderFilter(e.target.value)}
-              className="h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
               <option>All Folders</option>
               <option>Contracts</option>
@@ -511,7 +511,7 @@ export default function DocumentsPage() {
                 onClick={() => setViewMode('grid')}
                 className={cn(
                   'p-2.5 rounded-lg transition-colors',
-                  viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'
+                  viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'
                 )}
               >
                 <Grid3X3 className="h-5 w-5" />
@@ -520,7 +520,7 @@ export default function DocumentsPage() {
                 onClick={() => setViewMode('list')}
                 className={cn(
                   'p-2.5 rounded-lg transition-colors',
-                  viewMode === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'
+                  viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'
                 )}
               >
                 <List className="h-5 w-5" />
@@ -554,7 +554,7 @@ export default function DocumentsPage() {
             return (
               <div
                 key={doc.id}
-                className="flex-shrink-0 w-48 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group overflow-hidden"
+                className="flex-shrink-0 w-48 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group overflow-hidden"
               >
                 {/* Thumbnail */}
                 <div className="h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -584,7 +584,7 @@ export default function DocumentsPage() {
               return (
                 <div
                   key={doc.id}
-                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group"
+                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}>

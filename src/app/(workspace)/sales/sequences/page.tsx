@@ -135,7 +135,7 @@ function SequenceModal({ isOpen, onClose, sequence, onSave }: SequenceModalProps
               className={cn(
                 'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab.id
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-gray-900 text-gray-900'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
@@ -157,7 +157,7 @@ function SequenceModal({ isOpen, onClose, sequence, onSave }: SequenceModalProps
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="bijv. Welkomstserie nieuwe leads"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
               </div>
               <div>
@@ -169,7 +169,7 @@ function SequenceModal({ isOpen, onClose, sequence, onSave }: SequenceModalProps
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Waar is deze sequence voor bedoeld?"
                   rows={3}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
                 />
               </div>
             </div>
@@ -194,7 +194,7 @@ function SequenceModal({ isOpen, onClose, sequence, onSave }: SequenceModalProps
                     className="bg-gray-50 rounded-xl p-4 border border-gray-200"
                   >
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-bold text-sm">
                         {email.order}
                       </div>
                       <div className="flex-1">
@@ -313,7 +313,7 @@ function EnrollModal({ isOpen, onClose, sequence }: { isOpen: boolean; onClose: 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Zoek leads..."
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 mb-4"
           />
 
           <div className="space-y-2 max-h-80 overflow-auto">
@@ -326,7 +326,7 @@ function EnrollModal({ isOpen, onClose, sequence }: { isOpen: boolean; onClose: 
                   type="checkbox"
                   checked={leads.includes(lead.id)}
                   onChange={() => toggleLead(lead.id)}
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                 />
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">{lead.company}</p>
@@ -487,7 +487,7 @@ export default function SequencesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -512,7 +512,7 @@ export default function SequencesPage() {
             setSelectedSequence(null)
             setIsModalOpen(true)
           }}
-          className="gap-2 shadow-lg shadow-indigo-200"
+          className="gap-2 shadow-lg shadow-gray-300"
         >
           <Plus className="h-4 w-4" />
           Nieuwe Sequence
@@ -524,7 +524,7 @@ export default function SequencesPage() {
         {[
           { label: 'Actieve Sequences', value: sequences.filter(s => s.status === 'active').length, icon: Play, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'Gepauzeerd', value: sequences.filter(s => s.status === 'paused').length, icon: Pause, color: 'text-amber-600', bg: 'bg-amber-50' },
-          { label: 'Total Enrolled', value: sequences.reduce((sum, s) => sum + s.stats.totalEnrolled, 0), icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: 'Total Enrolled', value: sequences.reduce((sum, s) => sum + s.stats.totalEnrolled, 0), icon: Users, color: 'text-gray-900', bg: 'bg-gray-100' },
           { label: 'Actief in Sequence', value: sequences.reduce((sum, s) => sum + s.stats.active, 0), icon: Send, color: 'text-blue-600', bg: 'bg-blue-50' },
         ].map((stat, i) => (
           <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100">

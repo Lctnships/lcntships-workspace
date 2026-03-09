@@ -173,7 +173,7 @@ function ProspectCard({ prospect, selected, onSelect, onReveal, revealed }: Pros
     <div
       className={cn(
         'bg-white rounded-2xl border p-5 transition-all',
-        selected ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-100 hover:border-gray-200'
+        selected ? 'border-gray-900 ring-2 ring-gray-200' : 'border-gray-100 hover:border-gray-200'
       )}
     >
       {/* Header */}
@@ -184,7 +184,7 @@ function ProspectCard({ prospect, selected, onSelect, onReveal, revealed }: Pros
             className={cn(
               'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors mt-0.5',
               selected
-                ? 'bg-indigo-600 border-indigo-600'
+                ? 'bg-gray-900 border-gray-900'
                 : 'border-gray-300 hover:border-gray-400'
             )}
           >
@@ -236,19 +236,19 @@ function ProspectCard({ prospect, selected, onSelect, onReveal, revealed }: Pros
         <div className="space-y-2 p-3 bg-gray-50 rounded-xl mb-4">
           <div className="flex items-center gap-2 text-sm">
             <Mail className="h-4 w-4 text-gray-400" />
-            <a href={`mailto:${prospect.email}`} className="text-indigo-600 hover:underline">
+            <a href={`mailto:${prospect.email}`} className="text-gray-900 hover:underline">
               {prospect.email}
             </a>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Phone className="h-4 w-4 text-gray-400" />
-            <a href={`tel:${prospect.phone}`} className="text-indigo-600 hover:underline">
+            <a href={`tel:${prospect.phone}`} className="text-gray-900 hover:underline">
               {prospect.phone}
             </a>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Linkedin className="h-4 w-4 text-gray-400" />
-            <a href={`https://${prospect.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+            <a href={`https://${prospect.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:underline">
               {prospect.linkedin}
             </a>
           </div>
@@ -256,7 +256,7 @@ function ProspectCard({ prospect, selected, onSelect, onReveal, revealed }: Pros
       ) : (
         <button
           onClick={onReveal}
-          className="w-full p-3 mb-4 rounded-xl border-2 border-dashed border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+          className="w-full p-3 mb-4 rounded-xl border-2 border-dashed border-gray-200 text-gray-500 hover:border-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center gap-2"
         >
           <Eye className="h-4 w-4" />
           <span className="text-sm font-medium">Reveal Contact Info</span>
@@ -330,7 +330,7 @@ function FilterSection({ title, icon, options, selected, onChange }: FilterSecti
                 type="checkbox"
                 checked={selected.includes(option)}
                 onChange={() => toggleOption(option)}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
               />
               <span>{option}</span>
             </label>
@@ -417,7 +417,7 @@ export default function ApolloPage() {
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-xs text-gray-900 hover:text-black font-medium"
               >
                 Clear all
               </button>
@@ -505,7 +505,7 @@ export default function ApolloPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={selectAll}
-              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              className="text-sm text-gray-900 hover:text-black font-medium"
             >
               Select all
             </button>
@@ -550,7 +550,7 @@ export default function ApolloPage() {
       {selectedProspects.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-4 z-50">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-medium">
+            <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-sm font-medium">
               {selectedProspects.length}
             </div>
             <span className="font-medium">prospects selected</span>

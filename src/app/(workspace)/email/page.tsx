@@ -155,7 +155,7 @@ function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps
                 <button
                   key={template.id}
                   onClick={() => applyTemplate(template.id)}
-                  className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm hover:border-indigo-500 hover:text-indigo-600 transition-colors"
+                  className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm hover:border-gray-900 hover:text-gray-900 transition-colors"
                 >
                   {template.name}
                 </button>
@@ -193,7 +193,7 @@ function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps
               onChange={(e) => setBody(e.target.value)}
               placeholder="Schrijf je bericht hier..."
               rows={12}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
             />
           </div>
         </div>
@@ -328,7 +328,7 @@ function EmailSettingsModal({
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 'flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeTab === tab.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
               <tab.icon className="h-4 w-4" />
@@ -409,7 +409,7 @@ function EmailSettingsModal({
                   {accounts.map(account => (
                     <div key={account.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-semibold">
                           {account.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -446,7 +446,7 @@ function EmailSettingsModal({
                 <div className="bg-gray-50 rounded-xl p-4 space-y-4">
                   <Input placeholder="Template naam" value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} />
                   <Input placeholder="Standaard onderwerp" value={newTemplateSubject} onChange={e => setNewTemplateSubject(e.target.value)} />
-                  <textarea placeholder="Template inhoud..." value={newTemplateBody} onChange={e => setNewTemplateBody(e.target.value)} rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                  <textarea placeholder="Template inhoud..." value={newTemplateBody} onChange={e => setNewTemplateBody(e.target.value)} rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={saveTemplate}>Opslaan</Button>
                     <Button size="sm" variant="outline" onClick={() => setShowAddTemplate(false)}>Annuleren</Button>
@@ -600,7 +600,7 @@ export default function EmailPage() {
         <div className="p-4 border-b border-gray-200">
           <Button 
             onClick={() => setIsComposeOpen(true)}
-            className="w-full gap-2 shadow-lg shadow-indigo-200"
+            className="w-full gap-2 shadow-lg shadow-gray-300"
           >
             <Plus className="h-4 w-4" />
             Nieuw bericht
@@ -619,7 +619,7 @@ export default function EmailPage() {
               className={cn(
                 'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
                 selectedFolder === folder.id
-                  ? 'bg-indigo-100 text-indigo-700'
+                  ? 'bg-gray-200 text-black'
                   : 'text-gray-600 hover:bg-gray-100'
               )}
             >
@@ -631,7 +631,7 @@ export default function EmailPage() {
                 <span className={cn(
                   'text-xs px-2 py-0.5 rounded-full',
                   selectedFolder === folder.id
-                    ? 'bg-indigo-200 text-indigo-800'
+                    ? 'bg-gray-300 text-gray-800'
                     : 'bg-gray-200 text-gray-600'
                 )}>
                   {folder.count}
@@ -728,8 +728,8 @@ export default function EmailPage() {
                   }}
                   className={cn(
                     'w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors',
-                    !email.isRead && 'bg-indigo-50/30',
-                    selectedEmail?.id === email.id && 'bg-indigo-50'
+                    !email.isRead && 'bg-gray-100/30',
+                    selectedEmail?.id === email.id && 'bg-gray-100'
                   )}
                 >
                   <span
@@ -823,7 +823,7 @@ export default function EmailPage() {
               
               <div className="flex items-start justify-between mb-6 pb-6 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-semibold">
                     {selectedEmail.from.name.charAt(0).toUpperCase()}
                   </div>
                   <div>

@@ -727,24 +727,37 @@ export const leadContactsApi = {
 // Marketing API functions
 export const marketingApi = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('marketing_posts')
-      .select('*')
-      .order('created_at', { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from('marketing_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data as MarketingPost[]
+      if (error) {
+        console.warn('Marketing posts table not found:', error.message)
+        return []
+      }
+      return data as MarketingPost[]
+    } catch (err) {
+      console.warn('Marketing posts fetch failed:', err)
+      return []
+    }
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
-      .from('marketing_posts')
-      .select('*')
-      .eq('id', id)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('marketing_posts')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-    if (error) throw error
-    return data as MarketingPost
+      if (error) throw error
+      return data as MarketingPost
+    } catch (err) {
+      console.warn('Marketing post fetch failed:', err)
+      return null
+    }
   },
 
   async create(post: Partial<MarketingPost>) {

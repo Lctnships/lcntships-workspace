@@ -153,14 +153,14 @@ export function BookingCalendar({ bookings = mockBookings }: BookingCalendarProp
                   className={cn(
                     'min-h-[100px] p-2 rounded-xl text-left transition-all border-2',
                     isCurrentMonth ? 'bg-white' : 'bg-gray-50',
-                    isSelected ? 'border-indigo-500 bg-indigo-50/50' : 'border-transparent',
-                    'hover:border-indigo-300'
+                    isSelected ? 'border-gray-900 bg-gray-100/50' : 'border-transparent',
+                    'hover:border-gray-600'
                   )}
                 >
                   <span
                     className={cn(
                       'inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium',
-                      isTodayDate && 'bg-indigo-500 text-white',
+                      isTodayDate && 'bg-gray-900 text-white',
                       !isTodayDate && isCurrentMonth && 'text-gray-900',
                       !isCurrentMonth && 'text-gray-400'
                     )}

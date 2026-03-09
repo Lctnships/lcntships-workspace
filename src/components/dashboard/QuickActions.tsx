@@ -9,7 +9,7 @@ const actions = [
     label: 'Add Studio',
     icon: Plus,
     href: '/studios/new',
-    color: 'bg-indigo-500 hover:bg-indigo-600',
+    color: 'bg-gray-900 hover:bg-gray-900',
   },
   {
     label: 'New Lead',

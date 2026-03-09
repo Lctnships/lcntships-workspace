@@ -61,7 +61,7 @@ export default function PartnerDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -103,7 +103,7 @@ export default function PartnerDetailPage() {
           <div className="flex items-center gap-2 mb-2">
             <Link
               href="/partners"
-              className="text-gray-400 text-sm font-medium hover:text-indigo-600 transition-colors"
+              className="text-gray-400 text-sm font-medium hover:text-gray-900 transition-colors"
             >
               Partners
             </Link>
@@ -113,7 +113,7 @@ export default function PartnerDetailPage() {
 
           {/* Header with Avatar */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-xl bg-indigo-50 flex items-center justify-center overflow-hidden shadow-sm">
+            <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
               {partner.avatar_url ? (
                 <img
                   src={partner.avatar_url}
@@ -121,7 +121,7 @@ export default function PartnerDetailPage() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Building2 className="h-8 w-8 text-indigo-400" />
+                <Building2 className="h-8 w-8 text-gray-700" />
               )}
             </div>
             <div>
@@ -197,7 +197,7 @@ export default function PartnerDetailPage() {
             <div className="p-5 bg-gray-50 rounded-2xl">
               <p className="text-gray-500 text-sm font-medium mb-1">Total Revenue</p>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-indigo-600">
+                <span className="text-3xl font-bold text-gray-900">
                   {formatCurrency(totalRevenue)}
                 </span>
               </div>
@@ -210,7 +210,7 @@ export default function PartnerDetailPage() {
             </div>
             <a
               href="#"
-              className="flex items-center justify-between text-indigo-600 text-sm font-bold hover:underline px-2"
+              className="flex items-center justify-between text-gray-900 text-sm font-bold hover:underline px-2"
             >
               <span>View Payout History</span>
               <ChevronRight className="h-4 w-4" />
@@ -225,7 +225,7 @@ export default function PartnerDetailPage() {
               <h2 className="text-xl font-bold text-gray-900">Studio Performance</h2>
               <p className="text-gray-500 text-sm">Monthly Booking Trends</p>
             </div>
-            <select className="bg-gray-50 border-none rounded-lg text-xs font-bold pr-10 focus:ring-indigo-500">
+            <select className="bg-gray-50 border-none rounded-lg text-xs font-bold pr-10 focus:ring-gray-900">
               <option>Last 30 Days</option>
               <option>Last 6 Months</option>
             </select>
@@ -240,10 +240,10 @@ export default function PartnerDetailPage() {
                   className={cn(
                     'flex-1 rounded-t-lg transition-all',
                     index === weeklyPerformance.length - 1
-                      ? 'bg-indigo-600'
+                      ? 'bg-gray-900'
                       : index >= weeklyPerformance.length - 3
-                      ? 'bg-indigo-400'
-                      : 'bg-indigo-200'
+                      ? 'bg-gray-700'
+                      : 'bg-gray-300'
                   )}
                   style={{ height: `${value}%` }}
                 />
@@ -263,7 +263,7 @@ export default function PartnerDetailPage() {
         <div className="col-span-12 lg:col-span-5 bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-gray-900">Documents</h2>
-            <button className="text-indigo-600 text-xs font-bold hover:underline">
+            <button className="text-gray-900 text-xs font-bold hover:underline">
               Upload New
             </button>
           </div>
@@ -274,7 +274,7 @@ export default function PartnerDetailPage() {
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 transition-colors group cursor-pointer"
+                  className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-300 transition-colors group cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-orange-100">
@@ -288,7 +288,7 @@ export default function PartnerDetailPage() {
                       </p>
                     </div>
                   </div>
-                  <Download className="h-5 w-5 text-gray-300 group-hover:text-indigo-600 transition-colors" />
+                  <Download className="h-5 w-5 text-gray-300 group-hover:text-gray-900 transition-colors" />
                 </div>
               ))
             )}

@@ -53,7 +53,7 @@ export function BookingTable({ bookings }: BookingTableProps) {
               <TableCell>
                 <div className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
+                    <AvatarFallback className="bg-gray-200 text-gray-900 text-xs">
                       {getInitials(booking.customer?.full_name || 'Unknown')}
                     </AvatarFallback>
                   </Avatar>

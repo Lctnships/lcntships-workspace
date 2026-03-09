@@ -30,9 +30,9 @@ import { bookingsApi, studiosApi } from '@/lib/supabase'
 const statusConfig = {
   confirmed: {
     label: 'Confirmed',
-    bgColor: 'bg-indigo-100',
-    textColor: 'text-indigo-600',
-    dotColor: 'bg-indigo-600',
+    bgColor: 'bg-gray-200',
+    textColor: 'text-gray-900',
+    dotColor: 'bg-gray-900',
   },
   pending: {
     label: 'Pending',
@@ -107,7 +107,7 @@ function ManualBookingModal({ isOpen, onClose }: ManualBookingModalProps) {
             {/* Customer Information */}
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <User className="h-4 w-4 text-indigo-600" />
+                <User className="h-4 w-4 text-gray-900" />
                 Customer Information
               </h3>
               <div className="grid grid-cols-2 gap-4">
@@ -146,7 +146,7 @@ function ManualBookingModal({ isOpen, onClose }: ManualBookingModalProps) {
             {/* Booking Details */}
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-indigo-600" />
+                <Building2 className="h-4 w-4 text-gray-900" />
                 Booking Details
               </h3>
               <div className="grid grid-cols-2 gap-4">
@@ -155,7 +155,7 @@ function ManualBookingModal({ isOpen, onClose }: ManualBookingModalProps) {
                   <select
                     value={formData.studio}
                     onChange={(e) => setFormData({ ...formData, studio: e.target.value })}
-                    className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
                   >
                     <option value="">Select a studio...</option>
                     <option value="studio-alpha">Studio Alpha - $50/hr</option>
@@ -199,7 +199,7 @@ function ManualBookingModal({ isOpen, onClose }: ManualBookingModalProps) {
                     placeholder="Any special requirements or notes..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full h-24 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                    className="w-full h-24 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 resize-none"
                   />
                 </div>
               </div>
@@ -212,7 +212,7 @@ function ManualBookingModal({ isOpen, onClose }: ManualBookingModalProps) {
           <Button variant="ghost" onClick={onClose} className="h-12 px-6 rounded-xl">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} className="h-12 px-8 rounded-xl shadow-lg shadow-indigo-200">
+          <Button onClick={handleSubmit} className="h-12 px-8 rounded-xl shadow-lg shadow-gray-300">
             Create Booking
           </Button>
         </div>
@@ -270,7 +270,7 @@ function BookingCalendar({
       const studio = (booking.studio as any)?.title || (booking.studio as any)?.name || 'Studio'
       const time = booking.start_time || ''
       const statusColor = booking.status === 'confirmed'
-        ? 'bg-indigo-100 text-indigo-600 border-indigo-200'
+        ? 'bg-gray-200 text-gray-900 border-gray-300'
         : booking.status === 'pending'
         ? 'bg-amber-50 text-amber-600 border-amber-100'
         : 'bg-emerald-50 text-emerald-600 border-emerald-100'
@@ -316,7 +316,7 @@ function BookingCalendar({
                 className={cn(
                   'px-5 flex items-center justify-center rounded-full transition-all text-sm font-semibold capitalize',
                   viewMode === mode
-                    ? 'bg-white shadow-sm text-indigo-600'
+                    ? 'bg-white shadow-sm text-gray-900'
                     : 'text-gray-500 hover:text-gray-700'
                 )}
               >
@@ -355,7 +355,7 @@ function BookingCalendar({
                   'min-h-[120px] p-2 rounded-2xl border transition-all',
                   day
                     ? isToday(day)
-                      ? 'bg-indigo-50/50 ring-2 ring-indigo-200 border-indigo-100'
+                      ? 'bg-gray-100/50 ring-2 ring-gray-300 border-gray-200'
                       : 'border-gray-50 bg-gray-50/30 hover:bg-gray-50 hover:border-gray-100'
                     : 'border-transparent'
                 )}
@@ -365,7 +365,7 @@ function BookingCalendar({
                     <span
                       className={cn(
                         'text-sm font-bold',
-                        isToday(day) ? 'text-indigo-600' : 'text-gray-400'
+                        isToday(day) ? 'text-gray-900' : 'text-gray-400'
                       )}
                     >
                       {day}
@@ -449,7 +449,7 @@ function BookingsTable({ bookings }: { bookings: any[] }) {
                         style={{ backgroundImage: `url(${customerAvatar})` }}
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-bold text-sm">
                         {customerName.charAt(0)}
                       </div>
                     )}
@@ -494,7 +494,7 @@ function BookingsTable({ bookings }: { bookings: any[] }) {
         </tbody>
       </table>
       <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
-        <button className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">
+        <button className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors">
           Load More Bookings
           <ChevronRight className="h-4 w-4 rotate-90" />
         </button>
@@ -537,7 +537,7 @@ export default function BookingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -558,7 +558,7 @@ export default function BookingsPage() {
             Export Schedule
           </Button>
           <Button
-            className="rounded-full h-12 px-6 shadow-lg shadow-indigo-200"
+            className="rounded-full h-12 px-6 shadow-lg shadow-gray-300"
             onClick={() => setShowManualBooking(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -591,7 +591,7 @@ export default function BookingsPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-1">Nog geen boekingen</h3>
           <p className="text-gray-500 mb-6">Zodra er boekingen binnenkomen verschijnen ze hier.</p>
           <Button
-            className="rounded-full h-11 px-6 shadow-lg shadow-indigo-200"
+            className="rounded-full h-11 px-6 shadow-lg shadow-gray-300"
             onClick={() => setShowManualBooking(true)}
           >
             <Plus className="h-4 w-4 mr-2" />

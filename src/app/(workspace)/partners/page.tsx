@@ -74,14 +74,14 @@ function PartnerCard({ partner }: PartnerCardProps) {
 
   return (
     <Link href={`/partners/${partner.id}`}>
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all group relative">
-        <button className="absolute top-6 right-6 text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-gray-300 transition-all group relative">
+        <button className="absolute top-6 right-6 text-gray-400 hover:text-gray-900 opacity-0 group-hover:opacity-100 transition-opacity">
           <MoreHorizontal className="h-5 w-5" />
         </button>
 
         {/* Header with Avatar */}
         <div className="flex items-start gap-4 mb-6">
-          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
             {partner.image ? (
               <img
                 src={partner.image}
@@ -89,11 +89,11 @@ function PartnerCard({ partner }: PartnerCardProps) {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Building2 className="h-8 w-8 text-indigo-400" />
+              <Building2 className="h-8 w-8 text-gray-700" />
             )}
           </div>
           <div className="flex flex-col">
-            <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
+            <h3 className="text-xl font-bold text-gray-900 group-hover:text-gray-900 transition-colors">
               {partner.company_name}
             </h3>
             <div className="flex items-center gap-1.5 mt-1 text-gray-500">
@@ -118,7 +118,7 @@ function PartnerCard({ partner }: PartnerCardProps) {
               <span className={cn('w-1.5 h-1.5 rounded-full', status.dotColor)} />
               {status.label}
             </div>
-            <div className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold">
+            <div className="px-3 py-1 rounded-full bg-gray-100 text-gray-900 text-xs font-bold">
               {partner.type}
             </div>
           </div>
@@ -135,7 +135,7 @@ function PartnerCard({ partner }: PartnerCardProps) {
           <div className="h-8 w-px bg-gray-200" />
           <div className="flex flex-col items-end">
             <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Revenue Share</p>
-            <p className="text-base font-bold text-indigo-600">{partner.revenue_share}%</p>
+            <p className="text-base font-bold text-gray-900">{partner.revenue_share}%</p>
           </div>
         </div>
       </div>
@@ -163,7 +163,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
                 currentStep > step.number
                   ? 'bg-emerald-500 text-white'
                   : currentStep === step.number
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-gray-900 text-white'
                   : 'bg-gray-100 text-gray-400'
               )}
             >
@@ -337,8 +337,8 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
             <h3 className="text-sm font-bold text-gray-900 mb-4">Next Steps</h3>
             <div className="space-y-3 text-left">
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <Check className="h-4 w-4 text-indigo-600" />
+                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                  <Check className="h-4 w-4 text-gray-900" />
                 </div>
                 <span className="text-sm text-gray-600">Complete partner profile details</span>
               </div>
@@ -428,7 +428,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                   <select
                     value={formData.studioType}
                     onChange={(e) => updateFormData('studioType', e.target.value)}
-                    className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
                   >
                     <option value="">Select a type...</option>
                     <option value="Yoga">Yoga</option>
@@ -477,7 +477,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                   <select
                     value={formData.country}
                     onChange={(e) => updateFormData('country', e.target.value)}
-                    className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
                   >
                     <option value="">Select a country...</option>
                     <option value="US">United States</option>
@@ -497,8 +497,8 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                     className={cn(
                       'border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer',
                       isDragging
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-indigo-400 hover:bg-gray-50'
+                        ? 'border-gray-900 bg-gray-100'
+                        : 'border-gray-200 hover:border-gray-700 hover:bg-gray-50'
                     )}
                     onClick={() => document.getElementById('logo-input')?.click()}
                   >
@@ -515,11 +515,11 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                     />
                     <CloudUpload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
                     {formData.logoFile ? (
-                      <p className="text-sm font-medium text-indigo-600">{formData.logoFile.name}</p>
+                      <p className="text-sm font-medium text-gray-900">{formData.logoFile.name}</p>
                     ) : (
                       <>
                         <p className="text-sm font-medium text-gray-700">
-                          Drag and drop or <span className="text-indigo-600">browse</span>
+                          Drag and drop or <span className="text-gray-900">browse</span>
                         </p>
                         <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</p>
                       </>
@@ -603,7 +603,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                         className={cn(
                           'flex-1 h-12 rounded-xl border text-sm font-medium transition-all capitalize',
                           formData.preferredContact === method
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-600'
+                            ? 'border-gray-900 bg-gray-100 text-gray-900'
                             : 'border-gray-200 text-gray-600 hover:border-gray-300'
                         )}
                       >
@@ -675,7 +675,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                         className={cn(
                           'flex-1 h-12 rounded-xl border text-sm font-bold transition-all',
                           formData.revenueShare === percentage
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-600'
+                            ? 'border-gray-900 bg-gray-100 text-gray-900'
                             : 'border-gray-200 text-gray-600 hover:border-gray-300'
                         )}
                       >
@@ -702,7 +702,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                   <h4 className="text-sm font-bold text-gray-900">Studio Information</h4>
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="text-xs font-medium text-indigo-600 hover:underline"
+                    className="text-xs font-medium text-gray-900 hover:underline"
                   >
                     Edit
                   </button>
@@ -731,7 +731,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                   <h4 className="text-sm font-bold text-gray-900">Owner Details</h4>
                   <button
                     onClick={() => setCurrentStep(2)}
-                    className="text-xs font-medium text-indigo-600 hover:underline"
+                    className="text-xs font-medium text-gray-900 hover:underline"
                   >
                     Edit
                   </button>
@@ -762,7 +762,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
                   <h4 className="text-sm font-bold text-gray-900">Legal & Financial</h4>
                   <button
                     onClick={() => setCurrentStep(3)}
-                    className="text-xs font-medium text-indigo-600 hover:underline"
+                    className="text-xs font-medium text-gray-900 hover:underline"
                   >
                     Edit
                   </button>
@@ -803,7 +803,7 @@ function AddPartnerModal({ isOpen, onClose }: AddPartnerModalProps) {
           </Button>
           <Button
             onClick={handleNext}
-            className="h-12 px-8 rounded-xl shadow-lg shadow-indigo-200"
+            className="h-12 px-8 rounded-xl shadow-lg shadow-gray-300"
           >
             {currentStep === 4 ? 'Submit Partner' : 'Continue'}
             {currentStep < 4 && <ChevronRight className="h-4 w-4 ml-2" />}
@@ -863,7 +863,7 @@ export default function PartnersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
     )
   }
@@ -882,7 +882,7 @@ export default function PartnersPage() {
             Export List
           </Button>
           <Button
-            className="rounded-full h-12 px-6 shadow-lg shadow-indigo-200"
+            className="rounded-full h-12 px-6 shadow-lg shadow-gray-300"
             onClick={() => setIsAddModalOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -957,7 +957,7 @@ export default function PartnersPage() {
                   className={cn(
                     'pb-2 px-1 text-sm font-bold border-b-2 transition-colors whitespace-nowrap',
                     typeFilter === type
-                      ? 'border-indigo-600 text-indigo-600'
+                      ? 'border-gray-900 text-gray-900'
                       : 'border-transparent text-gray-400 hover:text-gray-600'
                   )}
                 >
@@ -976,7 +976,7 @@ export default function PartnersPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-1">Nog geen partners</h3>
           <p className="text-gray-500 mb-6">Voeg je eerste partner toe om je netwerk op te bouwen.</p>
           <Button
-            className="rounded-full h-12 px-6 shadow-lg shadow-indigo-200"
+            className="rounded-full h-12 px-6 shadow-lg shadow-gray-300"
             onClick={() => setIsAddModalOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -993,9 +993,9 @@ export default function PartnersPage() {
             {/* Add New Partner Card */}
             <div
               onClick={() => setIsAddModalOpen(true)}
-              className="bg-transparent border-2 border-dashed border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group min-h-[320px]"
+              className="bg-transparent border-2 border-dashed border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:border-gray-700 hover:bg-white transition-all cursor-pointer group min-h-[320px]"
             >
-              <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+              <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4 group-hover:bg-gray-100 group-hover:text-gray-900 transition-colors">
                 <Plus className="h-8 w-8" />
               </div>
               <p className="text-lg font-bold text-gray-900">Add New Partner</p>
