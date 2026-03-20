@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import imaps from 'imap-simple'
+import { simpleParser } from 'mailparser'
+import { requireAuth } from '@/lib/api-auth'
+import { validateImapHost } from '@/lib/imap-validation'
 
 export async function POST(req: NextRequest) {
+  const { user: authUser, error: authError } = await requireAuth()
+  if (authError) return authError
+
   const { host, port, user, password, tls, folder = 'INBOX', limit = 50 } = await req.json()
 
   if (!host || !user || !password) {
     return NextResponse.json({ error: 'host, user en password zijn verplicht' }, { status: 400 })
   }
+
+  // SSRF protection: validate host
+  const { valid, error: hostError } = await validateImapHost(host)
+  if (!valid) return hostError!
 
   const config = {
     imap: {
@@ -26,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const searchCriteria = ['ALL']
     const fetchOptions = {
-      bodies: ['HEADER.FIELDS (FROM TO SUBJECT DATE)', 'TEXT'],
+      bodies: [''],
       markSeen: false,
       struct: true,
     }
@@ -37,38 +47,38 @@ export async function POST(req: NextRequest) {
     // Get last N messages (newest first)
     const recent = messages.slice(-limit).reverse()
 
-    const emails = recent.map((msg) => {
-      const headerPart = msg.parts.find((p: { which: string }) => p.which.startsWith('HEADER'))
-      const bodyPart = msg.parts.find((p: { which: string }) => p.which === 'TEXT')
+    const emails = await Promise.all(recent.map(async (msg) => {
+      const rawPart = msg.parts.find((p: { which: string }) => p.which === '')
+      const raw = rawPart?.body || ''
 
-      const headers = headerPart?.body || {}
-      const from = headers.from?.[0] || ''
-      const to = headers.to?.[0] || ''
-      const subject = headers.subject?.[0] || '(geen onderwerp)'
-      const date = headers.date?.[0] || new Date().toISOString()
+      const parsed = await simpleParser(raw).catch(() => null)
 
-      // Parse from field
-      const fromMatch = from.match(/^(.+?)\s*<(.+?)>$/)
-      const fromName = fromMatch ? fromMatch[1].trim().replace(/^"|"$/g, '') : from
-      const fromEmail = fromMatch ? fromMatch[2] : from
+      const from = parsed?.from?.value?.[0]
+      const to = parsed?.to
+      const toAddr = Array.isArray(to) ? to[0]?.value?.[0] : (to as any)?.value?.[0]
+
+      const htmlBody = parsed?.html || ''
+      const textBody = parsed?.text || ''
 
       return {
         id: `${msg.attributes.uid}`,
-        subject,
-        from: { name: fromName, email: fromEmail },
-        to: [{ name: '', email: to.replace(/<|>/g, '').trim() }],
-        date: new Date(date).toISOString(),
-        body: bodyPart?.body?.slice(0, 500) || '',
+        subject: parsed?.subject || '(geen onderwerp)',
+        from: { name: from?.name || '', email: from?.address || '' },
+        to: [{ name: toAddr?.name || '', email: toAddr?.address || '' }],
+        date: parsed?.date?.toISOString() || new Date().toISOString(),
+        body: textBody,
+        html: htmlBody,
         isRead: msg.attributes.flags?.includes('\\Seen') || false,
         isStarred: msg.attributes.flags?.includes('\\Flagged') || false,
         folder: 'inbox',
         uid: msg.attributes.uid,
       }
-    })
+    }))
 
     return NextResponse.json({ emails })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Verbinding mislukt'
+    console.error('[IMAP ERROR]', err)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

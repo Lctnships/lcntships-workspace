@@ -33,6 +33,10 @@ import {
   Filter,
   Trash2,
   Target,
+  LayoutGrid,
+  List,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,6 +71,8 @@ interface Lead {
   enrichment_error?: string
   notes?: string
   created_at?: string
+  qualified?: boolean | null
+  disqualified_reason?: string | null
   _duplicate?: boolean
 }
 
@@ -86,7 +92,7 @@ interface Usage {
 
 type SortField = 'name' | 'city' | 'google_rating' | 'google_reviews' | 'status' | 'enriched'
 type SortDir = 'asc' | 'desc'
-type FilterType = 'all' | 'with_email' | 'without_email' | 'not_scraped' | 'errors'
+type FilterType = 'all' | 'with_email' | 'without_email' | 'not_scraped' | 'errors' | 'qualified' | 'disqualified' | 'unreviewed'
 
 const CITIES = ['Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen', 'Haarlem', 'Leiden', 'Arnhem', 'Tilburg']
 const TYPES = ['Fotostudio', 'Filmstudio', 'Muziekstudio', 'Podcast Studio', 'Dansstudio', 'Creative Space', 'Evenementenlocatie', 'Recording Studio']
@@ -205,6 +211,7 @@ export default function ScraperPage() {
   const enrichAbortRef = useRef(false)
 
   // Table state
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
   const [filter, setFilter] = useState<FilterType>('all')
   const [cityFilter, setCityFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -376,6 +383,9 @@ export default function ScraperPage() {
     if (filter === 'without_email' && (lead.email || !lead.website)) return false
     if (filter === 'not_scraped' && (lead.enriched || !lead.website)) return false
     if (filter === 'errors' && !lead.enrichment_error) return false
+    if (filter === 'qualified' && lead.qualified !== true) return false
+    if (filter === 'disqualified' && lead.qualified !== false) return false
+    if (filter === 'unreviewed' && lead.qualified !== null && lead.qualified !== undefined) return false
     if (cityFilter && lead.city !== cityFilter) return false
     if (statusFilter && lead.status !== statusFilter) return false
     if (minRating && (lead.google_rating || 0) < Number(minRating)) return false
@@ -441,6 +451,29 @@ export default function ScraperPage() {
     URL.revokeObjectURL(url)
   }
 
+  const exportHubSpotCSV = () => {
+    const target = selected.size > 0 ? sorted.filter(l => selected.has(l.id)) : sorted
+    const rows = [
+      ['Company name', 'Phone Number', 'Website URL', 'City', 'Email', 'Instagram Company Page', 'Studio Type', 'Lead Status'],
+      ...target.map(l => [
+        l.name,
+        l.phone || '',
+        l.website || '',
+        l.city || '',
+        l.email || '',
+        l.instagram || '',
+        l.categories?.[0] || '',
+        'NEW',
+      ]),
+    ]
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `lcntships-leads-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const bulkChangeStatus = async (status: string) => {
     if (selected.size === 0) return
     const ids = [...selected]
@@ -453,11 +486,21 @@ export default function ScraperPage() {
     startEnrichment(target)
   }
 
+  const deleteLead = async (lead: Lead) => {
+    await supabase.from('leads').delete().eq('id', lead.id)
+    await supabase.from('sales_leads').delete().eq('company_name', lead.name)
+    setLeads(prev => prev.filter(l => l.id !== lead.id))
+    setPipelineExisting(prev => { const s = new Set(prev); s.delete(lead.id); return s })
+    setPipelineAdded(prev => { const s = new Set(prev); s.delete(lead.id); return s })
+  }
+
   const bulkDelete = async () => {
     if (selected.size === 0) return
     if (!confirm(`Weet je zeker dat je ${selected.size} leads wilt verwijderen?`)) return
     const ids = [...selected]
+    const names = leads.filter(l => ids.includes(l.id)).map(l => l.name)
     await supabase.from('leads').delete().in('id', ids)
+    await supabase.from('sales_leads').delete().in('company_name', names)
     setLeads(prev => prev.filter(l => !ids.includes(l.id)))
     setSelected(new Set())
   }
@@ -470,6 +513,11 @@ export default function ScraperPage() {
   const changeStatus = async (id: string, status: string) => {
     await supabase.from('leads').update({ status }).eq('id', id)
     updateLead(id, { status })
+  }
+
+  const setQualification = async (id: string, qualified: boolean | null) => {
+    await supabase.from('leads').update({ qualified, disqualified_reason: qualified === false ? 'Handmatig afgekeurd' : null }).eq('id', id)
+    updateLead(id, { qualified, disqualified_reason: qualified === false ? 'Handmatig afgekeurd' : null })
   }
 
   const reScrapeOne = (lead: Lead) => startEnrichment([lead])
@@ -724,7 +772,6 @@ export default function ScraperPage() {
             {([
               { id: 'all', label: 'Alle' },
               { id: 'with_email', label: 'Met email' },
-              { id: 'without_email', label: 'Geen email' },
               { id: 'not_scraped', label: 'Te scrapen' },
               { id: 'errors', label: 'Fouten' },
             ] as { id: FilterType; label: string }[]).map(f => (
@@ -735,6 +782,14 @@ export default function ScraperPage() {
               </button>
             ))}
           </div>
+
+          <select value={filter === 'qualified' || filter === 'disqualified' || filter === 'unreviewed' ? filter : ''} onChange={e => setFilter((e.target.value || 'all') as FilterType)}
+            className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none">
+            <option value="">Kwalificatie</option>
+            <option value="qualified">✓ Geschikt (87)</option>
+            <option value="disqualified">✗ Afgekeurd (56)</option>
+            <option value="unreviewed">? Nog beoordelen (10)</option>
+          </select>
 
           <select value={cityFilter} onChange={e => setCityFilter(e.target.value)}
             className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none">
@@ -757,6 +812,15 @@ export default function ScraperPage() {
           <span className="text-xs text-gray-400 flex items-center gap-1">
             <Filter className="h-3.5 w-3.5" />{sorted.length} leads
           </span>
+
+          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 ml-auto">
+            <button onClick={() => setViewMode('table')} className={cn('p-1.5 rounded-lg transition-all', viewMode === 'table' ? 'bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
+              <List className="h-4 w-4" />
+            </button>
+            <button onClick={() => setViewMode('cards')} className={cn('p-1.5 rounded-lg transition-all', viewMode === 'cards' ? 'bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -792,6 +856,9 @@ export default function ScraperPage() {
           <Button size="sm" variant="outline" onClick={exportCSV} className="gap-1.5 bg-white">
             <Download className="h-3.5 w-3.5" /> Export CSV
           </Button>
+          <Button size="sm" variant="outline" onClick={exportHubSpotCSV} className="gap-1.5 bg-white">
+            <Download className="h-3.5 w-3.5" /> HubSpot CSV
+          </Button>
           <Button size="sm" variant="outline" onClick={bulkReScrape} className="gap-1.5 bg-white">
             <RefreshCw className="h-3.5 w-3.5" /> Opnieuw scrapen
           </Button>
@@ -809,6 +876,69 @@ export default function ScraperPage() {
         </div>
       )}
 
+      {/* ── Cards ──────────────────────────────────────────────────────────── */}
+      {leads.length > 0 && viewMode === 'cards' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sorted.map(lead => (
+            <div key={lead.id} className={cn(
+              'bg-white rounded-2xl border overflow-hidden flex flex-col transition-all',
+              lead.qualified === true ? 'border-green-200' : lead.qualified === false ? 'border-red-100' : 'border-gray-100'
+            )}>
+              {/* Header met thumbnail */}
+              <div className="relative h-28 bg-gray-50 flex items-center justify-center">
+                {lead.thumbnail
+                  ? <img src={lead.thumbnail} alt="" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = 'none')} />
+                  : <Globe className="h-10 w-10 text-gray-200" />
+                }
+                {lead.qualified === true && <span className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Geschikt</span>}
+                {lead.qualified === false && <span className="absolute top-2 right-2 bg-red-400 text-white text-xs px-2 py-0.5 rounded-full font-medium">Afgekeurd</span>}
+              </div>
+
+              {/* Info */}
+              <div className="p-4 flex-1 space-y-2">
+                <h3 className="font-semibold text-gray-900 leading-tight">{lead.name}</h3>
+                {lead.categories && <p className="text-xs text-gray-400">{lead.categories.join(', ')}</p>}
+                {lead.city && <p className="text-xs text-gray-500 flex items-center gap-1"><MapPin className="h-3 w-3" />{lead.city}</p>}
+                {lead.google_rating && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1">
+                    <Star className="h-3 w-3 fill-amber-400" /> {lead.google_rating} ({lead.google_reviews} reviews)
+                  </p>
+                )}
+                {lead.email && <p className="text-xs text-green-700 truncate flex items-center gap-1"><Mail className="h-3 w-3" />{lead.email}</p>}
+                {lead.phone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</p>}
+              </div>
+
+              {/* Acties */}
+              <div className="px-4 pb-4 flex items-center gap-2">
+                {lead.website && (
+                  <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Globe className="h-3.5 w-3.5" /> Website
+                  </a>
+                )}
+                <button onClick={() => setQualification(lead.id, true)}
+                  className={cn('p-2 rounded-xl border transition-colors', lead.qualified === true ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-gray-400 hover:bg-green-50 hover:text-green-600 hover:border-green-200')}>
+                  <ThumbsUp className="h-4 w-4" />
+                </button>
+                <button onClick={() => setQualification(lead.id, false)}
+                  className={cn('p-2 rounded-xl border transition-colors', lead.qualified === false ? 'bg-red-400 border-red-400 text-white' : 'border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200')}>
+                  <ThumbsDown className="h-4 w-4" />
+                </button>
+                <button onClick={() => addToPipeline(lead)}
+                  className="p-2 rounded-xl border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors">
+                  <Target className="h-4 w-4" />
+                </button>
+                <button onClick={() => deleteLead(lead)}
+                  className="p-2 rounded-xl border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors ml-auto">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Table ──────────────────────────────────────────────────────────── */}
       {leads.length === 0 && !searching ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
@@ -816,7 +946,7 @@ export default function ScraperPage() {
           <h2 className="text-xl font-semibold text-gray-700">Zoek je eerste leads</h2>
           <p className="text-gray-400 mt-2 text-sm">Typ een zoekopdracht hierboven, bijv. &quot;podcast studio Amsterdam&quot;</p>
         </div>
-      ) : (
+      ) : viewMode === 'table' && (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -882,6 +1012,23 @@ export default function ScraperPage() {
                           <p className="font-medium text-gray-900 max-w-[160px] truncate">{lead.name}</p>
                           {lead.notes && <p className="text-xs text-amber-600 truncate max-w-[160px]">{lead.notes}</p>}
                           {lead._duplicate && <span className="text-xs text-gray-700">al aanwezig</span>}
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {lead.qualified === true && (
+                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-md font-medium">✓ Geschikt</span>
+                            )}
+                            {lead.qualified === false && (
+                              <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-medium">✗ Afgekeurd</span>
+                            )}
+                            {(lead.qualified === null || lead.qualified === undefined) && (
+                              <div className="flex gap-1">
+                                <button onClick={() => setQualification(lead.id, true)} className="text-xs bg-gray-100 hover:bg-green-100 hover:text-green-700 px-1.5 py-0.5 rounded-md">✓</button>
+                                <button onClick={() => setQualification(lead.id, false)} className="text-xs bg-gray-100 hover:bg-red-100 hover:text-red-600 px-1.5 py-0.5 rounded-md">✗</button>
+                              </div>
+                            )}
+                            {lead.qualified !== null && lead.qualified !== undefined && (
+                              <button onClick={() => setQualification(lead.id, null)} className="text-xs text-gray-300 hover:text-gray-500 px-1">↩</button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>

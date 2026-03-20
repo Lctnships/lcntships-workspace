@@ -12,7 +12,6 @@ import {
   DollarSign,
   BarChart3,
   Rocket,
-  Search,
   Megaphone,
   FileText,
   Settings,
@@ -43,10 +42,10 @@ const businessNavItems = [
 
 const growthNavItems = [
   { href: '/sales', label: 'Sales Pipeline', icon: Rocket },
-  { href: '/apollo', label: 'Apollo', icon: Search },
   { href: '/scraper', label: 'Lead Scraper', icon: Zap },
   { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
+  { href: '/marketing/analytics', label: 'Email Analytics', icon: Mail },
 ]
 
 const systemNavItems = [

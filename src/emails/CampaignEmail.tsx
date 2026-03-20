@@ -3,7 +3,6 @@ import {
   Button,
   Container,
   Head,
-  Heading,
   Html,
   Img,
   Link,
@@ -12,8 +11,6 @@ import {
   Text,
   Tailwind,
   Hr,
-  Row,
-  Column,
 } from '@react-email/components'
 import * as React from 'react'
 
@@ -102,11 +99,6 @@ export default function CampaignEmail({
 
             {/* Content */}
             <Section className="email-padding" style={{ paddingLeft: '40px', paddingRight: '40px', paddingBottom: '40px' }}>
-              {/* Greeting */}
-              <Heading className="heading-text" style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 16px 0', fontFamily: 'Georgia, serif' }}>
-                Hey {contactName || 'daar'},
-              </Heading>
-
               {/* Message paragraphs */}
               {paragraphs.map((paragraph, i) => (
                 <Text key={i} className="body-text" style={{ fontSize: '16px', lineHeight: '1.6', color: '#475569', margin: '0 0 14px 0' }}>
@@ -125,51 +117,7 @@ export default function CampaignEmail({
                 </>
               )}
 
-              {/* Feature Cards */}
-              <Section style={{ marginTop: '28px', marginBottom: '28px' }}>
-                <Section className="feature-card" style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '10px' }}>
-                  <Row>
-                    <Column style={{ width: '40px', verticalAlign: 'top' }}>
-                      <Text style={{ fontSize: '22px', margin: 0, lineHeight: '1' }}>📅</Text>
-                    </Column>
-                    <Column style={{ paddingLeft: '10px' }}>
-                      <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 2px 0', fontSize: '14px' }}>Eigen boekingspagina met kalender</Text>
-                      <Text style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>Nooit meer dubbele boekingen of handmatig overleg.</Text>
-                    </Column>
-                  </Row>
-                </Section>
-
-                <Section className="feature-card" style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '10px' }}>
-                  <Row>
-                    <Column style={{ width: '40px', verticalAlign: 'top' }}>
-                      <Text style={{ fontSize: '22px', margin: 0, lineHeight: '1' }}>🎬</Text>
-                    </Column>
-                    <Column style={{ paddingLeft: '10px' }}>
-                      <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 2px 0', fontSize: '14px' }}>Professionele foto&apos;s + promo video</Text>
-                      <Text style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>Wij zorgen voor de visuals die huurders overtuigen.</Text>
-                    </Column>
-                  </Row>
-                </Section>
-
-                <Section className="feature-card" style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '10px' }}>
-                  <Row>
-                    <Column style={{ width: '40px', verticalAlign: 'top' }}>
-                      <Text style={{ fontSize: '22px', margin: 0, lineHeight: '1' }}>🌍</Text>
-                    </Column>
-                    <Column style={{ paddingLeft: '10px' }}>
-                      <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 2px 0', fontSize: '14px' }}>Zichtbaarheid bij creators in heel NL</Text>
-                      <Text style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>Directe toegang tot ons groeiende netwerk van creators.</Text>
-                    </Column>
-                  </Row>
-                </Section>
-              </Section>
-
-              {/* Tagline */}
-              <Text style={{ color: '#1152d4', fontWeight: 'bold', fontSize: '16px', textAlign: 'center', margin: '0 0 24px 0', fontFamily: 'Georgia, serif' }}>
-                Geen kosten. Geen exclusiviteit.
-              </Text>
-
-              {/* CTA Buttons - inline-block so they don't overflow on mobile */}
+              {/* CTA Buttons */}
               {primaryButtonText && primaryButtonUrl && (
                 <Section style={{ textAlign: 'center', marginBottom: '12px' }}>
                   <Button

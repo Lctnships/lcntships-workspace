@@ -69,14 +69,41 @@ export function CampaignReviewSend({
   const [showContent, setShowContent] = useState(false)
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0 })
   const [sendResults, setSendResults] = useState<{ success: number; failed: number } | null>(null)
+  const [failedLeads, setFailedLeads] = useState<typeof selectedLeads>([])
   const [error, setError] = useState<string | null>(null)
-  const [senderEmail, setSenderEmail] = useState('')
-  const [senderName, setSenderName] = useState('')
+  const [senderEmail, setSenderEmail] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('campaign_sender_email') || ''
+    return ''
+  })
+  const [senderName, setSenderName] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('campaign_sender_name') || ''
+    return ''
+  })
   const [userId, setUserId] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([])
-  const [websiteUrl, setWebsiteUrl] = useState('https://lcntships.com')
-  const [calendlyUrl, setCalendlyUrl] = useState('https://calendly.com/rivaldorose/30min')
+  const [websiteUrl, setWebsiteUrl] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('campaign_website_url') || 'https://lcntships.com'
+    return 'https://lcntships.com'
+  })
+  const [calendlyUrl, setCalendlyUrl] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('campaign_calendly_url') || 'https://calendly.com/rivaldorose/30min'
+    return 'https://calendly.com/rivaldorose/30min'
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Save settings to localStorage when they change
+  useEffect(() => {
+    if (senderEmail) localStorage.setItem('campaign_sender_email', senderEmail)
+  }, [senderEmail])
+  useEffect(() => {
+    if (senderName) localStorage.setItem('campaign_sender_name', senderName)
+  }, [senderName])
+  useEffect(() => {
+    if (websiteUrl) localStorage.setItem('campaign_website_url', websiteUrl)
+  }, [websiteUrl])
+  useEffect(() => {
+    if (calendlyUrl) localStorage.setItem('campaign_calendly_url', calendlyUrl)
+  }, [calendlyUrl])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -120,16 +147,21 @@ export function CampaignReviewSend({
       setError('Vul je afzender email in')
       return
     }
+    await sendToLeads(selectedLeads)
+  }
+
+  const sendToLeads = async (leadsToSend: typeof selectedLeads) => {
     setIsSending(true)
     setError(null)
     setSendResults(null)
-    setSendProgress({ current: 0, total: selectedLeads.length })
+    setFailedLeads([])
+    setSendProgress({ current: 0, total: leadsToSend.length })
 
     let success = 0
     let failed = 0
+    const newFailedLeads: typeof selectedLeads = []
 
-    const BATCH_SIZE = 10
-    const DELAY_MS = 500
+    const DELAY_MS = 600 // Resend rate limit: max 2 req/sec
 
     const apiAttachments = attachments.map(att => ({
       name: att.name,
@@ -137,75 +169,81 @@ export function CampaignReviewSend({
       type: att.type,
     }))
 
-    for (let i = 0; i < selectedLeads.length; i += BATCH_SIZE) {
-      const batch = selectedLeads.slice(i, i + BATCH_SIZE)
+    for (let i = 0; i < leadsToSend.length; i++) {
+      const lead = leadsToSend[i]
 
-      const batchPromises = batch.map(async (lead) => {
-        try {
-          const renderResponse = await fetch('/api/email/preview-render', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contactName: lead.contact_name || '',
-              companyName: lead.company_name,
-              message: emailData.body,
-              senderName,
-              senderEmail,
-              primaryButtonText: 'Plan een gesprek',
-              primaryButtonUrl: calendlyUrl,
-              secondaryButtonText: 'Bekijk onze website',
-              secondaryButtonUrl: websiteUrl,
-              attachments: attachments.map(a => ({ name: a.name, size: a.size })),
-            }),
-          })
+      try {
+        const renderResponse = await fetch('/api/email/preview-render', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contactName: lead.contact_name || '',
+            companyName: lead.company_name,
+            message: emailData.body,
+            senderName,
+            senderEmail,
+            primaryButtonText: 'Plan een gesprek',
+            primaryButtonUrl: calendlyUrl,
+            secondaryButtonText: 'Bekijk onze website',
+            secondaryButtonUrl: websiteUrl,
+            attachments: attachments.map(a => ({ name: a.name, size: a.size })),
+          }),
+        })
 
-          if (!renderResponse.ok) {
-            throw new Error('Failed to render email')
-          }
-
-          const { html } = await renderResponse.json()
-
-          const response = await fetch('/api/email/bulk-send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: lead.email,
-              subject: emailData.subject,
-              html,
-              text: emailData.body.replace(/<[^>]*>/g, ''),
-              from: `${senderName || 'LCTNSHIPS'} <${senderEmail}>`,
-              leadId: lead.id,
-              userId,
-              attachments: apiAttachments,
-            }),
-          })
-
-          if (response.ok) {
-            success++
-          } else {
-            failed++
-          }
-        } catch (err) {
-          console.error('Error sending to', lead.email, err)
-          failed++
+        if (!renderResponse.ok) {
+          throw new Error('Failed to render email')
         }
-      })
 
-      await Promise.all(batchPromises)
-      setSendProgress({ current: Math.min(i + BATCH_SIZE, selectedLeads.length), total: selectedLeads.length })
+        const { html } = await renderResponse.json()
 
-      if (i + BATCH_SIZE < selectedLeads.length) {
+        const response = await fetch('/api/email/bulk-send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: lead.email,
+            subject: emailData.subject,
+            html,
+            text: emailData.body.replace(/<[^>]*>/g, ''),
+            from: `${senderName || 'LCTNSHIPS'} <${senderEmail}>`,
+            leadId: lead.id,
+            userId,
+            attachments: apiAttachments,
+          }),
+        })
+
+        if (response.ok) {
+          success++
+        } else {
+          failed++
+          newFailedLeads.push(lead)
+        }
+      } catch (err) {
+        console.error('Error sending to', lead.email, err)
+        failed++
+        newFailedLeads.push(lead)
+      }
+
+      setSendProgress({ current: i + 1, total: leadsToSend.length })
+
+      if (i < leadsToSend.length - 1) {
         await new Promise(r => setTimeout(r, DELAY_MS))
       }
     }
 
     setSendResults({ success, failed })
+    setFailedLeads(newFailedLeads)
     setIsSending(false)
 
     if (failed === 0) {
       setTimeout(() => {
         onSend()
       }, 1500)
+    }
+  }
+
+  const retryFailed = () => {
+    if (failedLeads.length > 0) {
+      sendToLeads(failedLeads)
     }
   }
 
@@ -410,12 +448,22 @@ export function CampaignReviewSend({
                   ? 'bg-emerald-50 border border-emerald-200'
                   : 'bg-yellow-50 border border-yellow-200'
               }`}>
-                <CheckCircle className={`h-5 w-5 ${sendResults.failed === 0 ? 'text-emerald-500' : 'text-yellow-500'}`} />
-                <p className={sendResults.failed === 0 ? 'text-emerald-700' : 'text-yellow-700'}>
-                  {sendResults.failed === 0
-                    ? `Alle ${sendResults.success} emails succesvol verzonden!`
-                    : `${sendResults.success} verzonden, ${sendResults.failed} mislukt`}
-                </p>
+                <CheckCircle className={`h-5 w-5 flex-shrink-0 ${sendResults.failed === 0 ? 'text-emerald-500' : 'text-yellow-500'}`} />
+                <div className="flex-1">
+                  <p className={`font-medium ${sendResults.failed === 0 ? 'text-emerald-700' : 'text-yellow-700'}`}>
+                    {sendResults.failed === 0
+                      ? `Alle ${sendResults.success} emails succesvol verzonden!`
+                      : `${sendResults.success} verzonden, ${sendResults.failed} mislukt`}
+                  </p>
+                </div>
+                {failedLeads.length > 0 && !isSending && (
+                  <button
+                    onClick={retryFailed}
+                    className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-colors flex-shrink-0"
+                  >
+                    Opnieuw versturen ({failedLeads.length})
+                  </button>
+                )}
               </div>
             )}
 

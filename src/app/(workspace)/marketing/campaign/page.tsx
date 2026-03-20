@@ -53,14 +53,21 @@ export default function CampaignPage() {
             Je ontvangt een rapportage zodra de emails zijn afgeleverd.
           </p>
           <div className="flex flex-col gap-3">
-            <Button 
+            <Button
+              onClick={() => window.location.href = '/marketing/analytics'}
+              className="w-full"
+            >
+              Bekijk Email Analytics
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => window.location.href = '/sales'}
               className="w-full"
             >
               Naar Sales Pipeline
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setStep('select')
                 setSelectedLeads([])

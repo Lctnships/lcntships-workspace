@@ -58,7 +58,9 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
   const [stageFilter, setStageFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [emailFilter, setEmailFilter] = useState<string>('not_sent')
   const [sentLeadIds, setSentLeadIds] = useState<Set<string>>(new Set())
+  const [sentDates, setSentDates] = useState<Record<string, string>>({})
 
   // Load leads and sent email data from Supabase
   useEffect(() => {
@@ -66,11 +68,17 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
       try {
         const [leadsData, sentData] = await Promise.all([
           salesLeadsApi.getAll(),
-          supabase.from('sent_emails').select('lead_id').then(res => res.data || []),
+          supabase.from('sent_emails').select('lead_id, sent_at').order('sent_at', { ascending: false }).then(res => res.data || []),
         ])
         const leadsWithEmail = leadsData.filter(lead => lead.email)
         setLeads(leadsWithEmail)
         setSentLeadIds(new Set(sentData.map((s: { lead_id: string }) => s.lead_id)))
+        // Store latest sent date per lead
+        const dates: Record<string, string> = {}
+        sentData.forEach((s: { lead_id: string; sent_at: string }) => {
+          if (!dates[s.lead_id]) dates[s.lead_id] = s.sent_at
+        })
+        setSentDates(dates)
       } catch (error) {
         console.error('Error loading leads:', error)
       } finally {
@@ -91,8 +99,11 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
 
     const matchesStage = stageFilter === 'all' || lead.status === stageFilter
     const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter
+    const matchesEmail = emailFilter === 'all' ||
+      (emailFilter === 'not_sent' && !sentLeadIds.has(lead.id)) ||
+      (emailFilter === 'sent' && sentLeadIds.has(lead.id))
 
-    return matchesSearch && matchesStage && matchesSource
+    return matchesSearch && matchesStage && matchesSource && matchesEmail
   })
 
   const toggleLead = (leadId: string) => {
@@ -141,7 +152,7 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Selecteer Leads voor Campagne</h2>
             <p className="text-sm font-medium text-gray-500">
-              Stap 1 van 3: Kies je ontvangers — {leads.length} leads beschikbaar
+              Stap 1 van 3: Kies je ontvangers — {filteredLeads.length} van {leads.length} leads
               {selectedLeads.size > 0 && (
                 <span className="text-gray-900 font-bold"> · {selectedLeads.size} geselecteerd</span>
               )}
@@ -187,6 +198,16 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
                 <option value="closed">Closed</option>
               </select>
               <select
+                value={emailFilter}
+                onChange={(e) => setEmailFilter(e.target.value)}
+                className="flex h-11 items-center gap-2 rounded-2xl bg-gray-50 px-5 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors whitespace-nowrap border-none cursor-pointer appearance-none pr-10"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
+              >
+                <option value="not_sent">Niet verstuurd</option>
+                <option value="sent">Al verstuurd</option>
+                <option value="all">Alle leads</option>
+              </select>
+              <select
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value)}
                 className="flex h-11 items-center gap-2 rounded-2xl bg-gray-50 px-5 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors whitespace-nowrap border-none cursor-pointer appearance-none pr-10"
@@ -214,8 +235,7 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
                   </th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider">Lead Details</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider">Bron</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider">Email</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider">Email Status</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-right">Locatie</th>
                 </tr>
               </thead>
@@ -250,10 +270,17 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
                     </td>
                     <td className="px-4 py-4">
                       {sentLeadIds.has(lead.id) ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          <Mail className="h-3 w-3" />
-                          Verstuurd
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 w-fit">
+                            <Mail className="h-3 w-3" />
+                            Verstuurd
+                          </span>
+                          {sentDates[lead.id] && (
+                            <span className="text-[10px] text-gray-400 mt-0.5 pl-1">
+                              {new Date(sentDates[lead.id]).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-xs text-gray-400">Niet verstuurd</span>
                       )}

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from '@/lib/api-auth'
+
+const ALLOWED_FROM_ADDRESSES = [
+  'lcntships <team@lcntships.com>',
+  'Rivaldo Mac Andrew <rivaldomacandrew@lctnships.com>',
+]
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
@@ -15,14 +21,17 @@ const supabaseAdmin = supabaseUrl && (serviceKey || anonKey)
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth()
+    if (authError) return authError
+
     if (!resend) {
       return NextResponse.json(
         { error: 'Email service not configured' },
         { status: 500 }
       )
     }
-    
-    const { to, subject, html, text, from, leadId, userId, attachments } = await request.json()
+
+    const { to, subject, html, text, from, leadId, attachments } = await request.json()
 
     if (!to || !subject || !html) {
       return NextResponse.json(
@@ -31,9 +40,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate from address against allowlist
+    const fromAddress = from || 'lcntships <team@lcntships.com>'
+    if (!ALLOWED_FROM_ADDRESSES.some(a => a.toLowerCase() === fromAddress.toLowerCase())) {
+      return NextResponse.json({ error: 'From address not allowed' }, { status: 403 })
+    }
+
     // Build email options
     const emailOptions: any = {
-      from: from || 'lcntships <team@lcntships.com>',
+      from: fromAddress,
       to: to,
       subject,
       html,
@@ -63,15 +78,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save to sent_emails table
-    if (supabaseAdmin && leadId && userId) {
+    // Save to sent_emails table with Resend message ID
+    if (supabaseAdmin && leadId) {
       const { error: dbError } = await supabaseAdmin.from('sent_emails').insert({
         lead_id: leadId,
-        user_id: userId,
+        user_id: user.id,
         subject,
         body: html,
         sent_at: new Date().toISOString(),
         status: 'sent',
+        resend_id: data?.id || null,
+        delivery_status: 'sent',
+        last_event: 'sent',
       })
       if (dbError) {
         console.error('Failed to log sent email:', dbError)

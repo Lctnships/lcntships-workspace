@@ -44,24 +44,33 @@ const availableVariables = [
   'status',
 ]
 
-const sampleData: Record<string, string> = {
-  contact_name: 'Alex Rivera',
-  email: 'alex@company.com',
-  company_name: 'Nexus Flow',
+const fallbackSampleData: Record<string, string> = {
+  contact_name: 'Jan',
+  email: 'jan@voorbeeld.nl',
+  company_name: 'Studio Voorbeeld',
   city: 'Amsterdam',
   status: 'Warm',
 }
 
-function replaceVariables(text: string): string {
-  let result = text
-  availableVariables.forEach(variable => {
-    const regex = new RegExp(`\\{\\{${variable}\\}\\}`, 'g')
-    result = result.replace(regex, sampleData[variable] || `[${variable}]`)
-  })
-  return result
-}
-
 export function CampaignWriteEmail({ selectedLeads, onNext, onBack, onSaveDraft }: CampaignWriteEmailProps) {
+  // Use the first selected lead for preview data, fallback to sample
+  const previewLead = selectedLeads[0]
+  const sampleData: Record<string, string> = {
+    contact_name: previewLead?.contact_name?.split(' ')[0] || fallbackSampleData.contact_name,
+    email: previewLead?.email || fallbackSampleData.email,
+    company_name: previewLead?.company_name || fallbackSampleData.company_name,
+    city: previewLead?.city || fallbackSampleData.city,
+    status: previewLead?.status || fallbackSampleData.status,
+  }
+
+  function replaceVariables(text: string): string {
+    let result = text
+    availableVariables.forEach(variable => {
+      const regex = new RegExp(`\\{\\{${variable}\\}\\}`, 'g')
+      result = result.replace(regex, sampleData[variable] || `[${variable}]`)
+    })
+    return result
+  }
   const [subject, setSubject] = useState('Samenwerking met {{company_name}}')
   const [body, setBody] = useState(`<p>Beste {{contact_name}},</p>
 

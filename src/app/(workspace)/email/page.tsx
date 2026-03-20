@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Mail,
   Inbox,
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import DOMPurify from 'dompurify'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
@@ -248,12 +249,13 @@ function EmailSettingsModal({
   const [showPassword, setShowPassword] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<Record<string, 'ok' | 'error'>>({})
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '', user: '', password: '', imapHost: '', imapPort: '993', smtpHost: '', smtpPort: '587', tls: true,
   })
 
   useEffect(() => {
-    const saved = localStorage.getItem('emailTemplates')
+    const saved = sessionStorage.getItem('emailTemplates')
     if (saved) setTemplates(JSON.parse(saved))
   }, [isOpen])
 
@@ -267,7 +269,7 @@ function EmailSettingsModal({
     }
     const updated = [...accounts, newAccount]
     onAccountsChange(updated)
-    localStorage.setItem('imapAccounts', JSON.stringify(updated))
+    sessionStorage.setItem('imapAccounts', JSON.stringify(updated))
     setForm({ name: '', user: '', password: '', imapHost: '', imapPort: '993', smtpHost: '', smtpPort: '587', tls: true })
     setShowAddAccount(false)
   }
@@ -275,7 +277,30 @@ function EmailSettingsModal({
   const deleteAccount = (id: string) => {
     const updated = accounts.filter(a => a.id !== id)
     onAccountsChange(updated)
-    localStorage.setItem('imapAccounts', JSON.stringify(updated))
+    sessionStorage.setItem('imapAccounts', JSON.stringify(updated))
+  }
+
+  const editAccount = (account: ImapAccount) => {
+    setEditingId(account.id)
+    setForm({
+      name: account.name, user: account.user, password: account.password,
+      imapHost: account.imapHost, imapPort: String(account.imapPort),
+      smtpHost: account.smtpHost, smtpPort: String(account.smtpPort), tls: account.tls,
+    })
+    setShowAddAccount(false)
+  }
+
+  const updateAccount = () => {
+    if (!editingId || !form.name || !form.user || !form.password || !form.imapHost || !form.smtpHost) return
+    const updated = accounts.map(a => a.id === editingId ? {
+      ...a, name: form.name, user: form.user, password: form.password,
+      imapHost: form.imapHost, imapPort: Number(form.imapPort),
+      smtpHost: form.smtpHost, smtpPort: Number(form.smtpPort), tls: form.tls,
+    } : a)
+    onAccountsChange(updated)
+    sessionStorage.setItem('imapAccounts', JSON.stringify(updated))
+    setEditingId(null)
+    setForm({ name: '', user: '', password: '', imapHost: '', imapPort: '993', smtpHost: '', smtpPort: '587', tls: true })
   }
 
   const testAccount = async (account: ImapAccount) => {
@@ -286,6 +311,11 @@ function EmailSettingsModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ host: account.imapHost, port: account.imapPort, user: account.user, password: account.password, tls: account.tls, limit: 1 }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        console.error('[IMAP Test Error]', data.error)
+        alert(`IMAP verbinding mislukt:\n${data.error || 'Onbekende fout'}\n\nHost: ${account.imapHost}`)
+      }
       setTestResult(prev => ({ ...prev, [account.id]: res.ok ? 'ok' : 'error' }))
     } catch {
       setTestResult(prev => ({ ...prev, [account.id]: 'error' }))
@@ -299,14 +329,14 @@ function EmailSettingsModal({
     const newTemplate: EmailTemplate = { id: Date.now().toString(), name: newTemplateName, subject: newTemplateSubject, body: newTemplateBody }
     const updated = [...templates, newTemplate]
     setTemplates(updated)
-    localStorage.setItem('emailTemplates', JSON.stringify(updated))
+    sessionStorage.setItem('emailTemplates', JSON.stringify(updated))
     setNewTemplateName(''); setNewTemplateSubject(''); setNewTemplateBody(''); setShowAddTemplate(false)
   }
 
   const deleteTemplate = (id: string) => {
     const updated = templates.filter(t => t.id !== id)
     setTemplates(updated)
-    localStorage.setItem('emailTemplates', JSON.stringify(updated))
+    sessionStorage.setItem('emailTemplates', JSON.stringify(updated))
   }
 
   if (!isOpen) return null
@@ -407,26 +437,69 @@ function EmailSettingsModal({
               ) : (
                 <div className="space-y-3">
                   {accounts.map(account => (
-                    <div key={account.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-semibold">
-                          {account.name.charAt(0).toUpperCase()}
+                    <div key={account.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-semibold">
+                            {account.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{account.name}</p>
+                            <p className="text-sm text-gray-500">{account.user} · {account.imapHost}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{account.name}</p>
-                          <p className="text-sm text-gray-500">{account.user} · {account.imapHost}</p>
+                        <div className="flex items-center gap-2">
+                          {testResult[account.id] === 'ok' && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Verbonden</span>}
+                          {testResult[account.id] === 'error' && <span className="text-xs text-red-500 font-medium flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Mislukt</span>}
+                          <Button size="sm" variant="outline" onClick={() => testAccount(account)} disabled={testingId === account.id}>
+                            {testingId === account.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Test'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => editingId === account.id ? setEditingId(null) : editAccount(account)}>
+                            Bewerken
+                          </Button>
+                          <button onClick={() => deleteAccount(account.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {testResult[account.id] === 'ok' && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Verbonden</span>}
-                        {testResult[account.id] === 'error' && <span className="text-xs text-red-500 font-medium flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Mislukt</span>}
-                        <Button size="sm" variant="outline" onClick={() => testAccount(account)} disabled={testingId === account.id}>
-                          {testingId === account.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Test'}
-                        </Button>
-                        <button onClick={() => deleteAccount(account.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      {editingId === account.id && (
+                        <div className="border-t border-gray-100 p-4 bg-gray-50 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Naam</label>
+                              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                              <Input value={form.user} onChange={e => setForm(f => ({ ...f, user: e.target.value }))} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Wachtwoord</label>
+                              <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">IMAP Server</label>
+                              <Input value={form.imapHost} onChange={e => setForm(f => ({ ...f, imapHost: e.target.value }))} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">IMAP Poort</label>
+                              <Input value={form.imapPort} onChange={e => setForm(f => ({ ...f, imapPort: e.target.value }))} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">SMTP Server</label>
+                              <Input value={form.smtpHost} onChange={e => setForm(f => ({ ...f, smtpHost: e.target.value }))} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">SMTP Poort</label>
+                              <Input value={form.smtpPort} onChange={e => setForm(f => ({ ...f, smtpPort: e.target.value }))} />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={updateAccount}>Opslaan</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Annuleren</Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -498,21 +571,22 @@ export default function EmailPage() {
 
   // Load accounts + templates from localStorage
   useEffect(() => {
-    const savedAccounts = localStorage.getItem('imapAccounts')
+    const savedAccounts = sessionStorage.getItem('imapAccounts')
     if (savedAccounts) {
       const parsed: ImapAccount[] = JSON.parse(savedAccounts)
       setAccounts(parsed)
-      if (parsed.length > 0) setActiveAccount(parsed[0])
+      if (parsed.length > 0 && !activeAccount) setActiveAccount(parsed[0])
     }
-    const savedTemplates = localStorage.getItem('emailTemplates')
+    const savedTemplates = sessionStorage.getItem('emailTemplates')
     if (savedTemplates) setTemplates(JSON.parse(savedTemplates))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSettingsOpen])
 
-  // Auto-load emails when activeAccount changes
+  // Auto-load emails when activeAccount or folder changes
   useEffect(() => {
-    if (activeAccount) refreshInbox()
+    if (activeAccount) refreshInbox(selectedFolder)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccount?.id])
+  }, [activeAccount?.id, selectedFolder])
 
   // Filter emails by folder and search
   const filteredEmails = emails.filter(email => {
@@ -544,9 +618,23 @@ export default function EmailPage() {
   }
 
   const markAsRead = (emailId: string) => {
-    setEmails(emails.map(email =>
-      email.id === emailId ? { ...email, isRead: true } : email
-    ))
+    const email = emails.find(e => e.id === emailId)
+    if (!email || email.isRead) return
+    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isRead: true } : e))
+    if (activeAccount && email.uid) {
+      fetch('/api/email/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: activeAccount.imapHost,
+          port: activeAccount.imapPort,
+          user: activeAccount.user,
+          password: activeAccount.password,
+          tls: activeAccount.tls,
+          uid: email.uid,
+        }),
+      }).catch(console.error)
+    }
   }
 
   const deleteEmail = (e: React.MouseEvent, emailId: string) => {
@@ -559,29 +647,53 @@ export default function EmailPage() {
     }
   }
 
-  const refreshInbox = useCallback(async () => {
-    if (!activeAccount) return
+  const folderImapMap: Record<string, string> = {
+    inbox: 'INBOX',
+    sent: 'Sent',
+    drafts: 'Drafts',
+    spam: 'Junk',
+    trash: 'Trash',
+  }
+
+  const refreshInbox = useCallback(async (folder = selectedFolder) => {
+    if (!activeAccount && folder !== 'sent') return
     setLoading(true)
     try {
-      const res = await fetch('/api/email/imap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          host: activeAccount.imapHost,
-          port: activeAccount.imapPort,
-          user: activeAccount.user,
-          password: activeAccount.password,
-          tls: activeAccount.tls,
-        }),
-      })
-      const data = await res.json()
-      if (data.emails) setEmails(data.emails)
+      let data: { emails?: EmailMessage[] }
+
+      if (folder === 'sent') {
+        const res = await fetch('/api/email/sent')
+        data = await res.json()
+      } else {
+        const res = await fetch('/api/email/imap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host: activeAccount!.imapHost,
+            port: activeAccount!.imapPort,
+            user: activeAccount!.user,
+            password: activeAccount!.password,
+            tls: activeAccount!.tls,
+            folder: folderImapMap[folder] || 'INBOX',
+          }),
+        })
+        data = await res.json()
+      }
+
+      if (data.emails) {
+        const mapped = data.emails.map((e: EmailMessage) => ({ ...e, folder }))
+        setEmails(prev => {
+          const filtered = prev.filter(e => e.folder !== folder)
+          return [...filtered, ...mapped]
+        })
+      }
     } catch (err) {
-      console.error('IMAP fetch failed:', err)
+      console.error('fetch failed:', err)
     } finally {
       setLoading(false)
     }
-  }, [activeAccount])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccount, selectedFolder])
 
   // Folder config
   const folders = [
@@ -690,7 +802,7 @@ export default function EmailPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={refreshInbox}
+              onClick={() => refreshInbox()}
               disabled={loading}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
             >
@@ -839,7 +951,7 @@ export default function EmailPage() {
               {selectedEmail.html ? (
                 <div
                   className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: selectedEmail.html }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedEmail.html) }}
                 />
               ) : (
                 <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
