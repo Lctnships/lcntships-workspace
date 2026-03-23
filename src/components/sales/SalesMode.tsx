@@ -165,7 +165,10 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (editingNotes) return
+      // Skip shortcuts when typing in any input/textarea
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
       if (e.key === 'ArrowRight' || e.key === 'j') {
         e.preventDefault()
         goNext()
