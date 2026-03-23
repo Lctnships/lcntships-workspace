@@ -18,9 +18,12 @@ lcntships-workspace is an internal SaaS dashboard for managing a creative studio
 **Next.js 16 App Router** with React 19. TypeScript strict mode.
 
 ### Route Groups
-- `src/app/(workspace)/` — All authenticated dashboard pages (dashboard, studios, bookings, email, scraper, marketing, finance, etc.)
+- `src/app/(workspace)/` — All authenticated dashboard pages:
+  - `dashboard`, `studios`, `bookings`, `email`, `scraper`, `marketing`, `finance`
+  - `analytics`, `customers`, `documents`, `enrichment`, `partners`, `sales`, `settings`, `upload`
 - `src/app/(auth)/` — Login page
-- `src/app/api/` — API routes (middleware skips these, no auth check)
+- `src/app/api/` — API routes (middleware skips these, no auth check):
+  - `csv`, `email`, `enrich-lead`, `invoices`, `leads`, `search-leads`
 
 ### Supabase
 - **Project ID**: `ytmkmiofoluespwysfxa`
@@ -51,11 +54,24 @@ lcntships-workspace is an internal SaaS dashboard for managing a creative studio
 - **Recharts** for data visualization
 - `cn()` helper from `src/lib/utils.ts` (clsx + tailwind-merge)
 
+### Additional Libraries
+- **@tanstack/react-query** — server state management and caching
+- **react-hook-form** + **zod** — form handling and validation
+- **date-fns** — date formatting and manipulation
+- **papaparse** — CSV parsing
+- **dompurify** — HTML sanitization (XSS protection)
+- **imap-simple** + **mailparser** — IMAP email sync
+- **nodemailer** — outbound email (alongside Resend)
+- **@sparticuz/chromium** + **puppeteer** — serverless PDF generation
+
 ### Key Patterns
 - Pages are Client Components (`"use client"`) that fetch data via Supabase browser client
 - API routes use the Supabase server client or direct service SDKs (Resend, Apollo)
 - Email campaign flow is a multi-step wizard: SelectLeads → WriteEmail → ReviewSend (`src/components/email-campaign/`)
 - Layout uses a collapsible sidebar (`src/components/layout/Sidebar.tsx`)
+- Component directories mirror workspace pages: `bookings/`, `dashboard/`, `email-campaign/`, `finance/`, `partners/`, `sales/`, `studios/`
+- `src/lib/api-auth.ts` — API route authentication helper
+- `src/lib/imap-validation.ts` — IMAP connection validation
 
 ## Environment Variables
 
