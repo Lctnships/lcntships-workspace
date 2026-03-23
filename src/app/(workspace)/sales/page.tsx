@@ -1239,6 +1239,19 @@ export default function SalesPage() {
   }
 
   // Normalize city: extract known Dutch city from address-like values
+  // Map of aliases → canonical name (handles English names, postal codes, neighborhoods)
+  const CITY_ALIASES: Record<string, string> = {
+    'the hague': 'Den Haag',
+    'den haag': 'Den Haag',
+    '\'s-gravenhage': 'Den Haag',
+    's-gravenhage': 'Den Haag',
+    'sgravenhage': 'Den Haag',
+    'den bosch': 'Den Bosch',
+    '\'s-hertogenbosch': 'Den Bosch',
+    's-hertogenbosch': 'Den Bosch',
+    'shertogenbosch': 'Den Bosch',
+  }
+
   const KNOWN_CITIES = [
     'Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen',
     'Tilburg', 'Almere', 'Breda', 'Nijmegen', 'Haarlem', 'Arnhem', 'Enschede',
@@ -1246,21 +1259,68 @@ export default function SalesPage() {
     'Zoetermeer', 'Maastricht', 'Delft', 'Deventer', 'Hilversum', 'Leeuwarden',
     'Alkmaar', 'Venlo', 'Helmond', 'Assen', 'Emmen', 'Roosendaal', 'Gouda',
     'Vlaardingen', 'Schiedam', 'Heerlen', 'Amstelveen', 'Hoofddorp', 'Diemen',
-    'Badhoevedorp', 'Zaandam', 'Purmerend', 'Hoorn', 'Den Bosch', '\'s-Hertogenbosch',
+    'Badhoevedorp', 'Zaandam', 'Purmerend', 'Hoorn', 'Den Bosch',
   ]
+
+  // Dutch postal codes: 4 digits + 2 letters, e.g. "1012 AB" → look up city from area
+  const POSTAL_CITY_PREFIX: Record<string, string> = {
+    '10': 'Amsterdam', '11': 'Amsterdam',
+    '30': 'Rotterdam', '31': 'Rotterdam',
+    '25': 'Den Haag', '24': 'Den Haag',
+    '35': 'Utrecht',
+    '56': 'Eindhoven',
+    '97': 'Groningen',
+    '20': 'Haarlem',
+    '23': 'Leiden',
+    '26': 'Delft',
+    '80': 'Zwolle',
+    '68': 'Arnhem',
+    '65': 'Nijmegen',
+  }
 
   const normalizeCity = (raw: string | null | undefined): string | null => {
     if (!raw) return null
-    const lower = raw.toLowerCase().trim()
-    // Direct match first
+    const trimmed = raw.trim()
+    const lower = trimmed.toLowerCase()
+
+    // 1. Check aliases (handles "The Hague", "'s-Gravenhage", etc.)
+    for (const [alias, canonical] of Object.entries(CITY_ALIASES)) {
+      if (lower === alias || lower.includes(alias)) return canonical
+    }
+
+    // 2. Direct match on known city
     const directMatch = KNOWN_CITIES.find(c => c.toLowerCase() === lower)
     if (directMatch) return directMatch
-    // Check if a known city name appears anywhere in the value
+
+    // 3. Known city name appears in the value (e.g. "Coolsingel 5, Rotterdam")
     const containsMatch = KNOWN_CITIES.find(c => lower.includes(c.toLowerCase()))
     if (containsMatch) return containsMatch
-    // Fallback: return the raw value as-is (it might be a valid city we don't know)
-    // But only if it looks like a city name (no numbers, short-ish)
-    if (raw.length <= 30 && !/\d/.test(raw)) return raw.trim()
+
+    // 4. Try to extract city from Dutch postal code (e.g. "1012 AB Amsterdam" or just "3011 XX")
+    const postalMatch = trimmed.match(/(\d{4})\s*[A-Za-z]{2}/)
+    if (postalMatch) {
+      const prefix = postalMatch[1].substring(0, 2)
+      if (POSTAL_CITY_PREFIX[prefix]) return POSTAL_CITY_PREFIX[prefix]
+    }
+
+    // 5. If it contains a comma, take the last part (often "street, city")
+    if (trimmed.includes(',')) {
+      const lastPart = trimmed.split(',').pop()?.trim() || ''
+      const lastLower = lastPart.toLowerCase()
+      // Check aliases on last part
+      for (const [alias, canonical] of Object.entries(CITY_ALIASES)) {
+        if (lastLower === alias || lastLower.includes(alias)) return canonical
+      }
+      const lastMatch = KNOWN_CITIES.find(c => c.toLowerCase() === lastLower)
+      if (lastMatch) return lastMatch
+      // If last part looks like a city (no numbers, reasonable length)
+      if (lastPart.length > 2 && lastPart.length <= 30 && !/\d/.test(lastPart)) {
+        return lastPart
+      }
+    }
+
+    // 6. Fallback: only if it looks like a plain city name (no numbers, short)
+    if (trimmed.length <= 25 && !/\d/.test(trimmed)) return trimmed
     return null
   }
 
