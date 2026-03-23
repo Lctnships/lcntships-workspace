@@ -527,11 +527,13 @@ export default function ScraperPage() {
   const [pipelineToast, setPipelineToast] = useState<{ count: number; visible: boolean } | null>(null)
 
   const addToPipeline = async (lead: Lead) => {
+    // Use selectedCity as the canonical city; lead.city from scraper may contain street addresses
+    const cleanCity = selectedCity || lead.city || undefined
     const payload = {
       company_name: lead.name,
       email: lead.email || undefined,
       phone: lead.phone || undefined,
-      city: lead.city || undefined,
+      city: cleanCity,
       address: lead.address || undefined,
       website: lead.website || undefined,
       status: 'cold' as const,

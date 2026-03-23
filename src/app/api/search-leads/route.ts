@@ -203,18 +203,22 @@ export async function GET() {
 
 function extractCity(address: string | undefined): string {
   if (!address) return ''
-  // Dutch addresses typically end with city name
-  const parts = address.split(',')
-  if (parts.length >= 2) {
-    // Try to find a city from last parts (skip postal codes)
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const part = parts[i].trim()
-      // Skip if it looks like a postal code (1234 AB)
-      if (/^\d{4}\s?[A-Z]{2}/.test(part)) continue
-      // Skip country
-      if (part === 'Nederland' || part === 'Netherlands') continue
-      if (part.length > 2) return part
-    }
+  // Dutch addresses: "Straat 1, 1234 AB, Amsterdam" or "Straat 1, Amsterdam"
+  const parts = address.split(',').map(p => p.trim())
+  // Walk from the end, skip country and postal codes, take the first city-like part
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i]
+    if (!part || part.length <= 2) continue
+    // Skip country
+    if (/^(nederland|netherlands|nl)$/i.test(part)) continue
+    // Skip postal codes (1234 AB or 1234AB)
+    if (/^\d{4}\s?[A-Za-z]{2}$/.test(part)) continue
+    // Skip if it starts with a number (likely a street address like "Rokin 75")
+    if (/^\d/.test(part)) continue
+    // Skip if it contains a house number pattern (word + number)
+    if (/\b\d+\b/.test(part) && /[a-zA-Z]/.test(part)) continue
+    // This looks like a city name
+    return part
   }
   return ''
 }
