@@ -1244,12 +1244,20 @@ export default function SalesPage() {
     try {
       const res = await fetch('/api/leads/normalize-cities', { method: 'POST' })
       const data = await res.json()
-      if (res.ok && data.updated > 0) {
+      if (!res.ok) {
+        alert(`Fout: ${data.error || 'Onbekende fout'}`)
+        return
+      }
+      if (data.updated > 0) {
         await loadLeads()
         setCityFilter(null)
+        alert(`${data.updated} leads bijgewerkt!`)
+      } else {
+        alert('Alle steden zijn al correct.')
       }
     } catch (error) {
       console.error('Error normalizing cities:', error)
+      alert('Kon geen verbinding maken met de server.')
     } finally {
       setNormalizingCities(false)
     }
