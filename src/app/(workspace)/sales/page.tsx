@@ -47,7 +47,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact } from '@/lib/supabase'
-import { UserPlus, Users, ArrowUpDown } from 'lucide-react'
+import { UserPlus, Users, ArrowUpDown, Crosshair, ThumbsUp, ThumbsDown, Search as SearchIcon2 } from 'lucide-react'
+import { SalesMode, getApproval } from '@/components/sales/SalesMode'
+import { SalesModeResults } from '@/components/sales/SalesModeResults'
 
 const sourceColorMap: Record<string, string> = {
   'Apollo': 'bg-purple-100 text-purple-700',
@@ -1162,7 +1164,20 @@ export default function SalesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [showStatusDropdown, setShowStatusDropdown] = useState(false)
-  
+  const [cityFilter, setCityFilter] = useState<string | null>(null)
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
+
+  // Sales Mode
+  const [salesModeActive, setSalesModeActive] = useState(false)
+  const [salesModeResults, setSalesModeResults] = useState<{
+    reviewed: number
+    statusChanges: number
+    approved: number
+    rejected: number
+    notesEdited: number
+  } | null>(null)
+  const [salesModeResumeIndex, setSalesModeResumeIndex] = useState(0)
+
   // Sorting
   const [sortBy, setSortBy] = useState<'name' | 'city' | 'company' | 'date'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
@@ -1223,6 +1238,10 @@ export default function SalesPage() {
     }
   }
 
+  // Get unique cities for filter
+  const uniqueCities = [...new Set(leads.map(l => l.city).filter(Boolean))] as string[]
+  uniqueCities.sort((a, b) => a.localeCompare(b))
+
   // Filter leads
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = !searchQuery ||
@@ -1232,8 +1251,9 @@ export default function SalesPage() {
       lead.city?.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus = !statusFilter || lead.status === statusFilter
+    const matchesCity = !cityFilter || lead.city === cityFilter
 
-    return matchesSearch && matchesStatus
+    return matchesSearch && matchesStatus && matchesCity
   }).sort((a, b) => {
     let valA: string | Date, valB: string | Date
     
@@ -1269,11 +1289,60 @@ export default function SalesPage() {
   const goalStudios = 1000
   const progressPercent = (currentStudios / goalStudios) * 100
 
+  const handleLeadUpdateFromSalesMode = (updatedLead: SalesLead) => {
+    setLeads(prev => prev.map(l => l.id === updatedLead.id ? updatedLead : l))
+    if (selectedLead?.id === updatedLead.id) {
+      setSelectedLead(updatedLead)
+    }
+  }
+
+  const handleSalesModeExit = (stats: typeof salesModeResults & object) => {
+    setSalesModeActive(false)
+    setSalesModeResults(stats)
+  }
+
+  const getFilterLabel = () => {
+    const parts: string[] = []
+    if (cityFilter) parts.push(cityFilter)
+    if (statusFilter) parts.push(statusFilter)
+    if (searchQuery) parts.push(`"${searchQuery}"`)
+    return parts.length > 0 ? parts.join(' · ') : 'Alle leads'
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
       </div>
+    )
+  }
+
+  // Sales Mode
+  if (salesModeActive && filteredLeads.length > 0) {
+    return (
+      <SalesMode
+        leads={filteredLeads}
+        initialIndex={salesModeResumeIndex}
+        onExit={handleSalesModeExit}
+        onLeadUpdate={handleLeadUpdateFromSalesMode}
+      />
+    )
+  }
+
+  // Sales Mode Results
+  if (salesModeResults) {
+    return (
+      <SalesModeResults
+        stats={salesModeResults}
+        totalLeads={filteredLeads.length}
+        filterLabel={getFilterLabel()}
+        onRestart={() => {
+          setSalesModeResults(null)
+          setSalesModeResumeIndex(salesModeResults.reviewed < filteredLeads.length ? salesModeResults.reviewed : 0)
+          setSalesModeActive(true)
+        }}
+        onClose={() => setSalesModeResults(null)}
+      />
     )
   }
 
@@ -1473,6 +1542,52 @@ export default function SalesPage() {
             )}
           </div>
           
+          {/* City Filter */}
+          <div className="relative">
+            <button
+              onClick={() => setShowCityDropdown(!showCityDropdown)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-xl border hover:bg-gray-50 transition-colors',
+                cityFilter ? 'border-gray-900 bg-gray-50' : 'border-gray-200'
+              )}
+            >
+              <MapPin className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-700">
+                {cityFilter || 'Alle steden'}
+              </span>
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            </button>
+
+            {showCityDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10 max-h-64 overflow-auto">
+                <button
+                  onClick={() => { setCityFilter(null); setShowCityDropdown(false) }}
+                  className={cn(
+                    'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors',
+                    !cityFilter && 'bg-gray-50 font-medium'
+                  )}
+                >
+                  Alle steden
+                </button>
+                {uniqueCities.map((city) => (
+                  <button
+                    key={city}
+                    onClick={() => { setCityFilter(city); setShowCityDropdown(false) }}
+                    className={cn(
+                      'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center justify-between',
+                      cityFilter === city && 'bg-gray-50 font-medium'
+                    )}
+                  >
+                    <span>{city}</span>
+                    <span className="text-xs text-gray-400">
+                      {leads.filter(l => l.city === city).length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Sort Dropdown */}
           <div className="relative">
             <button
@@ -1502,7 +1617,7 @@ export default function SalesPage() {
                     )}
                   >
                     <button
-                      onClick={() => { setSortBy(option.key as any); setShowSortDropdown(false) }}
+                      onClick={() => { setSortBy(option.key as typeof sortBy); setShowSortDropdown(false) }}
                       className="flex-1 text-left"
                     >
                       {option.label}
@@ -1523,17 +1638,22 @@ export default function SalesPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/marketing/campaign">
-            <Button variant="outline" className="gap-2">
-              <Send className="h-4 w-4" />
-              Email Campagne
-            </Button>
-          </Link>
+          <Button
+            onClick={() => { setSalesModeResumeIndex(0); setSalesModeActive(true) }}
+            disabled={filteredLeads.length === 0}
+            className="gap-2 bg-gray-900 hover:bg-black"
+          >
+            <Crosshair className="h-4 w-4" />
+            Sales Mode
+            {filteredLeads.length > 0 && (
+              <Badge className="bg-white/20 text-white ml-1">{filteredLeads.length}</Badge>
+            )}
+          </Button>
 
-          <Link href="/sales/sequences">
+          <Link href="/scraper">
             <Button variant="outline" className="gap-2">
-              <Clock className="h-4 w-4" />
-              Sequences
+              <SearchIcon2 className="h-4 w-4" />
+              Meer scrapen
             </Button>
           </Link>
 
@@ -1558,6 +1678,7 @@ export default function SalesPage() {
               <th className="text-left p-4 font-semibold text-gray-600">Contact</th>
               <th className="text-left p-4 font-semibold text-gray-600">Locatie</th>
               <th className="text-left p-4 font-semibold text-gray-600">Status</th>
+              <th className="text-left p-4 font-semibold text-gray-600 w-10"></th>
               <th className="text-left p-4 font-semibold text-gray-600">Bron</th>
               <th className="text-left p-4 font-semibold text-gray-600">Toegevoegd</th>
             </tr>
@@ -1599,6 +1720,14 @@ export default function SalesPage() {
                       <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', statusColors.dot)} />
                       {lead.status}
                     </Badge>
+                  </td>
+                  <td className="p-4">
+                    {(() => {
+                      const a = getApproval(lead)
+                      if (a === 'approved') return <ThumbsUp className="h-4 w-4 text-emerald-500" />
+                      if (a === 'rejected') return <ThumbsDown className="h-4 w-4 text-red-500" />
+                      return null
+                    })()}
                   </td>
                   <td className="p-4">
                     <Badge className={getSourceColor(lead.source)}>
