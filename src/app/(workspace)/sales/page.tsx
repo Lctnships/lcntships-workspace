@@ -1238,9 +1238,41 @@ export default function SalesPage() {
     }
   }
 
-  // Get unique cities for filter
-  const uniqueCities = [...new Set(leads.map(l => l.city).filter(Boolean))] as string[]
-  uniqueCities.sort((a, b) => a.localeCompare(b))
+  // Normalize city: extract known Dutch city from address-like values
+  const KNOWN_CITIES = [
+    'Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen',
+    'Tilburg', 'Almere', 'Breda', 'Nijmegen', 'Haarlem', 'Arnhem', 'Enschede',
+    'Amersfoort', 'Apeldoorn', 'Zaanstad', 'Zwolle', 'Leiden', 'Dordrecht',
+    'Zoetermeer', 'Maastricht', 'Delft', 'Deventer', 'Hilversum', 'Leeuwarden',
+    'Alkmaar', 'Venlo', 'Helmond', 'Assen', 'Emmen', 'Roosendaal', 'Gouda',
+    'Vlaardingen', 'Schiedam', 'Heerlen', 'Amstelveen', 'Hoofddorp', 'Diemen',
+    'Badhoevedorp', 'Zaandam', 'Purmerend', 'Hoorn', 'Den Bosch', '\'s-Hertogenbosch',
+  ]
+
+  const normalizeCity = (raw: string | null | undefined): string | null => {
+    if (!raw) return null
+    const lower = raw.toLowerCase().trim()
+    // Direct match first
+    const directMatch = KNOWN_CITIES.find(c => c.toLowerCase() === lower)
+    if (directMatch) return directMatch
+    // Check if a known city name appears anywhere in the value
+    const containsMatch = KNOWN_CITIES.find(c => lower.includes(c.toLowerCase()))
+    if (containsMatch) return containsMatch
+    // Fallback: return the raw value as-is (it might be a valid city we don't know)
+    // But only if it looks like a city name (no numbers, short-ish)
+    if (raw.length <= 30 && !/\d/.test(raw)) return raw.trim()
+    return null
+  }
+
+  // Build city filter options from normalized values
+  const cityCountMap = new Map<string, number>()
+  leads.forEach(l => {
+    const normalized = normalizeCity(l.city)
+    if (normalized) {
+      cityCountMap.set(normalized, (cityCountMap.get(normalized) || 0) + 1)
+    }
+  })
+  const uniqueCities = [...cityCountMap.keys()].sort((a, b) => a.localeCompare(b))
 
   // Filter leads
   const filteredLeads = leads.filter(lead => {
@@ -1251,7 +1283,7 @@ export default function SalesPage() {
       lead.city?.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus = !statusFilter || lead.status === statusFilter
-    const matchesCity = !cityFilter || lead.city === cityFilter
+    const matchesCity = !cityFilter || normalizeCity(lead.city) === cityFilter
 
     return matchesSearch && matchesStatus && matchesCity
   }).sort((a, b) => {
@@ -1580,7 +1612,7 @@ export default function SalesPage() {
                   >
                     <span>{city}</span>
                     <span className="text-xs text-gray-400">
-                      {leads.filter(l => l.city === city).length}
+                      {cityCountMap.get(city) || 0}
                     </span>
                   </button>
                 ))}
