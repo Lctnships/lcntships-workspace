@@ -84,4 +84,22 @@ SERPAPI_KEY
 APOLLO_API_KEY
 ANTHROPIC_API_KEY
 NEXT_PUBLIC_APP_URL
+SUPABASE_SERVICE_ROLE_KEY   ← nog toe te voegen! (nodig voor team invite API)
 ```
+
+## Supabase MCP — Openstaand
+
+De Supabase MCP in `~/.claude/settings.json` is geconfigureerd met het **konsensi** project (`bwwoqgkojttarfpwvoxj`), maar lcntships gebruikt `ytmkmiofoluespwysfxa`. Alles staat op hetzelfde Supabase account maar in verschillende organisaties (Konsensi budgetbeheer / lctnships / rosevibezstudio).
+
+**Om MCP toegang te geven tot lcntships:**
+1. Ga naar `https://supabase.com/dashboard/account/tokens`
+2. Maak een Personal Access Token aan → "Claude MCP"
+3. Geef de token aan Claude — dan update ik `~/.claude/settings.json`
+
+**Openstaande migratie** (nog niet uitgevoerd):
+- `supabase/migrations/20260328_create_team_members.sql` — team_members tabel voor account management
+- Zodra de MCP fix klaar is, voert Claude dit automatisch uit
+
+## API Routes (recent toegevoegd)
+- `src/app/api/team/route.ts` — GET alle teamleden
+- `src/app/api/team/invite/route.ts` — POST nieuw teamlid uitnodigen (vereist `SUPABASE_SERVICE_ROLE_KEY`)
