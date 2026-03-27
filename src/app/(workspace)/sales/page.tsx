@@ -65,6 +65,7 @@ const statusColorMap: Record<string, { bg: string; text: string; dot: string }> 
   'cold': { bg: 'bg-slate-100', text: 'text-slate-700', dot: 'bg-slate-400' },
   'warm': { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-400' },
   'hot': { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+  'voicemail': { bg: 'bg-violet-100', text: 'text-violet-700', dot: 'bg-violet-500' },
   'negotiation': { bg: 'bg-gray-200', text: 'text-black', dot: 'bg-gray-900' },
   'closed': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   'lost': { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },

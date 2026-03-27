@@ -48,7 +48,9 @@ const statuses = [
   { value: 'cold', label: 'Cold' },
   { value: 'warm', label: 'Warm' },
   { value: 'hot', label: 'Hot' },
-  { value: 'won', label: 'Won' },
+  { value: 'voicemail', label: 'Voicemail' },
+  { value: 'negotiation', label: 'Negotiation' },
+  { value: 'closed', label: 'Closed' },
   { value: 'lost', label: 'Lost' },
 ]
 

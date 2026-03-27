@@ -28,16 +28,28 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-// Navigation items (removed team members and payments)
+import { Users, UserPlus, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
 const navItems = [
   { id: 'business-profile', label: 'Business Profile', icon: Briefcase },
   { id: 'my-account', label: 'My Account', icon: User },
+  { id: 'team-members', label: 'Team Members', icon: Users },
   { id: 'authentication', label: 'Authentication', icon: Key },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'integrations', label: 'Integrations', icon: Puzzle },
   { id: 'platform-settings', label: 'Platform Settings', icon: Settings },
   { id: 'branding', label: 'Branding', icon: Palette },
 ]
+
+interface TeamMember {
+  id: string
+  email: string
+  full_name: string | null
+  role: string
+  created_at: string
+  last_sign_in_at: string | null
+}
 
 // Mock data
 const integrations = [
@@ -91,6 +103,67 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('business-profile')
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
+
+  // Team members state
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [loadingTeam, setLoadingTeam] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRole, setInviteRole] = useState('member')
+  const [inviting, setInviting] = useState(false)
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [showInviteForm, setShowInviteForm] = useState(false)
+
+  // Load team members
+  useState(() => {
+    const loadTeam = async () => {
+      setLoadingTeam(true)
+      try {
+        const res = await fetch('/api/team')
+        if (res.ok) {
+          const data = await res.json()
+          setTeamMembers(data.members || [])
+        }
+      } catch {
+        // Silently fail
+      } finally {
+        setLoadingTeam(false)
+      }
+    }
+    loadTeam()
+  })
+
+  const handleInvite = async () => {
+    if (!inviteEmail) return
+    setInviting(true)
+    setInviteError(null)
+    setInviteSuccess(null)
+    try {
+      const res = await fetch('/api/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, full_name: inviteName, role: inviteRole }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Uitnodiging mislukt')
+      setInviteSuccess(`Uitnodiging verstuurd naar ${inviteEmail}`)
+      setInviteEmail('')
+      setInviteName('')
+      setInviteRole('member')
+      setShowInviteForm(false)
+      // Refresh team list
+      const teamRes = await fetch('/api/team')
+      if (teamRes.ok) {
+        const teamData = await teamRes.json()
+        setTeamMembers(teamData.members || [])
+      }
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Onbekende fout')
+    } finally {
+      setInviting(false)
+    }
+  }
 
   // Auth settings states
   const [emailLoginEnabled, setEmailLoginEnabled] = useState(true)
@@ -282,6 +355,126 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Team Members Section */}
+          <section id="team-members" className="scroll-mt-8">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Team Members</h2>
+              <p className="text-gray-500 text-sm">Beheer wie toegang heeft tot het workspace dashboard.</p>
+            </div>
+
+            {/* Invite Success/Error */}
+            {inviteSuccess && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-700 text-sm flex items-center gap-2">
+                <Check className="h-4 w-4" />
+                {inviteSuccess}
+              </div>
+            )}
+            {inviteError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-600 text-sm">
+                {inviteError}
+              </div>
+            )}
+
+            {/* Team List */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900">Teamleden</h3>
+                <Button onClick={() => setShowInviteForm(!showInviteForm)} className="rounded-xl">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Uitnodigen
+                </Button>
+              </div>
+
+              {/* Invite Form */}
+              {showInviteForm && (
+                <div className="p-6 border-b border-gray-100 bg-gray-50">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-4">Nieuw teamlid uitnodigen</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Email *</label>
+                      <Input
+                        className="h-10 rounded-xl bg-white"
+                        type="email"
+                        placeholder="naam@bedrijf.nl"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Naam</label>
+                      <Input
+                        className="h-10 rounded-xl bg-white"
+                        placeholder="Volledige naam"
+                        value={inviteName}
+                        onChange={(e) => setInviteName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Rol</label>
+                      <select
+                        className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:ring-2 focus:ring-gray-900"
+                        value={inviteRole}
+                        onChange={(e) => setInviteRole(e.target.value)}
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="member">Member</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    </div>
+                    <Button onClick={handleInvite} disabled={inviting || !inviteEmail} className="h-10 rounded-xl">
+                      {inviting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                      {inviting ? 'Versturen...' : 'Verstuur uitnodiging'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Members List */}
+              <div className="divide-y divide-gray-100">
+                {loadingTeam ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                    Laden...
+                  </div>
+                ) : teamMembers.length > 0 ? (
+                  teamMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-4 px-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                          {(member.full_name || member.email).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{member.full_name || member.email}</div>
+                          <div className="text-sm text-gray-500">{member.email}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={cn(
+                          'px-2.5 py-1 rounded-full text-xs font-medium capitalize',
+                          member.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                          member.role === 'viewer' ? 'bg-gray-100 text-gray-600' :
+                          'bg-blue-100 text-blue-700'
+                        )}>
+                          {member.role}
+                        </span>
+                        {member.last_sign_in_at && (
+                          <span className="text-xs text-gray-400">
+                            Laatst actief: {new Date(member.last_sign_in_at).toLocaleDateString('nl-NL')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center">
+                    <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Nog geen teamleden. Nodig iemand uit om te beginnen.</p>
+                  </div>
+                )}
               </div>
             </div>
           </section>

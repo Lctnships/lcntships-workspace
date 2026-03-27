@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,7 +18,6 @@ import {
   Send,
   Loader2,
   ChevronLeft,
-  Search as SearchIcon,
   ThumbsUp,
   ThumbsDown,
   MessageSquare,
@@ -67,6 +65,7 @@ const statusColorMap: Record<string, { bg: string; text: string; dot: string }> 
   'cold': { bg: 'bg-slate-100', text: 'text-slate-700', dot: 'bg-slate-400' },
   'warm': { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-400' },
   'hot': { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+  'voicemail': { bg: 'bg-violet-100', text: 'text-violet-700', dot: 'bg-violet-500' },
   'negotiation': { bg: 'bg-gray-200', text: 'text-black', dot: 'bg-gray-900' },
   'closed': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   'lost': { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
@@ -114,6 +113,14 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
     notesEdited: 0,
   })
   const [reviewedIndices, setReviewedIndices] = useState<Set<number>>(new Set())
+
+  // Email modal state
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailMessage, setEmailMessage] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   const currentLead = leads[currentIndex]
 
@@ -256,6 +263,63 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
       setSavingNotes(false)
     }
   }
+
+  const handleSendEmail = async () => {
+    if (!currentLead?.email || !emailSubject || !emailMessage) return
+    setSendingEmail(true)
+    setEmailError(null)
+    try {
+      const res = await fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: {
+            email: currentLead.email,
+            name: currentLead.contact_name || currentLead.company_name,
+            company: currentLead.company_name,
+          },
+          subject: emailSubject,
+          message: emailMessage,
+          trackId: currentLead.id,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Verzenden mislukt')
+      }
+      setEmailSent(true)
+      // Update last_contacted_at
+      await salesLeadsApi.update(currentLead.id, { updated_at: new Date().toISOString() } as Partial<SalesLead>)
+      // Refresh email list
+      const emailRes = await fetch(`/api/leads/${currentLead.id}/emails`)
+      if (emailRes.ok) {
+        const emailData = await emailRes.json()
+        setEmails(emailData || [])
+      }
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Onbekende fout')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
+  const EMAIL_TEMPLATES = [
+    {
+      name: 'Na telefoongesprek',
+      subject: `Samenwerking met ${currentLead?.company_name || ''}`,
+      message: `Beste ${currentLead?.contact_name || currentLead?.company_name || ''},\n\nLeuk dat we kort hebben gesproken. Zoals besproken stuur ik je graag meer informatie over onze diensten.\n\nWe helpen creatieve studio's zoals ${currentLead?.company_name || ''} met het verhogen van hun bezettingsgraad door middel van ons platform. Hierdoor bereiken jullie een breder publiek zonder extra marketingkosten.\n\nZou je openstaan voor een kort gesprek om de mogelijkheden te bespreken?\n\nMet vriendelijke groet,\nlcntships Team`,
+    },
+    {
+      name: 'Follow-up voicemail',
+      subject: `Terugkoppeling — ${currentLead?.company_name || ''}`,
+      message: `Beste ${currentLead?.contact_name || currentLead?.company_name || ''},\n\nIk heb zojuist geprobeerd je te bereiken maar helaas de voicemail gekregen. Ik neem contact op namens lcntships.\n\nWij zijn een platform dat creatieve studio's helpt met het vullen van lege uren. Geen kosten vooraf — wij werken op commissiebasis.\n\nIk zou graag even 5 minuten met je willen bellen om uit te leggen hoe het werkt. Wanneer schikt het?\n\nMet vriendelijke groet,\nlcntships Team`,
+    },
+    {
+      name: 'Eerste contact (koud)',
+      subject: `Meer boekingen voor ${currentLead?.company_name || ''}?`,
+      message: `Beste ${currentLead?.contact_name || currentLead?.company_name || ''},\n\nIk kwam ${currentLead?.company_name || 'jullie studio'} tegen en was onder de indruk van jullie aanbod.\n\nBij lcntships helpen we creatieve studio's met het verhogen van hun bezettingsgraad via ons platform. We brengen creators, fotografen en bedrijven in contact met studio's — zonder kosten vooraf.\n\nZou je interesse hebben in een vrijblijvend gesprek?\n\nMet vriendelijke groet,\nlcntships Team`,
+    },
+  ]
 
   if (!currentLead) return null
 
@@ -525,12 +589,18 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                     <Mail className="h-5 w-5 text-gray-400" />
                     <h2 className="font-semibold text-gray-900">Email Geschiedenis</h2>
                   </div>
-                  <Link href="/email">
-                    <Button variant="outline" size="sm">
-                      <Send className="h-3.5 w-3.5 mr-1.5" />
-                      Email sturen
-                    </Button>
-                  </Link>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    if (!currentLead.email) return
+                    const name = currentLead.contact_name || currentLead.company_name
+                    setEmailSubject(`Samenwerking met ${currentLead.company_name}`)
+                    setEmailMessage(`Beste ${name},\n\nLeuk dat we kort hebben gesproken. Zoals besproken stuur ik je graag meer informatie over onze diensten.\n\nWe helpen creatieve studio's zoals ${currentLead.company_name} met het verhogen van hun bezettingsgraad door middel van ons platform. Hierdoor bereiken jullie een breder publiek zonder extra marketingkosten.\n\nZou je openstaan voor een kort gesprek om de mogelijkheden te bespreken?\n\nMet vriendelijke groet,\nlcntships Team`)
+                    setEmailSent(false)
+                    setEmailError(null)
+                    setShowEmailModal(true)
+                  }} disabled={!currentLead.email}>
+                    <Send className="h-3.5 w-3.5 mr-1.5" />
+                    Email sturen
+                  </Button>
                 </div>
 
                 {loadingEmails ? (
@@ -635,7 +705,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
                 <h2 className="font-semibold text-gray-900 mb-4">Status</h2>
                 <div className="space-y-2">
-                  {(['cold', 'warm', 'hot', 'negotiation', 'closed', 'lost'] as const).map((status) => {
+                  {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map((status) => {
                     const colors = statusColorMap[status]
                     const isActive = currentLead.status === status
                     return (
@@ -793,6 +863,99 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
           </Button>
         )}
       </div>
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl m-4 max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-900">Email versturen</h3>
+              <button onClick={() => setShowEmailModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Templates */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-2">Template kiezen</label>
+                <div className="flex flex-wrap gap-2">
+                  {EMAIL_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.name}
+                      onClick={() => { setEmailSubject(tpl.subject); setEmailMessage(tpl.message) }}
+                      className="text-xs px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors text-gray-700"
+                    >
+                      {tpl.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* To */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Aan</label>
+                <div className="px-3 py-2 rounded-xl bg-gray-50 text-sm text-gray-700">
+                  {currentLead.email || 'Geen email beschikbaar'}
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Onderwerp</label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  placeholder="Onderwerp..."
+                />
+              </div>
+
+              {/* Message */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Bericht</label>
+                <textarea
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  rows={10}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                  placeholder="Typ je bericht..."
+                />
+              </div>
+
+              {emailError && (
+                <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm">{emailError}</div>
+              )}
+
+              {emailSent && (
+                <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 text-sm flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Email succesvol verstuurd!
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 p-6 border-t border-gray-100">
+              <Button variant="outline" onClick={() => setShowEmailModal(false)}>
+                Annuleren
+              </Button>
+              <Button
+                onClick={handleSendEmail}
+                disabled={sendingEmail || !emailSubject || !emailMessage || !currentLead.email || emailSent}
+              >
+                {sendingEmail ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Versturen...</>
+                ) : emailSent ? (
+                  <><CheckCircle2 className="h-4 w-4 mr-2" />Verstuurd</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" />Versturen</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

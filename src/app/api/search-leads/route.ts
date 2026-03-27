@@ -201,11 +201,45 @@ export async function GET() {
   return NextResponse.json({ usage, history: history || [] })
 }
 
+// Known Dutch cities for validation
+const KNOWN_CITIES: Record<string, string> = {
+  'amsterdam': 'Amsterdam', 'rotterdam': 'Rotterdam', 'den haag': 'Den Haag',
+  'the hague': 'Den Haag', "'s-gravenhage": 'Den Haag', 'utrecht': 'Utrecht',
+  'eindhoven': 'Eindhoven', 'groningen': 'Groningen', 'haarlem': 'Haarlem',
+  'leiden': 'Leiden', 'arnhem': 'Arnhem', 'tilburg': 'Tilburg', 'breda': 'Breda',
+  'nijmegen': 'Nijmegen', 'almere': 'Almere', 'enschede': 'Enschede',
+  'amersfoort': 'Amersfoort', 'apeldoorn': 'Apeldoorn', 'zwolle': 'Zwolle',
+  'maastricht': 'Maastricht', 'delft': 'Delft', 'hilversum': 'Hilversum',
+  'deventer': 'Deventer', 'leeuwarden': 'Leeuwarden', 'alkmaar': 'Alkmaar',
+  'dordrecht': 'Dordrecht', 'zoetermeer': 'Zoetermeer', 'amstelveen': 'Amstelveen',
+  'hoofddorp': 'Hoofddorp', 'zaandam': 'Zaandam', 'purmerend': 'Purmerend',
+  'hoorn': 'Hoorn', 'gouda': 'Gouda', 'schiedam': 'Schiedam',
+  'vlaardingen': 'Vlaardingen', 'heerlen': 'Heerlen', 'venlo': 'Venlo',
+  'diemen': 'Diemen', 'den bosch': 'Den Bosch', "'s-hertogenbosch": 'Den Bosch',
+  'nieuwegein': 'Nieuwegein', 'vianen': 'Vianen', 'baarn': 'Baarn',
+  'bussum': 'Bussum', 'naarden': 'Naarden', 'huizen': 'Huizen',
+  'woerden': 'Woerden', 'zeist': 'Zeist', 'bilthoven': 'Bilthoven',
+  'soest': 'Soest', 'veenendaal': 'Veenendaal', 'ede': 'Ede',
+  'wageningen': 'Wageningen', 'doetinchem': 'Doetinchem', 'harderwijk': 'Harderwijk',
+}
+
 function extractCity(address: string | undefined): string {
   if (!address) return ''
+
   // Dutch addresses: "Straat 1, 1234 AB, Amsterdam" or "Straat 1, Amsterdam"
   const parts = address.split(',').map(p => p.trim())
-  // Walk from the end, skip country and postal codes, take the first city-like part
+
+  // First pass: check if any part is a known city (most reliable)
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i]
+    if (!part) continue
+    // Strip postal code prefix if combined: "1234 AB Amsterdam" → "Amsterdam"
+    const withoutPostal = part.replace(/^\d{4}\s?[A-Za-z]{2}\s+/, '').trim()
+    const known = KNOWN_CITIES[withoutPostal.toLowerCase()]
+    if (known) return known
+  }
+
+  // Second pass: find a city-like part (no numbers, not a country, not a postal code)
   for (let i = parts.length - 1; i >= 0; i--) {
     const part = parts[i]
     if (!part || part.length <= 2) continue
@@ -213,10 +247,8 @@ function extractCity(address: string | undefined): string {
     if (/^(nederland|netherlands|nl)$/i.test(part)) continue
     // Skip postal codes (1234 AB or 1234AB)
     if (/^\d{4}\s?[A-Za-z]{2}$/.test(part)) continue
-    // Skip if it starts with a number (likely a street address like "Rokin 75")
-    if (/^\d/.test(part)) continue
-    // Skip if it contains a house number pattern (word + number)
-    if (/\b\d+\b/.test(part) && /[a-zA-Z]/.test(part)) continue
+    // Skip if it contains ANY digit — street addresses always have house numbers
+    if (/\d/.test(part)) continue
     // This looks like a city name
     return part
   }
