@@ -42,6 +42,9 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  MessageSquare,
+  Save,
+  Voicemail,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -129,7 +132,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
     address: string
     website: string
     source: string
-    status: 'cold' | 'warm' | 'hot' | 'negotiation' | 'closed' | 'lost'
+    status: 'cold' | 'warm' | 'hot' | 'voicemail' | 'negotiation' | 'closed' | 'lost'
     notes: string
   }>({
     company_name: '',
@@ -359,7 +362,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
               </label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as 'cold' | 'warm' | 'hot' | 'negotiation' | 'closed' | 'lost' })}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as 'cold' | 'warm' | 'hot' | 'voicemail' | 'negotiation' | 'closed' | 'lost' })}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               >
                 <option value="cold">Cold</option>
@@ -913,10 +916,13 @@ interface LeadDetailProps {
   onEdit: () => void
   onDelete: () => void
   onStatusChange: (status: SalesLead['status']) => void
+  onNotesChange: (notes: string) => void
 }
 
-function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }: LeadDetailProps) {
+function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, onNotesChange }: LeadDetailProps) {
   const statusColors = getStatusColor(lead.status)
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesValue, setNotesValue] = useState(lead.notes || '')
 
   return (
     <div className="animate-fade-in">
@@ -1084,10 +1090,66 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
           </div>
 
           {/* Notes */}
-          {lead.notes && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-gray-400" />
+                <h2 className="font-semibold text-gray-900">Notities</h2>
+              </div>
+              {editingNotes ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onNotesChange(notesValue)
+                    setEditingNotes(false)
+                  }}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Opslaan
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNotesValue(lead.notes || '')
+                    setEditingNotes(true)
+                  }}
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Bewerken
+                </Button>
+              )}
+            </div>
+            {editingNotes ? (
+              <textarea
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                className="w-full min-h-[120px] p-3 rounded-xl border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+                placeholder="Voeg notities toe..."
+              />
+            ) : (
+              <p className="text-gray-600 whitespace-pre-wrap">
+                {lead.notes || 'Geen notities. Klik op Bewerken om notities toe te voegen.'}
+              </p>
+            )}
+          </div>
+
+          {/* Email Action */}
+          {(lead.email || contacts.some(c => c.email)) && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">Notities</h2>
-              <p className="text-gray-600 whitespace-pre-wrap">{lead.notes}</p>
+              <div className="flex items-center gap-2 mb-4">
+                <Mail className="h-5 w-5 text-gray-400" />
+                <h2 className="font-semibold text-gray-900">Email</h2>
+              </div>
+              <Link
+                href={`/email?lead=${lead.id}`}
+                className="flex items-center justify-center gap-2 w-full p-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-colors"
+              >
+                <Send className="h-4 w-4" />
+                <span className="font-medium">Email versturen</span>
+              </Link>
             </div>
           )}
         </div>
@@ -1098,7 +1160,7 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange }
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Status</h2>
             <div className="space-y-2">
-              {(['cold', 'warm', 'hot', 'negotiation', 'closed', 'lost'] as const).map((status) => {
+              {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map((status) => {
                 const colors = getStatusColor(status)
                 const isActive = lead.status === status
                 return (
@@ -1223,8 +1285,21 @@ export default function SalesPage() {
       if (selectedLead?.id === leadId) {
         setSelectedLead({ ...selectedLead, status: newStatus })
       }
+    } catch (error: unknown) {
+      const err = error as { message?: string; code?: string; details?: string }
+      console.error('Error updating status:', err?.message, err?.code, err?.details)
+    }
+  }
+
+  const handleNotesChange = async (leadId: string, notes: string) => {
+    try {
+      await salesLeadsApi.update(leadId, { notes })
+      setLeads(leads.map(l => l.id === leadId ? { ...l, notes } : l))
+      if (selectedLead?.id === leadId) {
+        setSelectedLead({ ...selectedLead, notes })
+      }
     } catch (error) {
-      console.error('Error updating status:', error)
+      console.error('Error updating notes:', error)
     }
   }
 
@@ -1391,6 +1466,7 @@ export default function SalesPage() {
           }}
           onDelete={() => handleDeleteLead(selectedLead.id)}
           onStatusChange={(status) => handleStatusChange(selectedLead.id, status)}
+          onNotesChange={(notes) => handleNotesChange(selectedLead.id, notes)}
         />
         <AddLeadModal
           isOpen={showAddModal}
@@ -1515,17 +1591,17 @@ export default function SalesPage() {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Zoeken..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent w-64"
+              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent w-full sm:w-64"
             />
           </div>
 
@@ -1553,7 +1629,7 @@ export default function SalesPage() {
                 >
                   Alle statussen
                 </button>
-                {(['cold', 'warm', 'hot', 'negotiation', 'closed', 'lost'] as const).map((status) => {
+                {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map((status) => {
                   const colors = getStatusColor(status)
                   return (
                     <button
@@ -1681,14 +1757,14 @@ export default function SalesPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={() => { setSalesModeResumeIndex(0); setSalesModeActive(true) }}
             disabled={filteredLeads.length === 0}
             className="gap-2 bg-gray-900 hover:bg-black"
           >
             <Crosshair className="h-4 w-4" />
-            Sales Mode
+            <span className="hidden sm:inline">Sales Mode</span>
             {filteredLeads.length > 0 && (
               <Badge className="bg-white/20 text-white ml-1">{filteredLeads.length}</Badge>
             )}
@@ -1697,25 +1773,25 @@ export default function SalesPage() {
           <Link href="/scraper">
             <Button variant="outline" className="gap-2">
               <SearchIcon2 className="h-4 w-4" />
-              Meer scrapen
+              <span className="hidden md:inline">Meer scrapen</span>
             </Button>
           </Link>
 
           <Button variant="outline" onClick={() => setShowCSVModal(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            CSV Import
+            <Upload className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">CSV Import</span>
           </Button>
 
           <Button onClick={() => { setEditLead(null); setShowAddModal(true) }}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nieuwe Lead
+            <Plus className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Nieuwe Lead</span>
           </Button>
         </div>
       </div>
 
       {/* Leads Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-x-auto">
+        <table className="w-full min-w-[700px]">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="text-left p-4 font-semibold text-gray-600">Bedrijf</th>

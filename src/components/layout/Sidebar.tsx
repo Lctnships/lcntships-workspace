@@ -20,8 +20,10 @@ import {
   Mail,
   Sparkles,
   Zap,
+  Menu,
+  X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
@@ -107,49 +109,83 @@ function NavSection({ title, items, collapsed, pathname }: NavSectionProps) {
 export function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
 
   return (
     <TooltipProvider>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-4 left-4 z-50 xl:hidden bg-white rounded-xl p-2 shadow-md border border-gray-100"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5 text-gray-700" />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30 xl:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen bg-white border-r border-gray-100 transition-all duration-300 flex flex-col',
-          collapsed ? 'w-[72px]' : 'w-64'
+          'fixed left-0 top-0 z-50 h-screen bg-white border-r border-gray-100 transition-all duration-300 flex flex-col',
+          // Desktop: normal sidebar
+          'max-xl:translate-x-[-100%] xl:translate-x-0',
+          collapsed ? 'xl:w-[72px]' : 'xl:w-64',
+          // Mobile/tablet: overlay sidebar (always full width when open)
+          mobileOpen && 'max-xl:translate-x-0 max-xl:w-72 max-xl:shadow-2xl'
         )}
       >
         {/* Logo */}
-        <div className={cn('flex items-center h-16 px-4 border-b border-gray-100', collapsed ? 'justify-center' : 'gap-3')}>
-          <img
-            src="/lcntships-logo.png"
-            alt="lcntships"
-            className="w-9 h-9 object-contain"
-          />
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="font-bold text-gray-900">lcntships</span>
-              <span className="text-xs text-gray-500">Workspace</span>
-            </div>
+        <div className={cn('flex items-center h-16 px-4 border-b border-gray-100', collapsed && !mobileOpen ? 'justify-center' : 'justify-between')}>
+          <div className="flex items-center gap-3">
+            <img
+              src="/lcntships-logo.png"
+              alt="lcntships"
+              className="w-9 h-9 object-contain"
+            />
+            {(!collapsed || mobileOpen) && (
+              <div className="flex flex-col">
+                <span className="font-bold text-gray-900">lcntships</span>
+                <span className="text-xs text-gray-500">Workspace</span>
+              </div>
+            )}
+          </div>
+          {mobileOpen && (
+            <button onClick={() => setMobileOpen(false)} className="xl:hidden p-1" aria-label="Close menu">
+              <X className="h-5 w-5 text-gray-500" />
+            </button>
           )}
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-6">
-          <NavSection items={mainNavItems} collapsed={collapsed} pathname={pathname} />
+          <NavSection items={mainNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
 
-          {!collapsed && <Separator className="my-3" />}
+          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
 
-          <NavSection title="Business" items={businessNavItems} collapsed={collapsed} pathname={pathname} />
+          <NavSection title="Business" items={businessNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
 
-          {!collapsed && <Separator className="my-3" />}
+          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
 
-          <NavSection title="Growth" items={growthNavItems} collapsed={collapsed} pathname={pathname} />
+          <NavSection title="Growth" items={growthNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
 
-          {!collapsed && <Separator className="my-3" />}
+          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
 
-          <NavSection items={systemNavItems} collapsed={collapsed} pathname={pathname} />
+          <NavSection items={systemNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
         </nav>
 
-        {/* Collapse Toggle */}
-        <div className="p-3 border-t border-gray-100">
+        {/* Collapse Toggle - desktop only */}
+        <div className="hidden xl:block p-3 border-t border-gray-100">
           <Button
             variant="ghost"
             size="sm"

@@ -7,6 +7,9 @@ import {
   X,
   MapPin,
   Phone,
+  PhoneCall,
+  PhoneOff,
+  PhoneMissed,
   Mail,
   Globe,
   ExternalLink,
@@ -27,6 +30,8 @@ import {
   XCircle,
   Minus,
   Save,
+  FileText,
+  Video,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +49,26 @@ interface SentEmail {
   subject: string
   sent_at: string
   status: string
+}
+
+interface LeadActivity {
+  id: string
+  lead_id: string
+  type: 'call' | 'voicemail' | 'email' | 'note' | 'status_change' | 'meeting'
+  summary: string | null
+  notes: string | null
+  metadata: Record<string, unknown>
+  created_by: string
+  created_at: string
+}
+
+const activityConfig: Record<string, { icon: typeof Phone; bg: string; color: string; label: string }> = {
+  call: { icon: PhoneCall, bg: 'bg-green-100', color: 'text-green-600', label: 'Gebeld' },
+  voicemail: { icon: PhoneMissed, bg: 'bg-violet-100', color: 'text-violet-600', label: 'Voicemail' },
+  email: { icon: Mail, bg: 'bg-blue-100', color: 'text-blue-600', label: 'Email' },
+  note: { icon: FileText, bg: 'bg-gray-100', color: 'text-gray-600', label: 'Notitie' },
+  status_change: { icon: Edit3, bg: 'bg-amber-100', color: 'text-amber-600', label: 'Status' },
+  meeting: { icon: Video, bg: 'bg-pink-100', color: 'text-pink-600', label: 'Meeting' },
 }
 
 interface SessionStats {
@@ -114,6 +139,14 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
   })
   const [reviewedIndices, setReviewedIndices] = useState<Set<number>>(new Set())
 
+  // Activities state
+  const [activities, setActivities] = useState<LeadActivity[]>([])
+  const [loadingActivities, setLoadingActivities] = useState(false)
+  const [loggingActivity, setLoggingActivity] = useState<string | null>(null)
+  const [showQuickNote, setShowQuickNote] = useState(false)
+  const [quickNoteText, setQuickNoteText] = useState('')
+  const [quickNoteType, setQuickNoteType] = useState<'call' | 'voicemail' | 'note' | 'meeting'>('call')
+
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [emailSubject, setEmailSubject] = useState('')
@@ -127,8 +160,11 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
   const loadLeadData = useCallback(async (lead: SalesLead) => {
     setLoadingContacts(true)
     setLoadingEmails(true)
+    setLoadingActivities(true)
     setNotes(lead.notes || '')
     setEditingNotes(false)
+    setShowQuickNote(false)
+    setQuickNoteText('')
 
     try {
       const contactData = await leadContactsApi.getByLeadId(lead.id)
@@ -151,6 +187,20 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
       setEmails([])
     } finally {
       setLoadingEmails(false)
+    }
+
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/activities`)
+      if (res.ok) {
+        const activityData = await res.json()
+        setActivities(activityData || [])
+      } else {
+        setActivities([])
+      }
+    } catch {
+      setActivities([])
+    } finally {
+      setLoadingActivities(false)
     }
   }, [])
 
@@ -209,10 +259,13 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
 
   const handleStatusChange = async (newStatus: string) => {
     if (!currentLead || currentLead.status === newStatus) return
+    const oldStatus = currentLead.status
     try {
       const updated = await salesLeadsApi.update(currentLead.id, { status: newStatus as SalesLead['status'] })
       onLeadUpdate(updated)
       setSessionStats(s => ({ ...s, statusChanges: s.statusChanges + 1 }))
+      // Log status change activity
+      logActivity('status_change', `Status: ${oldStatus} → ${newStatus}`)
     } catch (error) {
       console.error('Error updating status:', error)
     }
@@ -301,6 +354,45 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
     } finally {
       setSendingEmail(false)
     }
+  }
+
+  const logActivity = async (type: LeadActivity['type'], summary: string, activityNotes?: string) => {
+    if (!currentLead) return
+    setLoggingActivity(type)
+    try {
+      const res = await fetch(`/api/leads/${currentLead.id}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, summary, notes: activityNotes || null }),
+      })
+      if (res.ok) {
+        const newActivity = await res.json()
+        setActivities(prev => [newActivity, ...prev])
+      }
+    } catch (error) {
+      console.error('Error logging activity:', error)
+    } finally {
+      setLoggingActivity(null)
+      setShowQuickNote(false)
+      setQuickNoteText('')
+    }
+  }
+
+  const handleQuickLog = (type: 'call' | 'voicemail' | 'note' | 'meeting') => {
+    setQuickNoteType(type)
+    setQuickNoteText('')
+    setShowQuickNote(true)
+  }
+
+  const submitQuickLog = () => {
+    const labels: Record<string, string> = {
+      call: 'Gebeld',
+      voicemail: 'Voicemail ingesproken',
+      note: 'Notitie toegevoegd',
+      meeting: 'Meeting gehad',
+    }
+    const summary = labels[quickNoteType] || quickNoteType
+    logActivity(quickNoteType, summary, quickNoteText || undefined)
   }
 
   const EMAIL_TEMPLATES = [
@@ -728,64 +820,97 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                 </div>
               </div>
 
-              {/* Timeline */}
+              {/* Quick Log Actions */}
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h2 className="font-semibold text-gray-900 mb-4">Tijdlijn</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Calendar className="h-4 w-4 text-gray-500" />
+                <h2 className="font-semibold text-gray-900 mb-4">Log Interactie</h2>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleQuickLog('call')}
+                    disabled={loggingActivity === 'call'}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-green-100 hover:border-green-300 hover:bg-green-50 transition-all"
+                  >
+                    {loggingActivity === 'call' ? (
+                      <Loader2 className="h-5 w-5 text-green-500 animate-spin" />
+                    ) : (
+                      <PhoneCall className="h-5 w-5 text-green-600" />
+                    )}
+                    <span className="text-xs font-medium text-green-700">Gebeld</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickLog('voicemail')}
+                    disabled={loggingActivity === 'voicemail'}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-violet-100 hover:border-violet-300 hover:bg-violet-50 transition-all"
+                  >
+                    {loggingActivity === 'voicemail' ? (
+                      <Loader2 className="h-5 w-5 text-violet-500 animate-spin" />
+                    ) : (
+                      <PhoneMissed className="h-5 w-5 text-violet-600" />
+                    )}
+                    <span className="text-xs font-medium text-violet-700">Voicemail</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickLog('meeting')}
+                    disabled={loggingActivity === 'meeting'}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-pink-100 hover:border-pink-300 hover:bg-pink-50 transition-all"
+                  >
+                    {loggingActivity === 'meeting' ? (
+                      <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
+                    ) : (
+                      <Video className="h-5 w-5 text-pink-600" />
+                    )}
+                    <span className="text-xs font-medium text-pink-700">Meeting</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickLog('note')}
+                    disabled={loggingActivity === 'note'}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-gray-100 hover:border-gray-300 hover:bg-gray-50 transition-all"
+                  >
+                    {loggingActivity === 'note' ? (
+                      <Loader2 className="h-5 w-5 text-gray-500 animate-spin" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-gray-600" />
+                    )}
+                    <span className="text-xs font-medium text-gray-700">Notitie</span>
+                  </button>
+                </div>
+
+                {/* Quick Note Input */}
+                {showQuickNote && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', activityConfig[quickNoteType]?.bg, activityConfig[quickNoteType]?.color)}>
+                        {activityConfig[quickNoteType]?.label}
+                      </span>
                     </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Toegevoegd</div>
-                      <div className="font-medium text-gray-900 text-sm">{formatDate(currentLead.created_at)}</div>
+                    <textarea
+                      value={quickNoteText}
+                      onChange={(e) => setQuickNoteText(e.target.value)}
+                      placeholder="Optioneel: voeg een notitie toe..."
+                      className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                      rows={3}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={submitQuickLog} disabled={!!loggingActivity} className="flex-1">
+                        {loggingActivity ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Check className="h-3.5 w-3.5 mr-1.5" />}
+                        Opslaan
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setShowQuickNote(false)}>
+                        Annuleer
+                      </Button>
                     </div>
                   </div>
-                  {(currentLead as SalesLeadExt).last_contacted_at && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Send className="h-4 w-4 text-blue-500" />
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-500">Laatst gecontacteerd</div>
-                        <div className="font-medium text-gray-900 text-sm">{formatDate((currentLead as SalesLeadExt).last_contacted_at ?? undefined)}</div>
-                      </div>
-                    </div>
-                  )}
-                  {currentLead.updated_at && currentLead.updated_at !== currentLead.created_at && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                        <Edit3 className="h-4 w-4 text-gray-500" />
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-500">Laatst bewerkt</div>
-                        <div className="font-medium text-gray-900 text-sm">{formatDate(currentLead.updated_at)}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+                )}
 
-              {/* Quick Actions */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h2 className="font-semibold text-gray-900 mb-4">Snelle acties</h2>
-                <div className="space-y-2">
-                  {currentLead.email && (
-                    <a
-                      href={`mailto:${currentLead.email}`}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors text-gray-700"
-                    >
-                      <Mail className="h-4 w-4" />
-                      <span className="text-sm font-medium">Email sturen</span>
-                    </a>
-                  )}
+                {/* Direct action links */}
+                <div className="mt-4 pt-4 border-t border-gray-100 space-y-1">
                   {currentLead.phone && (
                     <a
                       href={`tel:${currentLead.phone}`}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors text-gray-700"
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors text-gray-700"
                     >
                       <Phone className="h-4 w-4" />
-                      <span className="text-sm font-medium">Bellen</span>
+                      <span className="text-sm font-medium">Bellen: {currentLead.phone}</span>
                     </a>
                   )}
                   {(currentLead as SalesLeadExt).website && (
@@ -793,11 +918,64 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                       href={(currentLead as SalesLeadExt).website as string}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors text-gray-700"
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors text-gray-700"
                     >
                       <Globe className="h-4 w-4" />
                       <span className="text-sm font-medium">Website bekijken</span>
                     </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Activity Timeline */}
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <h2 className="font-semibold text-gray-900 mb-4">Activiteiten</h2>
+
+                {loadingActivities ? (
+                  <div className="flex items-center gap-2 text-gray-400 py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Laden...
+                  </div>
+                ) : activities.length > 0 ? (
+                  <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                    {activities.map((activity) => {
+                      const config = activityConfig[activity.type] || activityConfig.note
+                      const Icon = config.icon
+                      return (
+                        <div key={activity.id} className="flex items-start gap-3">
+                          <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', config.bg)}>
+                            <Icon className={cn('h-4 w-4', config.color)} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900">{activity.summary}</div>
+                            {activity.notes && (
+                              <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{activity.notes}</div>
+                            )}
+                            <div className="text-xs text-gray-400 mt-1">{formatDateTime(activity.created_at)}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">Nog geen activiteiten</p>
+                    <p className="text-xs text-gray-400 mt-1">Log je eerste interactie hierboven</p>
+                  </div>
+                )}
+
+                {/* Lead dates footer */}
+                <div className="mt-4 pt-3 border-t border-gray-100 space-y-1 text-xs text-gray-400">
+                  <div className="flex justify-between">
+                    <span>Toegevoegd</span>
+                    <span>{formatDate(currentLead.created_at)}</span>
+                  </div>
+                  {(currentLead as SalesLeadExt).last_contacted_at && (
+                    <div className="flex justify-between">
+                      <span>Laatst gecontacteerd</span>
+                      <span>{formatDate((currentLead as SalesLeadExt).last_contacted_at ?? undefined)}</span>
+                    </div>
                   )}
                 </div>
               </div>

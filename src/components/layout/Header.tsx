@@ -19,14 +19,15 @@ interface HeaderProps {
 
 export function Header({ title }: HeaderProps) {
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
-      {/* Left: Page Title */}
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-6">
+      {/* Left: spacer for mobile hamburger */}
       <div className="flex items-center gap-4">
+        <div className="w-10 lg:hidden" />
         {title && <h1 className="text-xl font-semibold text-gray-900">{title}</h1>}
       </div>
 
       {/* Center: Search */}
-      <div className="flex-1 max-w-md mx-8">
+      <div className="flex-1 max-w-md mx-2 sm:mx-8">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input

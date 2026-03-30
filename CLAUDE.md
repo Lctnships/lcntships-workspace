@@ -87,18 +87,12 @@ NEXT_PUBLIC_APP_URL
 SUPABASE_SERVICE_ROLE_KEY   ← nog toe te voegen! (nodig voor team invite API)
 ```
 
-## Supabase MCP — Openstaand
+## Supabase MCP — Actief
 
-De Supabase MCP in `~/.claude/settings.json` is geconfigureerd met het **konsensi** project (`bwwoqgkojttarfpwvoxj`), maar lcntships gebruikt `ytmkmiofoluespwysfxa`. Alles staat op hetzelfde Supabase account maar in verschillende organisaties (Konsensi budgetbeheer / lctnships / rosevibezstudio).
+Supabase MCP is gekoppeld aan het lcntships project (`ytmkmiofoluespwysfxa`). Werkt correct.
 
-**Om MCP toegang te geven tot lcntships:**
-1. Ga naar `https://supabase.com/dashboard/account/tokens`
-2. Maak een Personal Access Token aan → "Claude MCP"
-3. Geef de token aan Claude — dan update ik `~/.claude/settings.json`
-
-**Openstaande migratie** (nog niet uitgevoerd):
-- `supabase/migrations/20260328_create_team_members.sql` — team_members tabel voor account management
-- Zodra de MCP fix klaar is, voert Claude dit automatisch uit
+**Uitgevoerde migraties:**
+- `20260328_create_team_members.sql` — team_members tabel (uitgevoerd 2026-03-30)
 
 ## API Routes (recent toegevoegd)
 - `src/app/api/team/route.ts` — GET alle teamleden

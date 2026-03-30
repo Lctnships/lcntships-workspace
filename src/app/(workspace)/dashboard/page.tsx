@@ -305,21 +305,21 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
             Welcome back{userName ? `, ${userName}` : ''}
           </h1>
-          <p className="text-gray-500 mt-1 font-medium">{formattedDate}</p>
+          <p className="text-gray-500 mt-1 font-medium text-sm sm:text-base">{formattedDate}</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
           <Clock className="h-4 w-4" />
           <span>Last updated: Just now</span>
         </div>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
         {loading
           ? [1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)
           : metrics.map((metric) => {
@@ -327,20 +327,20 @@ export default function DashboardPage() {
               return (
                 <div
                   key={metric.label}
-                  className="bg-white rounded-2xl p-6 shadow-lg shadow-gray-200/50 border border-gray-100 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300"
+                  className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <div
                       className={cn(
-                        'w-12 h-12 rounded-xl flex items-center justify-center',
+                        'w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0',
                         metric.iconBg
                       )}
                     >
-                      <Icon className={cn('h-6 w-6', metric.iconColor)} />
+                      <Icon className={cn('h-5 w-5 sm:h-6 sm:w-6', metric.iconColor)} />
                     </div>
                     <div
                       className={cn(
-                        'flex items-center gap-1 text-sm font-semibold',
+                        'hidden sm:flex items-center gap-1 text-sm font-semibold',
                         metric.trend === 'up'
                           ? 'text-emerald-600'
                           : metric.trend === 'down'
@@ -354,9 +354,9 @@ export default function DashboardPage() {
                       <span>{metric.change}</span>
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <p className="text-3xl font-black text-gray-900">{metric.value}</p>
-                    <p className="text-sm text-gray-500 font-medium mt-1">{metric.label}</p>
+                  <div className="mt-3 sm:mt-4">
+                    <p className="text-2xl sm:text-3xl font-black text-gray-900">{metric.value}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">{metric.label}</p>
                   </div>
                 </div>
               )
@@ -364,15 +364,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
         {/* Revenue Chart */}
-        <div className="lg:col-span-8 bg-white rounded-2xl p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
+        <div className="lg:col-span-8 bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Revenue vs Payouts</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Revenue vs Payouts</h2>
               <p className="text-sm text-gray-500 mt-1">Totaaloverzicht</p>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 sm:gap-6">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-gray-900" />
                 <span className="text-sm text-gray-600 font-medium">Revenue</span>
@@ -397,7 +397,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Activity */}
-        <div className="lg:col-span-4 bg-white rounded-2xl p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
+        <div className="lg:col-span-4 bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Recente Activiteit</h2>
             {recentActivity.length > 0 && (
@@ -455,9 +455,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom Grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
         {/* Studio Overview */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Studio Overzicht</h2>
@@ -521,7 +521,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Pending Tasks */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Openstaande Taken</h2>

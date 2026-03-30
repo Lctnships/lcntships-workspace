@@ -9,9 +9,9 @@ export default function WorkspaceLayout({
   return (
     <div className="min-h-screen bg-[#FAFBFC]">
       <Sidebar />
-      <div className="pl-64 transition-all duration-300">
+      <div className="xl:pl-64 transition-all duration-300">
         <Header />
-        <main className="p-6">{children}</main>
+        <main className="p-4 sm:p-6">{children}</main>
       </div>
     </div>
   )
