@@ -230,7 +230,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
     try {
       // Set the primary contact as the main contact_name/email/phone on the lead
       const primaryContact = contacts.find(c => c.is_primary) || contacts[0]
-      const leadData = {
+      const leadData: Partial<SalesLead> = {
         ...formData,
         contact_name: primaryContact?.name || formData.contact_name,
         email: primaryContact?.email || formData.email,
