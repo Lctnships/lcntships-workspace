@@ -113,7 +113,7 @@ export interface SalesLead {
   city?: string
   address?: string
   website?: string
-  status: 'cold' | 'warm' | 'hot' | 'negotiation' | 'closed' | 'lost'
+  status: 'cold' | 'warm' | 'hot' | 'voicemail' | 'negotiation' | 'closed' | 'lost'
   source?: string
   notes?: string
   assigned_to?: string
