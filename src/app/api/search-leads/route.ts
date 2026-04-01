@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'query is verplicht' }, { status: 400 })
   }
 
-  const serpApiKey = process.env.SERPAPI_KEY
+  const serpApiKey = process.env.SERPAPI_KEY || process.env.SERP_API
   if (!serpApiKey) {
     return NextResponse.json({ error: 'SERPAPI_KEY niet geconfigureerd' }, { status: 500 })
   }
