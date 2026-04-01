@@ -229,22 +229,15 @@ export default function ScraperPage() {
   }, [])
 
   const loadInitialData = async () => {
-    // Load existing leads
-    const { data: leadsData } = await supabase
-      .from('leads')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200)
-    if (leadsData) setLeads(leadsData as Lead[])
-
-    // Load pipeline company names to detect which scraper leads are already in pipeline
+    // Load pipeline company names to filter out leads already in pipeline
     const { data: pipelineData } = await supabase
       .from('sales_leads')
       .select('company_name')
-    if (pipelineData && leadsData) {
+    if (pipelineData) {
       const pipelineNames = new Set(pipelineData.map((p: { company_name: string }) => p.company_name))
-      const existingIds = new Set((leadsData as Lead[]).filter(l => pipelineNames.has(l.name)).map(l => l.id))
-      setPipelineExisting(existingIds)
+      setPipelineExisting(new Set()) // reset
+      // Store pipeline names for filtering after search
+      setPipelineNames(pipelineNames)
     }
 
     // Load usage + history
@@ -283,10 +276,11 @@ export default function ScraperPage() {
         return
       }
 
-      // Prepend new leads to the list (avoiding duplicates already in state)
-      const newIds = new Set(data.leads.map((l: Lead) => l.id))
+      // Filter out leads already in pipeline, then prepend to list
+      const freshLeads = (data.leads as Lead[]).filter((l: Lead) => !pipelineNames.has(l.name))
+      const newIds = new Set(freshLeads.map((l: Lead) => l.id))
       setLeads(prev => [
-        ...data.leads,
+        ...freshLeads,
         ...prev.filter((l: Lead) => !newIds.has(l.id)),
       ])
       setUsage(data.usage || usage)
@@ -524,6 +518,7 @@ export default function ScraperPage() {
 
   const [pipelineAdded, setPipelineAdded] = useState<Set<string>>(new Set())
   const [pipelineExisting, setPipelineExisting] = useState<Set<string>>(new Set())
+  const [pipelineNames, setPipelineNames] = useState<Set<string>>(new Set())
   const [pipelineToast, setPipelineToast] = useState<{ count: number; visible: boolean } | null>(null)
 
   const addToPipeline = async (lead: Lead) => {
@@ -550,7 +545,12 @@ export default function ScraperPage() {
       : await supabase.from('sales_leads').insert(payload)
     if (!error) {
       setPipelineAdded(prev => new Set([...prev, lead.id]))
-      setTimeout(() => setPipelineAdded(prev => { const n = new Set(prev); n.delete(lead.id); return n }), 2000)
+      setPipelineNames(prev => new Set([...prev, lead.name]))
+      // Remove from scraper list after short delay
+      setTimeout(() => {
+        setLeads(prev => prev.filter(l => l.id !== lead.id))
+        setPipelineAdded(prev => { const n = new Set(prev); n.delete(lead.id); return n })
+      }, 1000)
     }
   }
 
