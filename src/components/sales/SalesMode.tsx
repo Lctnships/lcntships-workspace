@@ -681,18 +681,18 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                     <Mail className="h-5 w-5 text-gray-400" />
                     <h2 className="font-semibold text-gray-900">Email Geschiedenis</h2>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    if (!currentLead.email) return
-                    const name = currentLead.contact_name || currentLead.company_name
-                    setEmailSubject(`Samenwerking met ${currentLead.company_name}`)
-                    setEmailMessage(`Beste ${name},\n\nLeuk dat we kort hebben gesproken. Zoals besproken stuur ik je graag meer informatie over onze diensten.\n\nWe helpen creatieve studio's zoals ${currentLead.company_name} met het verhogen van hun bezettingsgraad door middel van ons platform. Hierdoor bereiken jullie een breder publiek zonder extra marketingkosten.\n\nZou je openstaan voor een kort gesprek om de mogelijkheden te bespreken?\n\nMet vriendelijke groet,\nlcntships Team`)
-                    setEmailSent(false)
-                    setEmailError(null)
-                    setShowEmailModal(true)
-                  }} disabled={!currentLead.email}>
-                    <Send className="h-3.5 w-3.5 mr-1.5" />
-                    Email sturen
-                  </Button>
+                  <div title={!currentLead.email ? 'Geen email adres bekend voor deze lead' : undefined}>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      setEmailSubject('')
+                      setEmailMessage('')
+                      setEmailSent(false)
+                      setEmailError(null)
+                      setShowEmailModal(true)
+                    }} disabled={!currentLead.email}>
+                      <Send className="h-3.5 w-3.5 mr-1.5" />
+                      Email sturen
+                    </Button>
+                  </div>
                 </div>
 
                 {loadingEmails ? (
@@ -968,7 +968,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                 {/* Lead dates footer */}
                 <div className="mt-4 pt-3 border-t border-gray-100 space-y-1 text-xs text-gray-400">
                   <div className="flex justify-between">
-                    <span>Toegevoegd</span>
+                    <span>Lead aangemaakt</span>
                     <span>{formatDate(currentLead.created_at)}</span>
                   </div>
                   {(currentLead as SalesLeadExt).last_contacted_at && (

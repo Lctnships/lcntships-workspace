@@ -7,12 +7,12 @@ import LeadEmail from '@/emails/LeadEmail'
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
 
-// Initialize Supabase admin client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Initialize Supabase client (service role preferred, anon key as fallback)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-const supabaseAdmin = supabaseUrl && serviceKey 
-  ? createClient(supabaseUrl, serviceKey)
+const supabaseAdmin = supabaseUrl && supabaseKey
+  ? createClient(supabaseUrl, supabaseKey)
   : null
 
 export async function POST(request: NextRequest) {
@@ -66,16 +66,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save to database if we have a user context
+    // Save to sent_emails table so email history shows up in Sales Mode
     if (trackId && supabaseAdmin) {
-      await supabaseAdmin.from('emails').insert({
-        message_id: data?.id,
-        to_emails: [{ name: to.name, email: to.email }],
+      const { error: dbError } = await supabaseAdmin.from('sent_emails').insert({
+        lead_id: trackId,
         subject,
-        body_html: html,
-        folder: 'sent',
+        body: html,
         sent_at: new Date().toISOString(),
+        status: 'sent',
+        resend_id: data?.id || null,
+        delivery_status: 'sent',
+        last_event: 'sent',
       })
+      if (dbError) {
+        console.error('Failed to log sent email to sent_emails:', dbError)
+      }
     }
 
     return NextResponse.json({ 
