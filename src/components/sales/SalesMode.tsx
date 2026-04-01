@@ -149,6 +149,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
 
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailTo, setEmailTo] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailMessage, setEmailMessage] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -318,7 +319,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
   }
 
   const handleSendEmail = async () => {
-    if (!currentLead?.email || !emailSubject || !emailMessage) return
+    if (!emailTo.trim() || !emailSubject || !emailMessage) return
     setSendingEmail(true)
     setEmailError(null)
     try {
@@ -327,7 +328,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: {
-            email: currentLead.email,
+            email: emailTo.trim(),
             name: currentLead.contact_name || currentLead.company_name,
             company: currentLead.company_name,
           },
@@ -681,18 +682,17 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                     <Mail className="h-5 w-5 text-gray-400" />
                     <h2 className="font-semibold text-gray-900">Email Geschiedenis</h2>
                   </div>
-                  <div title={!currentLead.email ? 'Geen email adres bekend voor deze lead' : undefined}>
-                    <Button variant="outline" size="sm" onClick={() => {
-                      setEmailSubject('')
-                      setEmailMessage('')
-                      setEmailSent(false)
-                      setEmailError(null)
-                      setShowEmailModal(true)
-                    }} disabled={!currentLead.email}>
-                      <Send className="h-3.5 w-3.5 mr-1.5" />
-                      Email sturen
-                    </Button>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setEmailTo(currentLead.email || '')
+                    setEmailSubject('')
+                    setEmailMessage('')
+                    setEmailSent(false)
+                    setEmailError(null)
+                    setShowEmailModal(true)
+                  }}>
+                    <Send className="h-3.5 w-3.5 mr-1.5" />
+                    Email sturen
+                  </Button>
                 </div>
 
                 {loadingEmails ? (
@@ -1072,10 +1072,14 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
 
               {/* To */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Aan</label>
-                <div className="px-3 py-2 rounded-xl bg-gray-50 text-sm text-gray-700">
-                  {currentLead.email || 'Geen email beschikbaar'}
-                </div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Aan (emailadres)</label>
+                <input
+                  type="email"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  placeholder="emailadres@voorbeeld.nl"
+                />
               </div>
 
               {/* Subject */}
@@ -1120,7 +1124,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
               </Button>
               <Button
                 onClick={handleSendEmail}
-                disabled={sendingEmail || !emailSubject || !emailMessage || !currentLead.email || emailSent}
+                disabled={sendingEmail || !emailTo.trim() || !emailSubject || !emailMessage || emailSent}
               >
                 {sendingEmail ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Versturen...</>
