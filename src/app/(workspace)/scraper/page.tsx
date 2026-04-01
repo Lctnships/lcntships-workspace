@@ -606,17 +606,17 @@ export default function ScraperPage() {
       {/* ── Search Box ─────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
         <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="bijv. fotostudio Amsterdam, podcast studio Utrecht..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-gray-50"
-            />
-          </div>
+          <select
+            value={selectedCity}
+            onChange={e => setSelectedCity(e.target.value)}
+            className={cn(
+              'px-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-gray-900',
+              selectedCity ? 'border-gray-200 bg-gray-50' : 'border-orange-300 bg-orange-50 text-orange-700'
+            )}
+          >
+            <option value="">⚠ Kies een stad *</option>
+            {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
 
           <select
             value={selectedType}
@@ -627,19 +627,23 @@ export default function ScraperPage() {
             {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
 
-          <select
-            value={selectedCity}
-            onChange={e => setSelectedCity(e.target.value)}
-            className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900"
-          >
-            <option value="">Alle steden</option>
-            {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="bijv. fotostudio, podcast studio, muziekstudio..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-gray-50"
+            />
+          </div>
 
           <Button
             onClick={() => handleSearch()}
-            disabled={searching || (!query.trim() && !selectedType)}
+            disabled={searching || (!query.trim() && !selectedType) || !selectedCity}
             className="gap-2 px-6"
+            title={!selectedCity ? 'Selecteer eerst een stad' : undefined}
           >
             {searching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {searching ? 'Zoeken...' : 'Zoek'}
