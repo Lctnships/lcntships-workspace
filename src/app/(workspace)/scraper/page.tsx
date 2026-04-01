@@ -974,6 +974,7 @@ export default function ScraperPage() {
                       Stad <SortIcon field="city" />
                     </button>
                   </th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[140px]">Adres</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Telefoon</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Website</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
@@ -999,7 +1000,7 @@ export default function ScraperPage() {
               <tbody className="divide-y divide-gray-50">
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={12} className="px-4 py-12 text-center text-gray-400">
                       <Users className="h-10 w-10 mx-auto mb-2 text-gray-200" />
                       Geen leads voor deze filters
                     </td>
@@ -1038,12 +1039,16 @@ export default function ScraperPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 min-w-[130px]">
+                    <td className="px-4 py-3 text-gray-600 min-w-[100px]">
                       {lead.city
                         ? <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-gray-300" />{lead.city}</span>
-                        : lead.address
-                          ? <span className="flex items-center gap-1 text-gray-300 text-xs"><MapPin className="h-3 w-3" /><span className="truncate max-w-[110px]" title={lead.address}>{lead.address}</span></span>
-                          : <span className="text-gray-200 text-xs">—</span>
+                        : <span className="text-gray-200 text-xs">—</span>
+                      }
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 min-w-[140px]">
+                      {lead.address
+                        ? <span className="text-xs truncate block max-w-[130px]" title={lead.address}>{lead.address}</span>
+                        : <span className="text-gray-200 text-xs">—</span>
                       }
                     </td>
                     <td className="px-4 py-3">
