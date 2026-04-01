@@ -326,6 +326,21 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Adres
+              </label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                placeholder="Keizersgracht 123"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Website
               </label>
               <input
@@ -1826,13 +1841,15 @@ export default function SalesPage() {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2 text-gray-600">
-                      {lead.city && (
-                        <>
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          <span>{lead.city}</span>
-                        </>
-                      )}
-                      {!lead.city && '-'}
+                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <div>
+                        <div>{lead.city || '-'}</div>
+                        {(lead as SalesLead & { address?: string }).address && (
+                          <div className="text-xs text-gray-400 truncate max-w-[160px]">
+                            {(lead as SalesLead & { address?: string }).address}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="p-4">
