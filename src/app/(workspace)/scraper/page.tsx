@@ -1034,8 +1034,13 @@ export default function ScraperPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {lead.city && <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-gray-300" />{lead.city}</span>}
+                    <td className="px-4 py-3 text-gray-600 min-w-[130px]">
+                      {lead.city
+                        ? <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-gray-300" />{lead.city}</span>
+                        : lead.address
+                          ? <span className="flex items-center gap-1 text-gray-300 text-xs"><MapPin className="h-3 w-3" /><span className="truncate max-w-[110px]" title={lead.address}>{lead.address}</span></span>
+                          : <span className="text-gray-200 text-xs">—</span>
+                      }
                     </td>
                     <td className="px-4 py-3">
                       {lead.phone ? (

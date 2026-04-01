@@ -229,7 +229,7 @@ function extractCity(address: string | undefined): string {
   // Dutch addresses: "Straat 1, 1234 AB, Amsterdam" or "Straat 1, Amsterdam"
   const parts = address.split(',').map(p => p.trim())
 
-  // First pass: check if any part is a known city (most reliable)
+  // Only return known cities — never guess from unvalidated strings
   for (let i = parts.length - 1; i >= 0; i--) {
     const part = parts[i]
     if (!part) continue
@@ -237,20 +237,12 @@ function extractCity(address: string | undefined): string {
     const withoutPostal = part.replace(/^\d{4}\s?[A-Za-z]{2}\s+/, '').trim()
     const known = KNOWN_CITIES[withoutPostal.toLowerCase()]
     if (known) return known
+    // Also try just the last word (e.g. "Amsterdam-West" → "Amsterdam")
+    const lastWord = withoutPostal.split(/[\s-]+/).pop() || ''
+    const knownLast = KNOWN_CITIES[lastWord.toLowerCase()]
+    if (knownLast) return knownLast
   }
 
-  // Second pass: find a city-like part (no numbers, not a country, not a postal code)
-  for (let i = parts.length - 1; i >= 0; i--) {
-    const part = parts[i]
-    if (!part || part.length <= 2) continue
-    // Skip country
-    if (/^(nederland|netherlands|nl)$/i.test(part)) continue
-    // Skip postal codes (1234 AB or 1234AB)
-    if (/^\d{4}\s?[A-Za-z]{2}$/.test(part)) continue
-    // Skip if it contains ANY digit — street addresses always have house numbers
-    if (/\d/.test(part)) continue
-    // This looks like a city name
-    return part
-  }
+  // Nothing found — return empty, never store unvalidated strings as city
   return ''
 }
