@@ -35,8 +35,8 @@ export default function CampaignEmail({
   senderEmail = 'rivaldo@lcntships.com',
   primaryButtonText = 'Plan een gesprek',
   primaryButtonUrl = 'https://calendly.com/rivaldorose/30min',
-  secondaryButtonText = 'Bekijk onze website',
-  secondaryButtonUrl = 'https://lcntships.com',
+  secondaryButtonText,
+  secondaryButtonUrl,
   attachments = [],
 }: CampaignEmailProps) {
   const previewText = `${senderName} van lcntships wil graag contact met ${companyName}`

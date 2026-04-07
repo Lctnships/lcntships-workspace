@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 import { render } from '@react-email/render'
-import LeadEmail from '@/emails/LeadEmail'
+import CampaignEmail from '@/emails/CampaignEmail'
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
@@ -34,19 +34,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate tracking pixel if trackId is provided
-    const trackingPixel = trackId 
+    const trackingPixel = trackId
       ? `<img src="${process.env.NEXT_PUBLIC_APP_URL}/api/email/track?type=open&id=${trackId}" width="1" height="1" alt="" />`
       : ''
 
-    // Render email with tracking
+    // Build greeting into the message if provided
+    const fullMessage = greeting
+      ? `${greeting},\n\n${message}${trackingPixel}`
+      : `${message}${trackingPixel}`
+
+    // Render email with CampaignEmail template
     const html = await render(
-      LeadEmail({
+      CampaignEmail({
         companyName: to.company || 'Bedrijf',
         contactName: to.name || 'Contact',
-        message: message + trackingPixel,
-        ctaText,
-        ctaUrl,
-        greeting: greeting || 'Hallo',
+        message: fullMessage,
+        senderName: 'Rivaldo',
+        senderEmail: 'rivaldo@lcntships.com',
+        primaryButtonText: ctaText || 'Bekijk lcntships',
+        primaryButtonUrl: ctaUrl || 'https://lcntships.com',
+        secondaryButtonText: undefined,
+        secondaryButtonUrl: undefined,
       })
     )
 
