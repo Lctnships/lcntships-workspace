@@ -195,6 +195,17 @@ export default function CallLogPage() {
   const [newNote, setNewNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
 
+  // Add lead modal state
+  const [showAddLead, setShowAddLead] = useState(false)
+  const [leadSearch, setLeadSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<SalesLead[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [allLeads, setAllLeads] = useState<SalesLead[]>([])
+  const [addActivityType, setAddActivityType] = useState<'call' | 'voicemail' | 'email' | 'meeting' | 'note'>('call')
+  const [addActivitySummary, setAddActivitySummary] = useState('')
+  const [addingActivity, setAddingActivity] = useState(false)
+  const [selectedAddLead, setSelectedAddLead] = useState<SalesLead | null>(null)
+
   const fetchCallLog = useCallback(async () => {
     setLoading(true)
     try {
@@ -334,6 +345,74 @@ export default function CallLogPage() {
     }
   }
 
+  const openAddLeadModal = async () => {
+    setShowAddLead(true)
+    setLeadSearch('')
+    setSelectedAddLead(null)
+    setAddActivityType('call')
+    setAddActivitySummary('')
+    setSearchResults([])
+
+    // Fetch all leads to search from
+    if (allLeads.length === 0) {
+      setSearchLoading(true)
+      try {
+        const res = await fetch('/api/leads')
+        if (res.ok) {
+          const data = await res.json()
+          setAllLeads(data)
+        }
+      } catch (err) {
+        console.error('Error fetching leads:', err)
+      } finally {
+        setSearchLoading(false)
+      }
+    }
+  }
+
+  // Filter leads based on search
+  useEffect(() => {
+    if (!leadSearch.trim()) {
+      setSearchResults([])
+      return
+    }
+    const q = leadSearch.toLowerCase()
+    const existingIds = new Set(entries.map(e => e.lead.id))
+    const filtered = allLeads
+      .filter(l =>
+        l.company_name.toLowerCase().includes(q) ||
+        (l.contact_name && l.contact_name.toLowerCase().includes(q)) ||
+        (l.city && l.city.toLowerCase().includes(q))
+      )
+      .slice(0, 8)
+    // Show leads not yet in today's log first, then the rest
+    const notInLog = filtered.filter(l => !existingIds.has(l.id))
+    const inLog = filtered.filter(l => existingIds.has(l.id))
+    setSearchResults([...notInLog, ...inLog])
+  }, [leadSearch, allLeads, entries])
+
+  const addLeadActivity = async () => {
+    if (!selectedAddLead || !addActivitySummary.trim()) return
+    setAddingActivity(true)
+    try {
+      await fetch(`/api/leads/${selectedAddLead.id}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: addActivityType,
+          summary: addActivitySummary.trim(),
+        }),
+      })
+      setShowAddLead(false)
+      setSelectedAddLead(null)
+      fetchCallLog()
+    } catch (err) {
+      console.error('Error adding activity:', err)
+    } finally {
+      setAddingActivity(false)
+    }
+  }
+
   const sendEmail = async () => {
     if (!emailModal || !emailModal.lead.email) return
     setSendingEmail(true)
@@ -413,6 +492,10 @@ export default function CallLogPage() {
             <p className="text-sm text-gray-500">Dagelijks overzicht van alle activiteiten per lead</p>
           </div>
         </div>
+        <Button onClick={openAddLeadModal} className="rounded-xl gap-2">
+          <Plus className="h-4 w-4" />
+          Lead toevoegen
+        </Button>
       </div>
 
       {/* Date navigation */}
@@ -655,6 +738,176 @@ export default function CallLogPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Add Lead Modal */}
+      {showAddLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h3 className="font-semibold text-gray-900">Lead toevoegen aan bellijst</h3>
+                <p className="text-sm text-gray-500">Zoek een bestaande lead en log een activiteit</p>
+              </div>
+              <button onClick={() => { setShowAddLead(false); setSelectedAddLead(null) }} className="p-1.5 rounded-lg hover:bg-gray-100">
+                <X className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+              {!selectedAddLead ? (
+                <>
+                  {/* Search */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={leadSearch}
+                      onChange={e => setLeadSearch(e.target.value)}
+                      placeholder="Zoek op bedrijfsnaam, contact of stad..."
+                      autoFocus
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+                    />
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+
+                  {/* Results */}
+                  {searchLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="space-y-1">
+                      {searchResults.map(lead => {
+                        const alreadyInLog = entries.some(e => e.lead.id === lead.id)
+                        return (
+                          <button
+                            key={lead.id}
+                            onClick={() => setSelectedAddLead(lead)}
+                            className={cn(
+                              'w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-center gap-3',
+                              alreadyInLog
+                                ? 'bg-gray-50 hover:bg-gray-100'
+                                : 'hover:bg-gray-50'
+                            )}
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <Building2 className="h-4 w-4 text-gray-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-900 truncate">{lead.company_name}</span>
+                                {alreadyInLog && (
+                                  <span className="text-xs text-gray-400">al in lijst</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                {lead.contact_name && <span>{lead.contact_name}</span>}
+                                {lead.city && <span>{lead.contact_name ? '·' : ''} {lead.city}</span>}
+                              </div>
+                            </div>
+                            {(() => {
+                              const s = statusColorMap[lead.status] || statusColorMap.cold
+                              return (
+                                <Badge className={cn('text-[10px]', s.bg, s.text)}>{lead.status}</Badge>
+                              )
+                            })()}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : leadSearch.trim() ? (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-gray-500">Geen leads gevonden voor &quot;{leadSearch}&quot;</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Building2 className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Typ om een lead te zoeken</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Selected lead + activity form */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="w-9 h-9 rounded-lg bg-gray-900 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">{selectedAddLead.company_name}</p>
+                      <p className="text-xs text-gray-500">
+                        {[selectedAddLead.contact_name, selectedAddLead.city].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    <button onClick={() => setSelectedAddLead(null)} className="p-1 rounded hover:bg-gray-200">
+                      <X className="h-4 w-4 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {/* Activity type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Type activiteit</label>
+                    <div className="flex flex-wrap gap-2">
+                      {([
+                        { key: 'call', label: 'Gebeld', icon: PhoneCall, color: 'text-green-600' },
+                        { key: 'voicemail', label: 'Voicemail', icon: PhoneMissed, color: 'text-violet-600' },
+                        { key: 'email', label: 'Email', icon: Mail, color: 'text-blue-600' },
+                        { key: 'meeting', label: 'Meeting', icon: Video, color: 'text-pink-600' },
+                        { key: 'note', label: 'Notitie', icon: FileText, color: 'text-gray-600' },
+                      ] as const).map(t => (
+                        <button
+                          key={t.key}
+                          onClick={() => setAddActivityType(t.key)}
+                          className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border',
+                            addActivityType === t.key
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          )}
+                        >
+                          <t.icon className={cn('h-3.5 w-3.5', addActivityType === t.key ? 'text-white' : t.color)} />
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Samenvatting</label>
+                    <textarea
+                      value={addActivitySummary}
+                      onChange={e => setAddActivitySummary(e.target.value)}
+                      placeholder="Bijv. 'Eigenaar gesproken, wilt mail ontvangen...'"
+                      rows={3}
+                      autoFocus
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 resize-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={() => setSelectedAddLead(null)} className="rounded-xl">
+                      Terug
+                    </Button>
+                    <Button
+                      onClick={addLeadActivity}
+                      disabled={addingActivity || !addActivitySummary.trim()}
+                      className="rounded-xl gap-2"
+                    >
+                      {addingActivity ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Toevoegen
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
