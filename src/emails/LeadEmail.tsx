@@ -66,7 +66,9 @@ export default function LeadEmail({
             {/* Content */}
             <Section className="px-8 py-8">
               <Heading className="text-2xl font-bold text-gray-900 mb-4">
-                {greeting} {contactName || 'daar'},
+                {greeting.includes(contactName) || greeting.length > 10
+                  ? `${greeting},`
+                  : `${greeting} ${contactName || 'daar'},`}
               </Heading>
 
               <Text className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
