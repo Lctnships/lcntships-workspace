@@ -57,7 +57,7 @@ export default function LeadEmail({
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto max-w-[600px] bg-white rounded-lg overflow-hidden shadow-lg">
             {/* Header */}
-            <Section className="bg-[#4f46e5] px-8 py-6">
+            <Section className="bg-[#111111] px-8 py-6">
               <Text className="text-white text-2xl font-bold text-center m-0">
                 lcntships
               </Text>
@@ -80,7 +80,7 @@ export default function LeadEmail({
                 <Section className="text-center my-8">
                   <Button
                     href={ctaUrl}
-                    className="bg-[#4f46e5] text-white px-8 py-3 rounded-full font-semibold text-base no-underline inline-block"
+                    className="bg-[#111111] text-white px-8 py-3 rounded-full font-semibold text-base no-underline inline-block"
                   >
                     {ctaText}
                   </Button>
@@ -90,7 +90,7 @@ export default function LeadEmail({
               <Text className="text-gray-500 text-sm mt-8">
                 Met vriendelijke groet,
                 <br />
-                <strong className="text-[#4f46e5]">Het lcntships Team</strong>
+                <strong className="text-gray-900">Het lcntships Team</strong>
               </Text>
             </Section>
 
