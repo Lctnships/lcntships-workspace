@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     // Send via Resend
     const { data, error } = await resend.emails.send({
-      from: from || 'lcntships <team@lcntships.com>',
+      from: from || 'Rivaldo | lcntships <rivaldo@lcntships.com>',
       to: to.email,
       subject,
       html,
