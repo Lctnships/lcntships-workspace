@@ -60,16 +60,16 @@ export async function POST(request: NextRequest) {
 
     // Send via Resend
     const { data, error } = await resend.emails.send({
-      from: from || 'Rivaldo | lcntships <rivaldo@lcntships.com>',
+      from: from || 'Rivaldo van lcntships <rivaldo@lcntships.com>',
       to: to.email,
       subject,
       html,
     })
 
     if (error) {
-      console.error('Resend error:', error)
+      console.error('Resend error:', JSON.stringify(error))
       return NextResponse.json(
-        { error: 'Failed to send email' },
+        { error: error.message || 'Failed to send email' },
         { status: 500 }
       )
     }

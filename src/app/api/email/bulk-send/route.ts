@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/api-auth'
 
 const ALLOWED_FROM_ADDRESSES = [
-  'Rivaldo | lcntships <rivaldo@lcntships.com>',
+  'Rivaldo van lcntships <rivaldo@lcntships.com>',
   'lcntships <team@lcntships.com>',
   'Rivaldo Mac Andrew <rivaldomacandrew@lctnships.com>',
 ]
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate from address against allowlist
-    const fromAddress = from || 'Rivaldo | lcntships <rivaldo@lcntships.com>'
+    const fromAddress = from || 'Rivaldo van lcntships <rivaldo@lcntships.com>'
     if (!ALLOWED_FROM_ADDRESSES.some(a => a.toLowerCase() === fromAddress.toLowerCase())) {
       return NextResponse.json({ error: 'From address not allowed' }, { status: 403 })
     }
