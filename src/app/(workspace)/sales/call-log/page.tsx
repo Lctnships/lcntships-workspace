@@ -24,6 +24,7 @@ import {
   AlertCircle,
   User,
   ExternalLink,
+  FileDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -82,6 +83,51 @@ const statusColorMap: Record<string, { bg: string; text: string; dot: string }> 
   lost: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
 }
 
+interface EmailTemplate {
+  id: string
+  label: string
+  subject: (lead: SalesLead) => string
+  message: (lead: SalesLead) => string
+}
+
+const followUpTemplates: EmailTemplate[] = [
+  {
+    id: 'after-call',
+    label: 'Na telefoongesprek',
+    subject: (lead) => `Fijn dat we even gesproken hebben — ${lead.company_name}`,
+    message: (lead) =>
+      `Beste ${lead.contact_name || 'heer/mevrouw'},\n\nBedankt voor het prettige gesprek van zojuist. Zoals besproken stuur ik u graag wat meer informatie over hoe lcntships uw studio kan helpen met het verhuurproces.\n\nKort samengevat bieden wij:\n- Een professioneel platform waar huurders uw studio kunnen vinden en boeken\n- Volledige afhandeling van betalingen en administratie\n- Geen gedoe — wij regelen alles, u hoeft alleen de sleutel te overhandigen\n\nIk hoor graag of u nog vragen heeft. We kunnen ook een vrijblijvend vervolggesprek inplannen.\n\nMet vriendelijke groet,\nlcntships`,
+  },
+  {
+    id: 'after-voicemail',
+    label: 'Na voicemail',
+    subject: (lead) => `Ik probeerde u te bereiken — ${lead.company_name}`,
+    message: (lead) =>
+      `Beste ${lead.contact_name || 'heer/mevrouw'},\n\nIk heb zojuist geprobeerd u telefonisch te bereiken maar helaas trof ik u niet aan.\n\nIk neem contact met u op namens lcntships. Wij helpen studio-eigenaren zoals ${lead.company_name} om hun studio eenvoudig te verhuren via ons platform — zonder extra werk.\n\nZou u deze week een moment hebben voor een kort telefoongesprek van 5 minuten? Dan leg ik graag uit wat we voor u kunnen betekenen.\n\nMet vriendelijke groet,\nlcntships`,
+  },
+  {
+    id: 'interested-followup',
+    label: 'Follow-up geinteresseerd',
+    subject: (lead) => `Vervolg op ons gesprek — ${lead.company_name}`,
+    message: (lead) =>
+      `Beste ${lead.contact_name || 'heer/mevrouw'},\n\nLeuk dat u geinteresseerd bent in lcntships! Zoals beloofd stuur ik u hierbij meer informatie.\n\nWat u van ons kunt verwachten:\n- Professionele foto's en vermelding van uw studio op ons platform\n- Boekingen en betalingen worden volledig door ons afgehandeld\n- U bepaalt zelf uw beschikbaarheid en tarieven\n- Wij nemen een klein percentage per boeking — geen vaste kosten\n\nZullen we een moment inplannen om alles door te nemen? Ik ben flexibel qua agenda.\n\nMet vriendelijke groet,\nlcntships`,
+  },
+  {
+    id: 'meeting-confirm',
+    label: 'Afspraak bevestigen',
+    subject: (lead) => `Bevestiging afspraak — ${lead.company_name} & lcntships`,
+    message: (lead) =>
+      `Beste ${lead.contact_name || 'heer/mevrouw'},\n\nHierbij bevestig ik onze afspraak. Ik kijk ernaar uit om langs te komen bij ${lead.company_name}${lead.city ? ` in ${lead.city}` : ''}.\n\nTijdens ons gesprek bespreek ik graag:\n- Hoe het platform werkt en wat het voor uw studio kan opleveren\n- Uw wensen en eventuele vragen\n- De volgende stappen als u besluit mee te doen\n\nMocht u de afspraak willen verzetten, laat het gerust weten.\n\nTot dan!\n\nMet vriendelijke groet,\nlcntships`,
+  },
+  {
+    id: 'no-answer-retry',
+    label: 'Nogmaals proberen',
+    subject: (lead) => `Nog een poging — ${lead.company_name}`,
+    message: (lead) =>
+      `Beste ${lead.contact_name || 'heer/mevrouw'},\n\nIk heb u de afgelopen dagen een paar keer proberen te bereiken. Ik begrijp dat het druk kan zijn!\n\nKort: lcntships is een platform dat studio's zoals ${lead.company_name} helpt om eenvoudig extra inkomsten te genereren via verhuur. Geen vaste kosten, geen gedoe.\n\nMocht u even 5 minuten tijd hebben, dan leg ik het graag telefonisch uit. Of beantwoord gerust deze mail met uw vragen.\n\nMet vriendelijke groet,\nlcntships`,
+  },
+]
+
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0]
 }
@@ -116,6 +162,7 @@ export default function CallLogPage() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
 
   const fetchCallLog = useCallback(async () => {
     setLoading(true)
@@ -211,6 +258,16 @@ export default function CallLogPage() {
     setEmailMessage('')
     setEmailSent(false)
     setEmailError(null)
+    setSelectedTemplate('')
+  }
+
+  const applyTemplate = (templateId: string) => {
+    if (!emailModal) return
+    const template = followUpTemplates.find(t => t.id === templateId)
+    if (!template) return
+    setSelectedTemplate(templateId)
+    setEmailSubject(template.subject(emailModal.lead))
+    setEmailMessage(template.message(emailModal.lead))
   }
 
   const sendEmail = async () => {
@@ -556,6 +613,30 @@ export default function CallLogPage() {
                       {emailError}
                     </div>
                   )}
+
+                  {/* Template selector */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <FileDown className="h-3.5 w-3.5 inline mr-1" />
+                      Follow-up template
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {followUpTemplates.map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => applyTemplate(t.id)}
+                          className={cn(
+                            'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border',
+                            selectedTemplate === t.id
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                          )}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp</label>
