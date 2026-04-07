@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { render } from '@react-email/render'
-import LeadEmail from '@/emails/LeadEmail'
+import CampaignEmail from '@/emails/CampaignEmail'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -56,14 +56,19 @@ export async function POST(request: NextRequest) {
           .replace(/{contact_name}/g, lead.contact_name || '')
 
         // Render React Email template
+        const fullMessage = greeting
+          ? `${greeting} ${lead.contact_name || ''},\n\n${personalizedMessage}`
+          : personalizedMessage
+
         const html = await render(
-          LeadEmail({
+          CampaignEmail({
             companyName: lead.company_name || '',
             contactName: lead.contact_name || '',
-            message: personalizedMessage,
-            ctaText: ctaText || 'Bekijk ons aanbod',
-            ctaUrl: ctaUrl || 'https://lcntships.com',
-            greeting: greeting || 'Hallo',
+            message: fullMessage,
+            senderName: 'Rivaldo',
+            senderEmail: 'rivaldo@lcntships.com',
+            primaryButtonText: ctaText || 'Bekijk lcntships',
+            primaryButtonUrl: ctaUrl || 'https://lcntships.com',
           })
         )
 
