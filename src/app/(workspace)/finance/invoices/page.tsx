@@ -694,7 +694,7 @@ export default function InvoicesPage() {
           to: { name: invoice.customer.name, email: invoice.customer.email },
           subject: `Factuur ${invoice.invoiceNumber}`,
           message: `Beste ${invoice.customer.name},\n\nHierbij ontvangt u factuur ${invoice.invoiceNumber}.\n\nTotaalbedrag: € ${invoice.total.toFixed(2)}\nVervaldatum: ${format(new Date(invoice.dueDate), 'd MMMM yyyy', { locale: nl })}\n\nMet vriendelijke groet,\nlcntships`,
-          from: 'Rivaldo van lcntships <rivaldo@lcntships.com>',
+          from: 'Rivaldo van lcntships <rivaldomacandrew@lctnships.com>',
         })
       })
       

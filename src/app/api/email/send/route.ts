@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         contactName: to.name || 'Contact',
         message: fullMessage,
         senderName: 'Rivaldo',
-        senderEmail: 'rivaldo@lcntships.com',
+        senderEmail: 'rivaldomacandrew@lctnships.com',
         primaryButtonText: ctaText || 'Bekijk lcntships',
         primaryButtonUrl: ctaUrl || 'https://lcntships.com',
         secondaryButtonText: undefined,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     // Send via Resend
     const { data, error } = await resend.emails.send({
-      from: from || 'Rivaldo van lcntships <rivaldo@lcntships.com>',
+      from: from || 'Rivaldo van lcntships <rivaldomacandrew@lctnships.com>',
       to: to.email,
       subject,
       html,

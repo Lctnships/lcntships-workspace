@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       message: searchParams.get('message') ||
         'Bedankt voor het prettige gesprek van zojuist. Zoals besproken stuur ik u graag wat meer informatie over hoe lcntships uw studio kan helpen met het verhuurproces.\n\nKort samengevat bieden wij:\n- Een professioneel platform waar huurders uw studio kunnen vinden en boeken\n- Volledige afhandeling van betalingen en administratie\n- Geen gedoe — wij regelen alles, u hoeft alleen de sleutel te overhandigen\n\nIk hoor graag of u nog vragen heeft. We kunnen ook een vrijblijvend vervolggesprek inplannen.',
       senderName: 'Rivaldo',
-      senderEmail: 'rivaldo@lcntships.com',
+      senderEmail: 'rivaldomacandrew@lctnships.com',
       primaryButtonText: searchParams.get('ctaText') || 'Bekijk ons platform',
       primaryButtonUrl: searchParams.get('ctaUrl') || 'https://lcntships.com',
     })

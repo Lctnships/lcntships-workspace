@@ -32,7 +32,7 @@ export default function CampaignEmail({
   companyName = '',
   message = '',
   senderName = 'Rivaldo',
-  senderEmail = 'rivaldo@lcntships.com',
+  senderEmail = 'rivaldomacandrew@lctnships.com',
   primaryButtonText = 'Plan een gesprek',
   primaryButtonUrl = 'https://calendly.com/rivaldorose/30min',
   secondaryButtonText,

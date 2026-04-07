@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
         contactName: contactName || 'Jan Jansen',
         message: fullMessage,
         senderName: 'Rivaldo',
-        senderEmail: 'rivaldo@lcntships.com',
+        senderEmail: 'rivaldomacandrew@lctnships.com',
         primaryButtonText: ctaText || 'Bekijk lcntships',
         primaryButtonUrl: ctaUrl || 'https://lcntships.com',
       })

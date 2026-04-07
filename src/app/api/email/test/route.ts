@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = await resend.emails.send({
-      from: 'Rivaldo <rivaldo@lcntships.com>',
+      from: 'Rivaldo <rivaldomacandrew@lctnships.com>',
       to,
       subject,
       html,

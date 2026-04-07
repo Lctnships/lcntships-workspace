@@ -101,7 +101,7 @@ export function CampaignWriteEmail({ selectedLeads, onNext, onBack, onSaveDraft 
           companyName: sampleData.company_name,
           message: previewBody,
           senderName: 'Rivaldo',
-          senderEmail: 'rivaldo@lcntships.com',
+          senderEmail: 'rivaldomacandrew@lctnships.com',
           primaryButtonText: 'Plan een gesprek',
           primaryButtonUrl: 'https://calendly.com/rivaldorose/30min',
           secondaryButtonText: 'Bekijk onze website',
