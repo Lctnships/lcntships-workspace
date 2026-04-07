@@ -40,7 +40,7 @@ export default function CampaignEmail({
   attachments = [],
 }: CampaignEmailProps) {
   const previewText = `${senderName} van lcntships wil graag contact met ${companyName}`
-  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://lcntships.com'}/lcntships-logo.png`
+  const logoUrl = 'https://lcntships-workspace.vercel.app/lcntships-logo.png'
 
   const personalizedMessage = message
     .replace(/{company_name}/g, companyName)
