@@ -22,6 +22,7 @@ import {
   Zap,
   Menu,
   X,
+  PhoneCall,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,7 @@ const businessNavItems = [
 
 const growthNavItems = [
   { href: '/sales', label: 'Sales Pipeline', icon: Rocket },
+  { href: '/sales/call-log', label: 'Bel Samenvatting', icon: PhoneCall },
   { href: '/scraper', label: 'Lead Scraper', icon: Zap },
   { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
