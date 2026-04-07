@@ -153,6 +153,11 @@ const followUpTemplates: EmailTemplate[] = [
   },
 ]
 
+const senderOptions = [
+  { email: 'rivaldomacandrew@lctnships.com', name: 'Rivaldo', label: 'Rivaldo Mac Andrew' },
+  { email: 'Uriel@lctnships.com', name: 'Uriel', label: 'Uriel' },
+]
+
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0]
 }
@@ -188,6 +193,7 @@ export default function CallLogPage() {
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+  const [emailFrom, setEmailFrom] = useState<string>('rivaldomacandrew@lctnships.com')
 
   // Detail view state
   const [selectedEntry, setSelectedEntry] = useState<CallLogEntry | null>(null)
@@ -439,7 +445,10 @@ export default function CallLogPage() {
           },
           subject: emailSubject,
           message: emailMessage,
-          from: senderSettings.fromEmail || undefined,
+          from: (() => {
+            const sender = senderOptions.find(s => s.email === emailFrom)
+            return sender ? `${sender.name} van lcntships <${sender.email}>` : undefined
+          })(),
           greeting: activeTemplate
             ? activeTemplate.greeting(emailModal.lead)
             : `Beste ${emailModal.lead.contact_name || 'heer/mevrouw'}`,
@@ -1139,6 +1148,39 @@ export default function CallLogPage() {
                       {emailError}
                     </div>
                   )}
+
+                  {/* Sender selector */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <User className="h-3.5 w-3.5 inline mr-1" />
+                      Versturen als
+                    </label>
+                    <div className="flex gap-2">
+                      {senderOptions.map(sender => (
+                        <button
+                          key={sender.email}
+                          onClick={() => setEmailFrom(sender.email)}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors border flex-1',
+                            emailFrom === sender.email
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                          )}
+                        >
+                          <div className={cn(
+                            'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
+                            emailFrom === sender.email ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-600'
+                          )}>
+                            {sender.name[0]}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-xs font-semibold">{sender.label}</div>
+                            <div className={cn('text-[10px]', emailFrom === sender.email ? 'text-gray-300' : 'text-gray-400')}>{sender.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Template selector */}
                   <div>
