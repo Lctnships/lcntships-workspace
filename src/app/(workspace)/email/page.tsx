@@ -864,7 +864,12 @@ export default function EmailPage() {
                         'font-medium truncate',
                         !email.isRead && 'text-gray-900'
                       )}>
-                        {email.from.name}
+                        {email.folder === 'sent'
+                          ? (() => {
+                              const fromStr = (email.from.email || email.from.name || '').toLowerCase()
+                              return fromStr.includes('uriel') ? 'Uriel' : 'Rivaldo'
+                            })()
+                          : email.from.name}
                       </span>
                       <span className="text-xs text-gray-400 flex-shrink-0">
                         {format(new Date(email.date), 'd MMM', { locale: nl })}
