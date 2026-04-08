@@ -818,8 +818,10 @@ export default function EmailPage() {
 
       {/* Email List */}
       <div className={cn(
-        'flex-1 flex flex-col border-r border-gray-200',
-        selectedEmail ? 'hidden lg:flex' : 'flex'
+        'flex flex-col border-r border-gray-200',
+        selectedEmail
+          ? 'hidden lg:flex lg:w-[340px] lg:min-w-[340px]'
+          : 'flex flex-1'
       )}>
         {/* Toolbar */}
         <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4">
