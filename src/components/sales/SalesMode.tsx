@@ -485,8 +485,54 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-6xl mx-auto p-6">
+      <div className="flex-1 flex overflow-hidden">
+        {/* Lead List Sidebar */}
+        <div className="w-64 min-w-[256px] border-r border-gray-100 bg-gray-50 flex flex-col">
+          <div className="p-3 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Leads ({leads.length})</p>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {leads.map((lead, idx) => {
+              const isActive = idx === currentIndex
+              const isReviewed = reviewedIndices.has(idx)
+              const leadApproval = getApproval(lead)
+              const sColor = statusColorMap[lead.status] || statusColorMap.cold
+              return (
+                <button
+                  key={lead.id}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={cn(
+                    'w-full text-left px-3 py-2.5 border-b border-gray-100 transition-colors',
+                    isActive ? 'bg-white border-l-2 border-l-gray-900' : 'hover:bg-gray-100',
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'text-xs font-semibold truncate flex-1',
+                      isActive ? 'text-gray-900' : 'text-gray-600'
+                    )}>
+                      {lead.company_name}
+                    </span>
+                    {isReviewed && (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={cn('w-1.5 h-1.5 rounded-full', sColor.dot)} />
+                    <span className="text-[10px] text-gray-400">{lead.status}</span>
+                    {lead.city && <span className="text-[10px] text-gray-400">· {lead.city}</span>}
+                    {leadApproval === 'approved' && <ThumbsUp className="h-2.5 w-2.5 text-emerald-500 ml-auto" />}
+                    {leadApproval === 'rejected' && <ThumbsDown className="h-2.5 w-2.5 text-red-500 ml-auto" />}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-auto">
+        <div className="max-w-5xl mx-auto p-6">
           <div className="grid grid-cols-3 gap-6">
             {/* Left Column - Main Info */}
             <div className="col-span-2 space-y-6">
@@ -1006,6 +1052,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 

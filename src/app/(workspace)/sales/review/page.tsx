@@ -44,6 +44,7 @@ export default function ReviewPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [detailLead, setDetailLead] = useState<SalesLead | null>(null)
 
   useEffect(() => {
     fetchRejectedLeads()
@@ -236,10 +237,10 @@ export default function ReviewPage() {
                     {isSelected && <Check className="h-3 w-3 text-white" />}
                   </button>
 
-                  {/* Lead info */}
-                  <div className="flex-1 min-w-0">
+                  {/* Lead info — click to open detail */}
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailLead(lead)}>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-900">{lead.company_name}</span>
+                      <span className="text-sm font-semibold text-gray-900 hover:underline">{lead.company_name}</span>
                       {isRejected && (
                         <Badge className="bg-red-100 text-red-700 text-[10px]">
                           <ThumbsDown className="h-2.5 w-2.5 mr-1" />
@@ -300,6 +301,123 @@ export default function ReviewPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Detail panel */}
+      {detailLead && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setDetailLead(null)} />
+          <div className="relative w-full max-w-md bg-white shadow-2xl overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-100 p-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">{detailLead.company_name}</h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {detailLead.notes?.includes('[APPROVAL:rejected]') && (
+                        <Badge className="bg-red-100 text-red-700 text-[10px]">
+                          <ThumbsDown className="h-2.5 w-2.5 mr-1" />
+                          Afgewezen
+                        </Badge>
+                      )}
+                      {detailLead.status === 'lost' && (
+                        <Badge className="bg-gray-100 text-gray-700 text-[10px]">
+                          <XCircle className="h-2.5 w-2.5 mr-1" />
+                          Verloren
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setDetailLead(null)} className="p-1.5 rounded-lg hover:bg-gray-100">
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Contact info */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Contactgegevens</h3>
+                <div className="space-y-2.5">
+                  {detailLead.contact_name && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-700">{detailLead.contact_name}</span>
+                    </div>
+                  )}
+                  {detailLead.phone && (
+                    <a href={`tel:${detailLead.phone}`} className="flex items-center gap-3 text-sm group">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-700 group-hover:text-gray-900">{detailLead.phone}</span>
+                    </a>
+                  )}
+                  {detailLead.email && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-700">{detailLead.email}</span>
+                    </div>
+                  )}
+                  {detailLead.city && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-700">
+                        {detailLead.address ? `${detailLead.address}, ` : ''}{detailLead.city}
+                      </span>
+                    </div>
+                  )}
+                  {detailLead.website && (
+                    <a href={detailLead.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm group">
+                      <Globe className="h-4 w-4 text-gray-400" />
+                      <span className="text-blue-600 group-hover:underline">{detailLead.website}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Source */}
+              {detailLead.source && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Bron</h3>
+                  <Badge className="bg-gray-100 text-gray-700">{detailLead.source}</Badge>
+                </div>
+              )}
+
+              {/* Notes */}
+              {(() => {
+                const cleanNotes = detailLead.notes?.replace(/\[APPROVAL:(approved|rejected|pending)\]\s*/g, '').trim()
+                return cleanNotes ? (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notities</h3>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-amber-50 rounded-xl p-3 border border-amber-100">
+                      {cleanNotes}
+                    </p>
+                  </div>
+                ) : null
+              })()}
+
+              {/* Actions */}
+              <div className="space-y-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => {
+                    setSelected(new Set([detailLead.id]))
+                    setConfirmDelete(true)
+                    setDetailLead(null)
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Verwijderen
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
