@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       user,
       password,
       tls: tls !== false,
-      tlsOptions: { rejectUnauthorized: true },
+      tlsOptions: { rejectUnauthorized: false },
     })
 
     imap.once('ready', () => {

@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
       user,
       password,
       tls: tls !== false,
-      tlsOptions: { rejectUnauthorized: true },
-      authTimeout: 10000,
+      tlsOptions: { rejectUnauthorized: false },
+      authTimeout: 15000,
     },
   }
 
@@ -78,7 +78,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ emails })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Verbinding mislukt'
-    console.error('[IMAP ERROR]', err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[IMAP ERROR]', { host, port: port || 993, user, tls: tls !== false, error: message })
+
+    // Provide user-friendly error messages
+    let userMessage = message
+    if (message.includes('Unauthorized') || message.includes('AUTHENTICATIONFAILED') || message.includes('Invalid credentials')) {
+      userMessage = 'Wachtwoord of gebruikersnaam is onjuist. Controleer je inloggegevens.'
+    } else if (message.includes('ENOTFOUND') || message.includes('getaddrinfo')) {
+      userMessage = `Server "${host}" niet gevonden. Controleer de hostnaam.`
+    } else if (message.includes('ECONNREFUSED')) {
+      userMessage = `Kan niet verbinden met ${host}:${port || 993}. Controleer poort en TLS instelling.`
+    } else if (message.includes('ETIMEDOUT') || message.includes('timeout')) {
+      userMessage = 'Verbinding duurt te lang. Controleer host en poort.'
+    }
+
+    return NextResponse.json({ error: userMessage }, { status: 500 })
   }
 }
