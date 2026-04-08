@@ -708,9 +708,43 @@ export default function EmailPage() {
     <div className="h-[calc(100vh-64px)] -m-6 flex animate-fade-in">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
+        {/* Account switcher */}
+        {accounts.length > 0 && (
+          <div className="p-3 border-b border-gray-200 space-y-1">
+            {accounts.map(acc => {
+              const isActive = activeAccount?.id === acc.id
+              const name = acc.user.toLowerCase().includes('uriel') ? 'Uriel' : acc.user.toLowerCase().includes('rivaldo') ? 'Rivaldo' : acc.name
+              const initial = name[0]?.toUpperCase() || 'U'
+              return (
+                <button
+                  key={acc.id}
+                  onClick={() => { setActiveAccount(acc); setSelectedEmail(null) }}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all',
+                    isActive
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  )}
+                >
+                  <div className={cn(
+                    'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0',
+                    isActive ? 'bg-white text-gray-900' : 'bg-gray-200 text-gray-600'
+                  )}>
+                    {initial}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <div className="font-semibold text-xs truncate">{name}</div>
+                    <div className={cn('text-[10px] truncate', isActive ? 'text-gray-300' : 'text-gray-400')}>{acc.user}</div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
-          <Button 
+          <Button
             onClick={() => setIsComposeOpen(true)}
             className="w-full gap-2 shadow-lg shadow-gray-300"
           >
