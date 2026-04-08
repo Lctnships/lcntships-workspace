@@ -109,7 +109,7 @@ const followUpTemplates: EmailTemplate[] = [
     message: (lead) =>
       `Bedankt voor het prettige gesprek van zojuist. Zoals besproken stuur ik u graag wat meer informatie over hoe lcntships uw studio kan helpen met het verhuurproces.\n\nKort samengevat bieden wij:\n- Een professioneel platform waar huurders uw studio kunnen vinden en boeken\n- Volledige afhandeling van betalingen en administratie\n- Geen gedoe — wij regelen alles, u hoeft alleen de sleutel te overhandigen\n\nIk hoor graag of u nog vragen heeft. We kunnen ook een vrijblijvend vervolggesprek inplannen.`,
     ctaText: 'Bekijk ons platform',
-    ctaUrl: 'https://lcntships.com',
+    ctaUrl: 'https://lctnships.com',
   },
   {
     id: 'after-voicemail',
@@ -119,7 +119,7 @@ const followUpTemplates: EmailTemplate[] = [
     message: (lead) =>
       `Ik heb zojuist geprobeerd u telefonisch te bereiken maar helaas trof ik u niet aan.\n\nIk neem contact met u op namens lcntships. Wij helpen studio-eigenaren zoals ${lead.company_name} om hun studio eenvoudig te verhuren via ons platform — zonder extra werk.\n\nZou u deze week een moment hebben voor een kort telefoongesprek van 5 minuten? Dan leg ik graag uit wat we voor u kunnen betekenen.`,
     ctaText: 'Meer over lcntships',
-    ctaUrl: 'https://lcntships.com',
+    ctaUrl: 'https://lctnships.com',
   },
   {
     id: 'interested-followup',
@@ -129,7 +129,7 @@ const followUpTemplates: EmailTemplate[] = [
     message: (lead) =>
       `Leuk dat u geinteresseerd bent in lcntships! Zoals beloofd stuur ik u hierbij meer informatie.\n\nWat u van ons kunt verwachten:\n- Professionele foto's en vermelding van uw studio op ons platform\n- Boekingen en betalingen worden volledig door ons afgehandeld\n- U bepaalt zelf uw beschikbaarheid en tarieven\n- Wij nemen een klein percentage per boeking — geen vaste kosten\n\nZullen we een moment inplannen om alles door te nemen? Ik ben flexibel qua agenda.`,
     ctaText: 'Bekijk onze studio\'s',
-    ctaUrl: 'https://lcntships.com',
+    ctaUrl: 'https://lctnships.com',
   },
   {
     id: 'meeting-confirm',
@@ -139,7 +139,7 @@ const followUpTemplates: EmailTemplate[] = [
     message: (lead) =>
       `Hierbij bevestig ik onze afspraak. Ik kijk ernaar uit om langs te komen bij ${lead.company_name}${lead.city ? ` in ${lead.city}` : ''}.\n\nTijdens ons gesprek bespreek ik graag:\n- Hoe het platform werkt en wat het voor uw studio kan opleveren\n- Uw wensen en eventuele vragen\n- De volgende stappen als u besluit mee te doen\n\nMocht u de afspraak willen verzetten, laat het gerust weten.\n\nTot dan!`,
     ctaText: 'Bekijk lcntships',
-    ctaUrl: 'https://lcntships.com',
+    ctaUrl: 'https://lctnships.com',
   },
   {
     id: 'no-answer-retry',
@@ -149,7 +149,7 @@ const followUpTemplates: EmailTemplate[] = [
     message: (lead) =>
       `Ik heb u de afgelopen dagen een paar keer proberen te bereiken. Ik begrijp dat het druk kan zijn!\n\nKort: lcntships is een platform dat studio's zoals ${lead.company_name} helpt om eenvoudig extra inkomsten te genereren via verhuur. Geen vaste kosten, geen gedoe.\n\nMocht u even 5 minuten tijd hebben, dan leg ik het graag telefonisch uit. Of beantwoord gerust deze mail met uw vragen.`,
     ctaText: 'Ontdek lcntships',
-    ctaUrl: 'https://lcntships.com',
+    ctaUrl: 'https://lctnships.com',
   },
 ]
 
@@ -453,7 +453,7 @@ export default function CallLogPage() {
             ? activeTemplate.greeting(emailModal.lead)
             : `Beste ${emailModal.lead.contact_name || 'heer/mevrouw'}`,
           ctaText: activeTemplate?.ctaText || 'Bekijk lcntships',
-          ctaUrl: activeTemplate?.ctaUrl || 'https://lcntships.com',
+          ctaUrl: activeTemplate?.ctaUrl || 'https://lctnships.com',
         }),
       })
 

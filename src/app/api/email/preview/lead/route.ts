@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       senderName: 'Rivaldo',
       senderEmail: 'rivaldomacandrew@lctnships.com',
       primaryButtonText: searchParams.get('ctaText') || 'Bekijk ons platform',
-      primaryButtonUrl: searchParams.get('ctaUrl') || 'https://lcntships.com',
+      primaryButtonUrl: searchParams.get('ctaUrl') || 'https://lctnships.com',
     })
   )
 

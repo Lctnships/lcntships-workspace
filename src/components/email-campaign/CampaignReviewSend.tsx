@@ -82,8 +82,8 @@ export function CampaignReviewSend({
   const [userId, setUserId] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([])
   const [websiteUrl, setWebsiteUrl] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('campaign_website_url') || 'https://lcntships.com'
-    return 'https://lcntships.com'
+    if (typeof window !== 'undefined') return localStorage.getItem('campaign_website_url') || 'https://lctnships.com'
+    return 'https://lctnships.com'
   })
   const [calendlyUrl, setCalendlyUrl] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('campaign_calendly_url') || 'https://calendly.com/rivaldorose/30min'
@@ -366,7 +366,7 @@ export function CampaignReviewSend({
                   value={websiteUrl}
                   onChange={(e) => setWebsiteUrl(e.target.value)}
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:outline-none"
-                  placeholder="https://lcntships.com"
+                  placeholder="https://lctnships.com"
                 />
                 <p className="text-xs text-gray-400">Link voor &quot;Bekijk onze website&quot; knop</p>
               </div>

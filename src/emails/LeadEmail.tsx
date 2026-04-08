@@ -28,7 +28,7 @@ export default function LeadEmail({
   contactName,
   message,
   ctaText = 'Bekijk ons aanbod',
-  ctaUrl = 'https://lcntships.com',
+  ctaUrl = 'https://lctnships.com',
   greeting = 'Hallo',
 }: LeadEmailProps) {
   const previewText = `${greeting} ${contactName || companyName}, interesse in samenwerken?`

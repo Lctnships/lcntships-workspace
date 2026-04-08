@@ -105,7 +105,7 @@ export function CampaignWriteEmail({ selectedLeads, onNext, onBack, onSaveDraft 
           primaryButtonText: 'Plan een gesprek',
           primaryButtonUrl: 'https://calendly.com/rivaldorose/30min',
           secondaryButtonText: 'Bekijk onze website',
-          secondaryButtonUrl: 'https://lcntships.com',
+          secondaryButtonUrl: 'https://lctnships.com',
           attachments: [],
         }),
       })

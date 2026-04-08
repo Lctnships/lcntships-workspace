@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             senderName: 'Rivaldo',
             senderEmail: 'rivaldomacandrew@lctnships.com',
             primaryButtonText: ctaText || 'Bekijk lcntships',
-            primaryButtonUrl: ctaUrl || 'https://lcntships.com',
+            primaryButtonUrl: ctaUrl || 'https://lctnships.com',
           })
         )
 

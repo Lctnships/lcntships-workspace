@@ -194,7 +194,7 @@ export default function CampaignEmail({
                 {senderName} — Oprichter lcntships
               </Text>
               <Link
-                href="https://lcntships.com"
+                href="https://lctnships.com"
                 style={{ fontSize: '13px', color: '#1152d4', textDecoration: 'none' }}
               >
                 lcntships.com
