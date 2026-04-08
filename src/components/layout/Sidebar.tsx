@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   PhoneCall,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,7 @@ const growthNavItems = [
   { href: '/sales', label: 'Sales Pipeline', icon: Rocket },
   { href: '/sales/call-log', label: 'Bel Samenvatting', icon: PhoneCall },
   { href: '/sales/agenda', label: 'Agenda', icon: Calendar },
+  { href: '/sales/review', label: 'Wekelijkse Review', icon: ClipboardCheck },
   { href: '/scraper', label: 'Lead Scraper', icon: Zap },
   { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
