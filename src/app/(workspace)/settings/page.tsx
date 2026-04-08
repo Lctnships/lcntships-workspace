@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Briefcase,
   User,
@@ -103,6 +103,53 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('business-profile')
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
+
+  // User profile state
+  const [userEmail, setUserEmail] = useState('')
+  const [userName, setUserName] = useState('')
+  const [userInitials, setUserInitials] = useState('...')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const name = user.user_metadata?.full_name || user.email?.split('@')[0] || ''
+        setUserEmail(user.email || '')
+        setUserName(name)
+        const parts = name.split(' ')
+        setUserInitials(parts.length >= 2
+          ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+          : name.substring(0, 2).toUpperCase()
+        )
+      }
+    }
+    loadUser()
+  }, [])
+
+  const saveProfile = async () => {
+    setSavingProfile(true)
+    setProfileSaved(false)
+    try {
+      const supabase = createClient()
+      await supabase.auth.updateUser({
+        data: { full_name: userName },
+      })
+      const parts = userName.split(' ')
+      setUserInitials(parts.length >= 2
+        ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+        : userName.substring(0, 2).toUpperCase()
+      )
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 2000)
+    } catch (err) {
+      console.error('Error saving profile:', err)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
 
   // Team members state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
@@ -296,33 +343,49 @@ export default function SettingsPage() {
           {/* My Account Section */}
           <section id="my-account" className="scroll-mt-8">
             <div className="mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">My Account</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Mijn Profiel</h2>
             </div>
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-gray-700 to-purple-500 flex items-center justify-center text-white text-2xl font-bold cursor-pointer relative group overflow-hidden">
-                    RR
-                    <div className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center text-white text-xs font-medium">
-                      Change
-                    </div>
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white text-2xl font-bold">
+                    {userInitials}
                   </div>
-                  <button className="text-gray-900 text-sm font-semibold hover:underline">Remove</button>
                 </div>
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-1.5">Full Name</label>
-                    <Input className="h-12 rounded-xl bg-gray-50" defaultValue="Rivaldo Rose" />
+                    <label className="block text-sm font-medium text-gray-900 mb-1.5">Volledige naam</label>
+                    <Input
+                      className="h-12 rounded-xl bg-gray-50"
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-1.5">Role</label>
+                    <label className="block text-sm font-medium text-gray-900 mb-1.5">Rol</label>
                     <div className="h-12 rounded-xl border border-gray-200 bg-gray-100 px-4 flex items-center text-gray-500 text-sm cursor-not-allowed">
                       Admin
                     </div>
                   </div>
                   <div className="col-span-1 md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-900 mb-1.5">Email Address</label>
-                    <Input className="h-12 rounded-xl bg-gray-50" type="email" defaultValue="rivaldo@lcntships.nl" />
+                    <label className="block text-sm font-medium text-gray-900 mb-1.5">Email</label>
+                    <div className="h-12 rounded-xl border border-gray-200 bg-gray-100 px-4 flex items-center text-gray-500 text-sm cursor-not-allowed">
+                      {userEmail}
+                    </div>
+                  </div>
+                  <div className="col-span-1 md:col-span-2">
+                    <Button
+                      onClick={saveProfile}
+                      disabled={savingProfile}
+                      className="rounded-xl gap-2"
+                    >
+                      {savingProfile ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : profileSaved ? (
+                        <Check className="h-4 w-4" />
+                      ) : null}
+                      {profileSaved ? 'Opgeslagen!' : 'Profiel opslaan'}
+                    </Button>
                   </div>
                 </div>
               </div>
