@@ -7,7 +7,10 @@ export async function POST(req: NextRequest) {
   const { user: authUser, error: authError } = await requireAuth()
   if (authError) return authError
 
-  const { host, port, user, password, tls, uid } = await req.json()
+  const _body = await req.json()
+  const { host, port, tls, uid } = _body
+  const user = (_body.user || '').trim()
+  const password = (_body.password || '').trim()
 
   if (!host || !user || !password || !uid) {
     return NextResponse.json({ error: 'host, user, password en uid zijn verplicht' }, { status: 400 })

@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
     console.warn('[IMAP] Auth check failed, proceeding anyway for development')
   }
 
-  const { host, port, user, password, tls, folder = 'INBOX', limit = 50 } = await req.json()
+  const body = await req.json()
+  const { host, port, tls, folder = 'INBOX', limit = 50 } = body
+  const user = (body.user || '').trim()
+  const password = (body.password || '').trim()
 
   if (!host || !user || !password) {
     return NextResponse.json({ error: 'host, user en password zijn verplicht' }, { status: 400 })

@@ -263,9 +263,9 @@ function EmailSettingsModal({
     if (!form.name || !form.user || !form.password || !form.imapHost || !form.smtpHost) return
     const newAccount: ImapAccount = {
       id: Date.now().toString(),
-      name: form.name, user: form.user, password: form.password,
-      imapHost: form.imapHost, imapPort: Number(form.imapPort),
-      smtpHost: form.smtpHost, smtpPort: Number(form.smtpPort), tls: form.tls,
+      name: form.name.trim(), user: form.user.trim(), password: form.password.trim(),
+      imapHost: form.imapHost.trim(), imapPort: Number(form.imapPort),
+      smtpHost: form.smtpHost.trim(), smtpPort: Number(form.smtpPort), tls: form.tls,
     }
     const updated = [...accounts, newAccount]
     onAccountsChange(updated)
