@@ -46,7 +46,7 @@ const businessNavItems = [
 const growthNavItems = [
   { href: '/sales', label: 'Sales Pipeline', icon: Rocket },
   { href: '/sales/call-log', label: 'Bel Samenvatting', icon: PhoneCall },
-  { href: '/sales/agenda', label: 'Sales Agenda', icon: Calendar },
+  { href: '/sales/agenda', label: 'Agenda', icon: Calendar },
   { href: '/scraper', label: 'Lead Scraper', icon: Zap },
   { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },

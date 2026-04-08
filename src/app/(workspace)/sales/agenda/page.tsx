@@ -107,7 +107,42 @@ function isToday(date: Date): boolean {
   return date.toDateString() === today.toDateString()
 }
 
+function getMonthDates(year: number, month: number): (Date | null)[][] {
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  let startDay = firstDay.getDay()
+  if (startDay === 0) startDay = 7
+  startDay -= 1 // Monday = 0
+
+  const weeks: (Date | null)[][] = []
+  let currentWeek: (Date | null)[] = []
+
+  // Fill leading nulls
+  for (let i = 0; i < startDay; i++) {
+    currentWeek.push(null)
+  }
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    currentWeek.push(new Date(year, month, d))
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek)
+      currentWeek = []
+    }
+  }
+
+  // Fill trailing nulls
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push(null)
+    }
+    weeks.push(currentWeek)
+  }
+
+  return weeks
+}
+
 export default function AgendaPage() {
+  const [view, setView] = useState<'week' | 'month'>('week')
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date()
     const day = now.getDay()
@@ -116,6 +151,8 @@ export default function AgendaPage() {
     start.setDate(diff)
     return start
   })
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [items, setItems] = useState<AgendaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedItem, setSelectedItem] = useState<AgendaItem | null>(null)
@@ -140,12 +177,20 @@ export default function AgendaPage() {
   const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null)
 
   const weekDays = getWeekDates(currentWeekStart)
+  const monthWeeks = getMonthDates(currentYear, currentMonth)
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
     try {
-      const from = formatDateISO(weekDays[0])
-      const to = formatDateISO(weekDays[6])
+      let from: string, to: string
+      if (view === 'week') {
+        from = formatDateISO(weekDays[0])
+        to = formatDateISO(weekDays[6])
+      } else {
+        from = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`
+        const lastDay = new Date(currentYear, currentMonth + 1, 0)
+        to = formatDateISO(lastDay)
+      }
       const res = await fetch(`/api/agenda?from=${from}&to=${to}`)
       const data = await res.json()
       if (Array.isArray(data)) {
@@ -156,7 +201,7 @@ export default function AgendaPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentWeekStart])
+  }, [currentWeekStart, currentMonth, currentYear, view])
 
   useEffect(() => {
     fetchAgenda()
@@ -199,6 +244,23 @@ export default function AgendaPage() {
     start.setDate(diff)
     setCurrentWeekStart(start)
   }
+
+  const goToPreviousMonth = () => {
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1) }
+    else setCurrentMonth(m => m - 1)
+  }
+
+  const goToNextMonth = () => {
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1) }
+    else setCurrentMonth(m => m + 1)
+  }
+
+  const goToCurrentMonth = () => {
+    setCurrentMonth(new Date().getMonth())
+    setCurrentYear(new Date().getFullYear())
+  }
+
+  const isCurrentMonth = currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear()
 
   const openNewEvent = (date?: Date) => {
     setShowNewEvent(true)
@@ -305,44 +367,77 @@ export default function AgendaPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Sales Agenda</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
             <p className="text-sm text-gray-500">Afspraken en follow-ups met leads</p>
           </div>
         </div>
-        <Button onClick={() => openNewEvent()} className="rounded-xl gap-2">
-          <Plus className="h-4 w-4" />
-          Afspraak plannen
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setView('week')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                view === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setView('month')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                view === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Maand
+            </button>
+          </div>
+          <Button onClick={() => openNewEvent()} className="rounded-xl gap-2">
+            <Plus className="h-4 w-4" />
+            Afspraak plannen
+          </Button>
+        </div>
       </div>
 
-      {/* Week navigation */}
+      {/* Navigation */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={goToPreviousWeek} className="rounded-xl">
+          <Button variant="ghost" size="icon" onClick={view === 'week' ? goToPreviousWeek : goToPreviousMonth} className="rounded-xl">
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
             <Calendar className="h-5 w-5 text-gray-400" />
-            <span className="text-lg font-semibold text-gray-900">{weekLabel}</span>
-            {!isCurrentWeek && (
+            <span className="text-lg font-semibold text-gray-900 capitalize">
+              {view === 'week'
+                ? weekLabel
+                : new Date(currentYear, currentMonth).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })
+              }
+            </span>
+            {view === 'week' && !isCurrentWeek && (
               <Button variant="outline" size="sm" onClick={goToCurrentWeek} className="rounded-lg text-xs">
                 Deze week
               </Button>
             )}
+            {view === 'month' && !isCurrentMonth && (
+              <Button variant="outline" size="sm" onClick={goToCurrentMonth} className="rounded-lg text-xs">
+                Deze maand
+              </Button>
+            )}
           </div>
-          <Button variant="ghost" size="icon" onClick={goToNextWeek} className="rounded-xl">
+          <Button variant="ghost" size="icon" onClick={view === 'week' ? goToNextWeek : goToNextMonth} className="rounded-xl">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
-      {/* Week grid */}
+      {/* Calendar grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
           <span className="ml-2 text-gray-500">Laden...</span>
         </div>
-      ) : (
+      ) : view === 'week' ? (
         <div className="grid grid-cols-7 gap-3">
           {weekDays.map(day => {
             const dateStr = formatDateISO(day)
@@ -359,7 +454,6 @@ export default function AgendaPage() {
                   isPast && !today && 'opacity-60'
                 )}
               >
-                {/* Day header */}
                 <div
                   className={cn(
                     'px-3 py-2 border-b flex items-center justify-between',
@@ -384,8 +478,6 @@ export default function AgendaPage() {
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-
-                {/* Events */}
                 <div className="p-2 space-y-1.5">
                   {dayItems.map(item => {
                     const config = typeConfig[item.type] || typeConfig.other
@@ -422,6 +514,76 @@ export default function AgendaPage() {
               </div>
             )
           })}
+        </div>
+      ) : (
+        /* Month view */
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 border-b border-gray-100">
+            {['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'].map(d => (
+              <div key={d} className="px-3 py-2 text-center text-xs font-semibold text-gray-400 uppercase">
+                {d}
+              </div>
+            ))}
+          </div>
+          {/* Weeks */}
+          {monthWeeks.map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 border-b border-gray-50 last:border-b-0">
+              {week.map((day, di) => {
+                if (!day) {
+                  return <div key={`empty-${di}`} className="min-h-[100px] bg-gray-50/50" />
+                }
+                const dateStr = formatDateISO(day)
+                const dayItems = itemsByDate.get(dateStr) || []
+                const today = isToday(day)
+                const isPast = day < new Date(new Date().setHours(0, 0, 0, 0))
+
+                return (
+                  <div
+                    key={dateStr}
+                    className={cn(
+                      'min-h-[100px] border-r border-gray-50 last:border-r-0 p-1.5',
+                      today && 'bg-blue-50/50',
+                      isPast && !today && 'opacity-50'
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={cn(
+                        'w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold',
+                        today ? 'bg-gray-900 text-white' : 'text-gray-700'
+                      )}>
+                        {day.getDate()}
+                      </span>
+                      {dayItems.length > 0 && (
+                        <span className="text-[10px] text-gray-400 font-medium">{dayItems.length}</span>
+                      )}
+                    </div>
+                    <div className="space-y-0.5">
+                      {dayItems.slice(0, 3).map(item => {
+                        const config = typeConfig[item.type] || typeConfig.other
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => setSelectedItem(item)}
+                            className={cn(
+                              'w-full text-left px-1.5 py-0.5 rounded-md text-[10px] font-medium truncate transition-colors',
+                              item.status === 'cancelled' && 'opacity-50 line-through',
+                              item.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : `${config.bg} ${config.color}`,
+                            )}
+                          >
+                            {formatTime(item.start_time)} {item.title}
+                          </button>
+                        )
+                      })}
+                      {dayItems.length > 3 && (
+                        <span className="text-[10px] text-gray-400 px-1.5">+{dayItems.length - 3} meer</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
         </div>
       )}
 
