@@ -497,6 +497,12 @@ export default function AgendaPage() {
                           <Icon className={cn('h-3 w-3 flex-shrink-0', config.color)} />
                           <span className="font-semibold text-gray-900 truncate">{item.title}</span>
                         </div>
+                        {item.location && (
+                          <div className="flex items-center gap-1 mt-0.5 text-gray-500">
+                            <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
+                            <span className="truncate">{item.location}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 mt-0.5 text-gray-500">
                           <Clock className="h-2.5 w-2.5" />
                           <span>{formatTime(item.start_time)}</span>
@@ -571,6 +577,7 @@ export default function AgendaPage() {
                               item.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : `${config.bg} ${config.color}`,
                             )}
                           >
+                            {item.location && <MapPin className="h-2 w-2 inline mr-0.5" />}
                             {formatTime(item.start_time)} {item.title}
                           </button>
                         )
