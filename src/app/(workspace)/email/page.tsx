@@ -255,7 +255,7 @@ function EmailSettingsModal({
   })
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('emailTemplates')
+    const saved = localStorage.getItem('emailTemplates')
     if (saved) setTemplates(JSON.parse(saved))
   }, [isOpen])
 
@@ -269,7 +269,7 @@ function EmailSettingsModal({
     }
     const updated = [...accounts, newAccount]
     onAccountsChange(updated)
-    sessionStorage.setItem('imapAccounts', JSON.stringify(updated))
+    localStorage.setItem('imapAccounts', JSON.stringify(updated))
     setForm({ name: '', user: '', password: '', imapHost: '', imapPort: '993', smtpHost: '', smtpPort: '587', tls: true })
     setShowAddAccount(false)
   }
@@ -277,7 +277,7 @@ function EmailSettingsModal({
   const deleteAccount = (id: string) => {
     const updated = accounts.filter(a => a.id !== id)
     onAccountsChange(updated)
-    sessionStorage.setItem('imapAccounts', JSON.stringify(updated))
+    localStorage.setItem('imapAccounts', JSON.stringify(updated))
   }
 
   const editAccount = (account: ImapAccount) => {
@@ -298,7 +298,7 @@ function EmailSettingsModal({
       smtpHost: form.smtpHost, smtpPort: Number(form.smtpPort), tls: form.tls,
     } : a)
     onAccountsChange(updated)
-    sessionStorage.setItem('imapAccounts', JSON.stringify(updated))
+    localStorage.setItem('imapAccounts', JSON.stringify(updated))
     setEditingId(null)
     setForm({ name: '', user: '', password: '', imapHost: '', imapPort: '993', smtpHost: '', smtpPort: '587', tls: true })
   }
@@ -329,14 +329,14 @@ function EmailSettingsModal({
     const newTemplate: EmailTemplate = { id: Date.now().toString(), name: newTemplateName, subject: newTemplateSubject, body: newTemplateBody }
     const updated = [...templates, newTemplate]
     setTemplates(updated)
-    sessionStorage.setItem('emailTemplates', JSON.stringify(updated))
+    localStorage.setItem('emailTemplates', JSON.stringify(updated))
     setNewTemplateName(''); setNewTemplateSubject(''); setNewTemplateBody(''); setShowAddTemplate(false)
   }
 
   const deleteTemplate = (id: string) => {
     const updated = templates.filter(t => t.id !== id)
     setTemplates(updated)
-    sessionStorage.setItem('emailTemplates', JSON.stringify(updated))
+    localStorage.setItem('emailTemplates', JSON.stringify(updated))
   }
 
   if (!isOpen) return null
@@ -571,13 +571,13 @@ export default function EmailPage() {
 
   // Load accounts + templates from localStorage
   useEffect(() => {
-    const savedAccounts = sessionStorage.getItem('imapAccounts')
+    const savedAccounts = localStorage.getItem('imapAccounts')
     if (savedAccounts) {
       const parsed: ImapAccount[] = JSON.parse(savedAccounts)
       setAccounts(parsed)
       if (parsed.length > 0 && !activeAccount) setActiveAccount(parsed[0])
     }
-    const savedTemplates = sessionStorage.getItem('emailTemplates')
+    const savedTemplates = localStorage.getItem('emailTemplates')
     if (savedTemplates) setTemplates(JSON.parse(savedTemplates))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSettingsOpen])

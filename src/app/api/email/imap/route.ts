@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import imaps from 'imap-simple'
 import { simpleParser } from 'mailparser'
-import { requireAuth } from '@/lib/api-auth'
 import { validateImapHost } from '@/lib/imap-validation'
 
 export async function POST(req: NextRequest) {
-  // Auth check - log but don't block for now (session issues on some deployments)
-  const { user: authUser, error: authError } = await requireAuth()
-  if (authError) {
-    console.warn('[IMAP] Auth check failed, proceeding anyway for development')
-  }
-
   const body = await req.json()
   const { host, port, tls, folder = 'INBOX', limit = 50 } = body
   const user = (body.user || '').trim()
