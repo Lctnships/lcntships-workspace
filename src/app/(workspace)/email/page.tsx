@@ -638,6 +638,36 @@ export default function EmailPage() {
     ))
   }
 
+  // Fetch full email body on demand
+  const loadEmailBody = useCallback(async (email: EmailMessage) => {
+    if (email.body || email.html || !activeAccount || email.folder === 'sent') return
+    try {
+      const res = await fetch('/api/email/imap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: activeAccount.imapHost,
+          port: activeAccount.imapPort,
+          user: activeAccount.user,
+          password: activeAccount.password,
+          tls: activeAccount.tls,
+          uid: email.uid,
+        }),
+      })
+      const data = await res.json()
+      if (data.email) {
+        setEmails(prev => prev.map(e =>
+          e.id === email.id ? { ...e, body: data.email.body, html: data.email.html } : e
+        ))
+        setSelectedEmail(prev =>
+          prev?.id === email.id ? { ...prev, body: data.email.body, html: data.email.html } : prev
+        )
+      }
+    } catch (err) {
+      console.error('Failed to load email body:', err)
+    }
+  }, [activeAccount])
+
   const markAsRead = (emailId: string) => {
     const email = emails.find(e => e.id === emailId)
     if (!email || email.isRead) return
@@ -894,6 +924,7 @@ export default function EmailPage() {
                   onClick={() => {
                     setSelectedEmail(email)
                     markAsRead(email.id)
+                    loadEmailBody(email)
                   }}
                   className={cn(
                     'w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors',

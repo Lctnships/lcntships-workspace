@@ -34,50 +34,90 @@ export async function POST(req: NextRequest) {
     },
   }
 
+  // Single email fetch mode (for detail view)
+  const uid = body.uid as number | undefined
+
   try {
     const connection = await imaps.connect(config)
     await connection.openBox(folder)
 
-    const searchCriteria = ['ALL']
-    const fetchOptions = {
-      bodies: [''],
-      markSeen: false,
-      struct: true,
-    }
+    if (uid) {
+      // Fetch single full email by UID
+      const messages = await connection.search([['UID', `${uid}`]], {
+        bodies: [''],
+        markSeen: false,
+        struct: true,
+      })
+      connection.end()
 
-    const messages = await connection.search(searchCriteria, fetchOptions)
-    connection.end()
+      if (messages.length === 0) {
+        return NextResponse.json({ error: 'Email niet gevonden' }, { status: 404 })
+      }
 
-    // Get last N messages (newest first)
-    const recent = messages.slice(-limit).reverse()
-
-    const emails = await Promise.all(recent.map(async (msg) => {
+      const msg = messages[0]
       const rawPart = msg.parts.find((p: { which: string }) => p.which === '')
       const raw = rawPart?.body || ''
-
       const parsed = await simpleParser(raw).catch(() => null)
 
       const from = parsed?.from?.value?.[0]
       const to = parsed?.to
       const toAddr = Array.isArray(to) ? to[0]?.value?.[0] : (to as any)?.value?.[0]
 
-      const htmlBody = parsed?.html || ''
-      const textBody = parsed?.text || ''
+      return NextResponse.json({
+        email: {
+          id: `${msg.attributes.uid}`,
+          subject: parsed?.subject || '(geen onderwerp)',
+          from: { name: from?.name || '', email: from?.address || '' },
+          to: [{ name: toAddr?.name || '', email: toAddr?.address || '' }],
+          date: parsed?.date?.toISOString() || new Date().toISOString(),
+          body: parsed?.text || '',
+          html: parsed?.html || '',
+          isRead: msg.attributes.flags?.includes('\\Seen') || false,
+          isStarred: msg.attributes.flags?.includes('\\Flagged') || false,
+          folder: 'inbox',
+          uid: msg.attributes.uid,
+        },
+      })
+    }
+
+    // List mode: fetch only headers (fast)
+    const messages = await connection.search(['ALL'], {
+      bodies: ['HEADER.FIELDS (FROM TO SUBJECT DATE)'],
+      markSeen: false,
+      struct: false,
+    })
+    connection.end()
+
+    // Get last N messages (newest first)
+    const recent = messages.slice(-limit).reverse()
+
+    const emails = recent.map((msg) => {
+      const headerPart = msg.parts.find((p: { which: string }) => p.which.startsWith('HEADER'))
+      const headers = headerPart?.body || {}
+
+      const fromRaw = (headers.from?.[0] || '') as string
+      const toRaw = (headers.to?.[0] || '') as string
+      const subjectRaw = (headers.subject?.[0] || '(geen onderwerp)') as string
+      const dateRaw = (headers.date?.[0] || '') as string
+
+      // Parse "Name <email>" format
+      const fromMatch = fromRaw.match(/^(?:"?([^"]*)"?\s)?<?([^\s>]+)>?$/)
+      const toMatch = toRaw.match(/^(?:"?([^"]*)"?\s)?<?([^\s>]+)>?$/)
 
       return {
         id: `${msg.attributes.uid}`,
-        subject: parsed?.subject || '(geen onderwerp)',
-        from: { name: from?.name || '', email: from?.address || '' },
-        to: [{ name: toAddr?.name || '', email: toAddr?.address || '' }],
-        date: parsed?.date?.toISOString() || new Date().toISOString(),
-        body: textBody,
-        html: htmlBody,
+        subject: subjectRaw,
+        from: { name: fromMatch?.[1] || fromMatch?.[2] || fromRaw, email: fromMatch?.[2] || fromRaw },
+        to: [{ name: toMatch?.[1] || toMatch?.[2] || toRaw, email: toMatch?.[2] || toRaw }],
+        date: dateRaw ? new Date(dateRaw).toISOString() : new Date().toISOString(),
+        body: '',
+        html: '',
         isRead: msg.attributes.flags?.includes('\\Seen') || false,
         isStarred: msg.attributes.flags?.includes('\\Flagged') || false,
         folder: 'inbox',
         uid: msg.attributes.uid,
       }
-    }))
+    })
 
     return NextResponse.json({ emails })
   } catch (err: unknown) {
