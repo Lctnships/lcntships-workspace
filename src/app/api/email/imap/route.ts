@@ -14,13 +14,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'host, user en password zijn verplicht' }, { status: 400 })
   }
 
+  // Auto-fix: lctnships.com mail server runs on mail.lctnships.com
+  const resolvedHost = host === 'lctnships.com' ? 'mail.lctnships.com' : host
+
   // SSRF protection: validate host
-  const { valid, error: hostError } = await validateImapHost(host)
+  const { valid, error: hostError } = await validateImapHost(resolvedHost)
   if (!valid) return hostError!
 
   const config = {
     imap: {
-      host,
+      host: resolvedHost,
       port: port || 993,
       user,
       password,

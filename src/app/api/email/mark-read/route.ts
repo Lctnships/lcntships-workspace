@@ -13,13 +13,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'host, user, password en uid zijn verplicht' }, { status: 400 })
   }
 
+  const resolvedHost = host === 'lctnships.com' ? 'mail.lctnships.com' : host
+
   // SSRF protection: validate host
-  const { valid, error: hostError } = await validateImapHost(host)
+  const { valid, error: hostError } = await validateImapHost(resolvedHost)
   if (!valid) return hostError!
 
   return new Promise<NextResponse>((resolve) => {
     const imap = new Imap({
-      host,
+      host: resolvedHost,
       port: port || 993,
       user,
       password,

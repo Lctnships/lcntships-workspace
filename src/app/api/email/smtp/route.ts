@@ -8,8 +8,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'account, to, subject en body zijn verplicht' }, { status: 400 })
   }
 
+  const smtpHost = account.smtpHost === 'lctnships.com' ? 'mail.lctnships.com' : account.smtpHost
+
   const transporter = nodemailer.createTransport({
-    host: account.smtpHost,
+    host: smtpHost,
     port: account.smtpPort || 587,
     secure: account.smtpPort === 465,
     auth: {

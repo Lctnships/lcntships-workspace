@@ -17,6 +17,7 @@ const ALLOWED_IMAP_HOSTS = [
   'imap.hostnet.nl',
   'imap.antagonist.nl',
   'mail.lctnships.com',
+  'lctnships.com',
 ]
 
 const BLOCKED_IP_RANGES = [
