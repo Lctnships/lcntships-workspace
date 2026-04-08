@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,33 +30,34 @@ export default function LoginPage() {
       })
 
       if (error) {
-        setError(error.message)
+        if (error.message === 'Invalid login credentials') {
+          setError('Onjuist email of wachtwoord')
+        } else {
+          setError(error.message)
+        }
       } else {
-        router.push('/')
+        router.push('/dashboard')
         router.refresh()
       }
     } catch {
-      setError('An unexpected error occurred')
+      setError('Er is een onverwachte fout opgetreden')
     } finally {
       setLoading(false)
     }
-  }
-
-  // For demo purposes - bypass auth
-  const handleDemoLogin = () => {
-    router.push('/')
   }
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="flex justify-center mb-4">
-          <div className="w-14 h-14 bg-gradient-to-br from-gray-900 to-purple-600 rounded-2xl flex items-center justify-center">
-            <Building2 className="h-8 w-8 text-white" />
-          </div>
+          <img
+            src="/lcntships-logo.png"
+            alt="lcntships"
+            className="w-16 h-16 object-contain"
+          />
         </div>
-        <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to lcntships Workspace</CardDescription>
+        <CardTitle className="text-2xl">Welkom terug</CardTitle>
+        <CardDescription>Log in op lcntships Workspace</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin} className="space-y-4">
@@ -70,7 +72,7 @@ export default function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="jij@lctnships.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -78,11 +80,11 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Wachtwoord</Label>
             <Input
               id="password"
               type="password"
-              placeholder="Enter your password"
+              placeholder="Vul je wachtwoord in"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -90,33 +92,15 @@ export default function LoginPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </Button>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">or</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleDemoLogin}
-          >
-            Continue to Demo
+            {loading ? 'Inloggen...' : 'Inloggen'}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          Don&apos;t have an account?{' '}
-          <a href="#" className="text-gray-900 hover:underline">
-            Contact admin
-          </a>
+          Nog geen account?{' '}
+          <Link href="/signup" className="text-gray-900 hover:underline font-medium">
+            Account aanmaken
+          </Link>
         </p>
       </CardContent>
     </Card>

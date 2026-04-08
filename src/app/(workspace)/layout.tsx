@@ -1,5 +1,23 @@
+'use client'
+
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
+import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
+import { cn } from '@/lib/utils'
+
+function WorkspaceContent({ children }: { children: React.ReactNode }) {
+  const { collapsed } = useSidebar()
+
+  return (
+    <div className={cn(
+      'transition-all duration-300',
+      collapsed ? 'xl:pl-[72px]' : 'xl:pl-64'
+    )}>
+      <Header />
+      <main className="p-4 sm:p-6">{children}</main>
+    </div>
+  )
+}
 
 export default function WorkspaceLayout({
   children,
@@ -7,12 +25,11 @@ export default function WorkspaceLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-[#FAFBFC]">
-      <Sidebar />
-      <div className="xl:pl-64 transition-all duration-300">
-        <Header />
-        <main className="p-4 sm:p-6">{children}</main>
+    <SidebarProvider>
+      <div className="min-h-screen bg-[#FAFBFC]">
+        <Sidebar />
+        <WorkspaceContent>{children}</WorkspaceContent>
       </div>
-    </div>
+    </SidebarProvider>
   )
 }

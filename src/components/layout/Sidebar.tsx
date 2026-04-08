@@ -26,6 +26,7 @@ import {
   ClipboardCheck,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { useSidebar } from '@/lib/sidebar-context'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
@@ -113,7 +114,7 @@ function NavSection({ title, items, collapsed, pathname }: NavSectionProps) {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
+  const { collapsed, setCollapsed } = useSidebar()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // Close mobile sidebar on route change

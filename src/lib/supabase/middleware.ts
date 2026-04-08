@@ -54,7 +54,22 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+  const isAuthPage = pathname === '/login' || pathname === '/signup'
+
+  // If not logged in and not on an auth page, redirect to login
+  if (!user && !isAuthPage) {
+    const loginUrl = new URL('/login', request.url)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // If logged in and on an auth page, redirect to dashboard
+  if (user && isAuthPage) {
+    const dashboardUrl = new URL('/dashboard', request.url)
+    return NextResponse.redirect(dashboardUrl)
+  }
 
   return response
 }
