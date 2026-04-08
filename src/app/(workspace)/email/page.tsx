@@ -569,14 +569,35 @@ export default function EmailPage() {
   const [loading, setLoading] = useState(false)
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
 
-  // Load accounts + templates from localStorage
+  // Load accounts from database, templates from localStorage
   useEffect(() => {
-    const savedAccounts = localStorage.getItem('imapAccounts')
-    if (savedAccounts) {
-      const parsed: ImapAccount[] = JSON.parse(savedAccounts)
-      setAccounts(parsed)
-      if (parsed.length > 0 && !activeAccount) setActiveAccount(parsed[0])
+    async function loadAccounts() {
+      try {
+        const res = await fetch('/api/email/accounts')
+        const data = await res.json()
+        if (data.accounts && data.accounts.length > 0) {
+          setAccounts(data.accounts)
+          if (!activeAccount) setActiveAccount(data.accounts[0])
+        } else {
+          // Fallback: check localStorage for manually added accounts
+          const saved = localStorage.getItem('imapAccounts')
+          if (saved) {
+            const parsed: ImapAccount[] = JSON.parse(saved)
+            setAccounts(parsed)
+            if (parsed.length > 0 && !activeAccount) setActiveAccount(parsed[0])
+          }
+        }
+      } catch {
+        // Fallback to localStorage on error
+        const saved = localStorage.getItem('imapAccounts')
+        if (saved) {
+          const parsed: ImapAccount[] = JSON.parse(saved)
+          setAccounts(parsed)
+          if (parsed.length > 0 && !activeAccount) setActiveAccount(parsed[0])
+        }
+      }
     }
+    loadAccounts()
     const savedTemplates = localStorage.getItem('emailTemplates')
     if (savedTemplates) setTemplates(JSON.parse(savedTemplates))
   // eslint-disable-next-line react-hooks/exhaustive-deps
