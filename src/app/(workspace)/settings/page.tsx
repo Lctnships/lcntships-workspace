@@ -238,7 +238,7 @@ export default function SettingsPage() {
   }
 
   // Mock API key (would come from Supabase in production)
-  const mockApiKey = 'sk_live_lcnt_1234567890abcdefghijklmnop'
+  const mockApiKey = '••••••••••••••••••••••••••••••'
 
   return (
     <div className="flex min-h-screen">
@@ -287,7 +287,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="col-span-1 md:col-span-2">
                     <label className="block text-sm font-medium text-gray-900 mb-1.5">Legal Name</label>
-                    <Input className="h-12 rounded-xl bg-gray-50" defaultValue="lcntships BV" />
+                    <Input className="h-12 rounded-xl bg-gray-50" defaultValue="lctnships" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-1.5">KVK Number</label>
@@ -319,7 +319,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-1.5">Business Email</label>
-                    <Input className="h-12 rounded-xl bg-gray-50" type="email" placeholder="hello@lcntships.com" />
+                    <Input className="h-12 rounded-xl bg-gray-50" type="email" placeholder="hello@lctnships.com" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-1.5">Business Phone</label>
@@ -327,7 +327,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="col-span-1 md:col-span-2">
                     <label className="block text-sm font-medium text-gray-900 mb-1.5">Support Email</label>
-                    <Input className="h-12 rounded-xl bg-gray-50" type="email" placeholder="support@lcntships.com" />
+                    <Input className="h-12 rounded-xl bg-gray-50" type="email" placeholder="support@lctnships.com" />
                   </div>
                 </div>
                 <div className="mt-8 flex justify-end">
@@ -621,7 +621,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-1.5">From Email</label>
-                  <Input className="h-12 rounded-xl bg-gray-50" type="email" placeholder="noreply@lcntships.com" />
+                  <Input className="h-12 rounded-xl bg-gray-50" type="email" placeholder="noreply@lctnships.com" />
                   <p className="text-xs text-gray-500 mt-1">Email address used for sending auth emails.</p>
                 </div>
                 <div>

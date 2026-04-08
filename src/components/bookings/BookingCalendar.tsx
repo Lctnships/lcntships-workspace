@@ -33,49 +33,6 @@ interface BookingCalendarProps {
   bookings?: CalendarBooking[]
 }
 
-const mockBookings: CalendarBooking[] = [
-  {
-    id: '1',
-    date: new Date(2025, 0, 26),
-    studioName: 'Sunlight Studios',
-    customerName: 'Sarah Chen',
-    time: '9:00 AM',
-    status: 'confirmed',
-  },
-  {
-    id: '2',
-    date: new Date(2025, 0, 26),
-    studioName: 'Echo Sound',
-    customerName: 'Mike R.',
-    time: '2:00 PM',
-    status: 'confirmed',
-  },
-  {
-    id: '3',
-    date: new Date(2025, 0, 28),
-    studioName: 'Creative Loft',
-    customerName: 'Emily W.',
-    time: '10:00 AM',
-    status: 'pending',
-  },
-  {
-    id: '4',
-    date: new Date(2025, 0, 30),
-    studioName: 'Podcast Pro',
-    customerName: 'James K.',
-    time: '3:00 PM',
-    status: 'confirmed',
-  },
-  {
-    id: '5',
-    date: new Date(2025, 1, 2),
-    studioName: 'Sunlight Studios',
-    customerName: 'Lisa M.',
-    time: '11:00 AM',
-    status: 'confirmed',
-  },
-]
-
 const statusColors = {
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
   confirmed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -83,7 +40,7 @@ const statusColors = {
   cancelled: 'bg-red-100 text-red-700 border-red-200',
 }
 
-export function BookingCalendar({ bookings = mockBookings }: BookingCalendarProps) {
+export function BookingCalendar({ bookings = [] }: BookingCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
 
