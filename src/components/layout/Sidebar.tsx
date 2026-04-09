@@ -24,6 +24,7 @@ import {
   X,
   PhoneCall,
   ClipboardCheck,
+  Camera,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSidebar } from '@/lib/sidebar-context'
@@ -54,6 +55,7 @@ const growthNavItems = [
   { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
   { href: '/marketing/analytics', label: 'Email Analytics', icon: Mail },
+  { href: '/content', label: 'Content', icon: Camera },
 ]
 
 const systemNavItems = [
