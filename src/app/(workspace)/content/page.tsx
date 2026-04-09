@@ -399,6 +399,7 @@ export default function ContentPage() {
   }
 
   const downloadBrief = (brief: ContentBrief) => {
+    const studio = studios.find(s => s.id === brief.lead_id)
     const ct = brief.content_type ? contentTypeConfig[brief.content_type] : null
     const st = statusConfig[brief.status]
     const shotsDone = (brief.shotlist || []).filter(s => s.done).length
@@ -429,6 +430,13 @@ export default function ContentPage() {
   .shotlist .shot-desc { font-size: 12px; color: #666; margin-top: 2px; }
   .equipment { display: flex; flex-wrap: wrap; gap: 6px; }
   .equipment span { padding: 4px 12px; background: #f3f4f6; border-radius: 8px; font-size: 13px; color: #374151; }
+  .contact-block { margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; }
+  .contact-block h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .contact-item { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; }
+  .contact-item .label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; min-width: 60px; }
+  .contact-item a { color: #2563eb; text-decoration: none; }
+  .contact-item a:hover { text-decoration: underline; }
   .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #999; text-align: center; }
   @media print { body { padding: 20px; } .no-print { display: none; } }
 </style></head><body>
@@ -436,6 +444,18 @@ export default function ContentPage() {
   <h1>${brief.title}</h1>
   <div class="studio">${brief.studio_name}</div>
 </div>
+
+${studio ? `<div class="contact-block">
+  <h3>Studio Gegevens</h3>
+  <div class="contact-grid">
+    ${studio.contact_name ? `<div class="contact-item"><span class="label">Contact</span> ${studio.contact_name}</div>` : ''}
+    ${studio.phone ? `<div class="contact-item"><span class="label">Telefoon</span> <a href="tel:${studio.phone}">${studio.phone}</a></div>` : ''}
+    ${studio.email ? `<div class="contact-item"><span class="label">Email</span> <a href="mailto:${studio.email}">${studio.email}</a></div>` : ''}
+    ${studio.address ? `<div class="contact-item"><span class="label">Adres</span> ${studio.address}${studio.city ? ', ' + studio.city : ''}</div>` : ''}
+    ${studio.website ? `<div class="contact-item"><span class="label">Website</span> <a href="${studio.website}" target="_blank">${studio.website.replace(/^https?:\/\//, '')}</a></div>` : ''}
+    ${studio.instagram ? `<div class="contact-item"><span class="label">Instagram</span> <a href="https://instagram.com/${studio.instagram.replace('@', '')}" target="_blank">${studio.instagram}</a></div>` : ''}
+  </div>
+</div>` : ''}
 
 <div class="meta">
   <div class="meta-item"><span class="meta-label">Type</span><span class="meta-value">${ct?.label || '—'}</span></div>
