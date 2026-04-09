@@ -87,6 +87,45 @@ const statusConfig = {
   done: { label: 'Afgerond', color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
 }
 
+const contentTemplates = [
+  {
+    name: 'Studio Tour Reel',
+    type: 'reel' as const,
+    description: 'Korte dynamische video (30-60s) van de studio ruimte.\n\n- Walk-through van de ruimte\n- Highlight van unieke features (apparatuur, inrichting, licht)\n- Achtergrondmuziek + tekst overlays\n- Eindig met logo + CTA',
+    notes: 'Benodigdheden: gimbal/steadicam, wide-angle lens, goede verlichting.\nBest om te filmen als studio leeg is (ochtend/middag).',
+  },
+  {
+    name: 'Portret Fotoshoot',
+    type: 'photo' as const,
+    description: 'Professionele foto\'s van de studio voor website en social media.\n\n- 5-10 hero shots van de ruimte (verschillende hoeken)\n- Detail shots (apparatuur, texturen, sfeer)\n- Lifestyle shots (iemand aan het werk in de studio)\n- Exterieur foto als relevant',
+    notes: 'Lever aan in: full-res + web-optimized (1920px breed).\nKleurprofiel: warm, uitnodigend, professioneel.',
+  },
+  {
+    name: 'Kennismakingsvideo',
+    type: 'video' as const,
+    description: 'Introductievideo met de studio eigenaar (1-2 min).\n\n- Korte intro: wie ben je, wat doe je\n- Wat maakt jouw studio uniek\n- Voor wie is de studio bedoeld\n- Wat kunnen klanten verwachten\n- Call to action: boek via lcntships',
+    notes: 'Interview-stijl of casual walk & talk.\nGeluid is key: lavalier mic of boom.\nSubtitels toevoegen in post-productie.',
+  },
+  {
+    name: 'Behind the Scenes',
+    type: 'video' as const,
+    description: 'Content van een echte sessie in de studio.\n\n- Opbouw/setup van de sessie\n- Werk in uitvoering (opname, fotoshoot, etc.)\n- Reacties en sfeer momenten\n- Resultaat teasen',
+    notes: 'Toestemming van de klant nodig!\nB-roll stijl, snelle cuts.\nGeschikt voor zowel reel als langere video.',
+  },
+  {
+    name: 'Social Media Pack',
+    type: 'photo' as const,
+    description: 'Complete set content voor Instagram/TikTok.\n\n- 3 feed posts (carrousel of single image)\n- 2 reels (15-30s)\n- 5 stories (mix van foto + video)\n- Bio tekst + highlights cover',
+    notes: 'Formaten: 1080x1080 (feed), 1080x1920 (stories/reels).\nInclusief captions en hashtags.\nBrand kit van lcntships gebruiken voor overlays.',
+  },
+  {
+    name: 'Google Maps / Reviews',
+    type: 'photo' as const,
+    description: 'Content specifiek voor Google Business profiel.\n\n- 3-5 hoge kwaliteit foto\'s van de ruimte\n- 1 foto van het team/eigenaar\n- 1 exterieur foto (herkenbaar voor bezoekers)\n- Cover foto voor Google Maps listing',
+    notes: 'Foto\'s moeten helder, scherp en uitnodigend zijn.\nGeen zware filters. Google prefereert natuurlijke belichting.',
+  },
+]
+
 export default function ContentPage() {
   const [studios, setStudios] = useState<ClosedStudio[]>([])
   const [briefs, setBriefs] = useState<ContentBrief[]>([])
@@ -150,17 +189,24 @@ export default function ContentPage() {
 
   const getStudioBriefs = (studioId: string) => briefs.filter(b => b.lead_id === studioId)
 
-  const openNewBrief = (studio: ClosedStudio) => {
+  const openNewBrief = (studio: ClosedStudio, template?: typeof contentTemplates[0]) => {
     setEditingBrief(null)
-    setBriefTitle('')
-    setBriefType('photo')
-    setBriefDescription('')
-    setBriefNotes('')
+    setBriefTitle(template?.name || '')
+    setBriefType(template?.type || 'photo')
+    setBriefDescription(template?.description || '')
+    setBriefNotes(template?.notes || '')
     setBriefShootDate('')
     setBriefAssignedTo('')
     setBriefSharedWith('')
     setSelectedStudio(studio)
     setShowBriefModal(true)
+  }
+
+  const applyTemplate = (template: typeof contentTemplates[0]) => {
+    setBriefTitle(template.name)
+    setBriefType(template.type)
+    setBriefDescription(template.description)
+    setBriefNotes(template.notes)
   }
 
   const openEditBrief = (brief: ContentBrief) => {
@@ -726,6 +772,34 @@ export default function ContentPage() {
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Templates */}
+              {!editingBrief && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Template kiezen</label>
+                  <div className="flex flex-wrap gap-2">
+                    {contentTemplates.map((tpl) => {
+                      const ct = contentTypeConfig[tpl.type]
+                      const Icon = ct.icon
+                      return (
+                        <button
+                          key={tpl.name}
+                          onClick={() => applyTemplate(tpl)}
+                          className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                            briefTitle === tpl.name
+                              ? `${ct.color} border-current`
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                          )}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {tpl.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Title */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Titel *</label>
