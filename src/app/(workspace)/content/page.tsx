@@ -446,12 +446,12 @@ export default function ContentPage() {
 </div>
 
 ${studio ? `<div class="contact-block">
-  <h3>Studio Gegevens</h3>
+  <h3>Studio Details</h3>
   <div class="contact-grid">
     ${studio.contact_name ? `<div class="contact-item"><span class="label">Contact</span> ${studio.contact_name}</div>` : ''}
-    ${studio.phone ? `<div class="contact-item"><span class="label">Telefoon</span> <a href="tel:${studio.phone}">${studio.phone}</a></div>` : ''}
+    ${studio.phone ? `<div class="contact-item"><span class="label">Phone</span> <a href="tel:${studio.phone}">${studio.phone}</a></div>` : ''}
     ${studio.email ? `<div class="contact-item"><span class="label">Email</span> <a href="mailto:${studio.email}">${studio.email}</a></div>` : ''}
-    ${studio.address ? `<div class="contact-item"><span class="label">Adres</span> ${studio.address}${studio.city ? ', ' + studio.city : ''}</div>` : ''}
+    ${studio.address ? `<div class="contact-item"><span class="label">Address</span> ${studio.address}${studio.city ? ', ' + studio.city : ''}</div>` : ''}
     ${studio.website ? `<div class="contact-item"><span class="label">Website</span> <a href="${studio.website}" target="_blank">${studio.website.replace(/^https?:\/\//, '')}</a></div>` : ''}
     ${studio.instagram ? `<div class="contact-item"><span class="label">Instagram</span> <a href="https://instagram.com/${studio.instagram.replace('@', '')}" target="_blank">${studio.instagram}</a></div>` : ''}
   </div>
@@ -460,16 +460,16 @@ ${studio ? `<div class="contact-block">
 <div class="meta">
   <div class="meta-item"><span class="meta-label">Type</span><span class="meta-value">${ct?.label || '—'}</span></div>
   <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">${st.label}</span></div>
-  ${brief.shoot_date ? `<div class="meta-item"><span class="meta-label">Shoot Datum</span><span class="meta-value">${format(new Date(brief.shoot_date + 'T12:00:00'), 'EEEE d MMMM yyyy', { locale: nl })}</span></div>` : ''}
-  ${brief.duration ? `<div class="meta-item"><span class="meta-label">Duur</span><span class="meta-value">${brief.duration}</span></div>` : ''}
+  ${brief.shoot_date ? `<div class="meta-item"><span class="meta-label">Shoot Date</span><span class="meta-value">${format(new Date(brief.shoot_date + 'T12:00:00'), 'EEEE, MMMM d, yyyy')}</span></div>` : ''}
+  ${brief.duration ? `<div class="meta-item"><span class="meta-label">Duration</span><span class="meta-value">${brief.duration}</span></div>` : ''}
   ${brief.assigned_to ? `<div class="meta-item"><span class="meta-label">Creator</span><span class="meta-value">${brief.assigned_to}</span></div>` : ''}
-  ${brief.shared_with?.length ? `<div class="meta-item"><span class="meta-label">Gedeeld met</span><span class="meta-value">${brief.shared_with.join(', ')}</span></div>` : ''}
+  ${brief.shared_with?.length ? `<div class="meta-item"><span class="meta-label">Shared with</span><span class="meta-value">${brief.shared_with.join(', ')}</span></div>` : ''}
 </div>
 
-${brief.description ? `<div class="section"><div class="section-title">Omschrijving</div><div class="section-content">${brief.description}</div></div>` : ''}
+${brief.description ? `<div class="section"><div class="section-title">Description</div><div class="section-content">${brief.description}</div></div>` : ''}
 
 ${brief.shotlist?.length ? `<div class="section">
-  <div class="section-title">Shotlist (${shotsDone}/${shotsTotal} afgevinkt)</div>
+  <div class="section-title">Shot List (${shotsDone}/${shotsTotal} completed)</div>
   <ul class="shotlist">
     ${brief.shotlist.map((s, i) => `<li>
       <div class="check ${s.done ? 'done' : ''}">${s.done ? '✓' : ''}</div>
@@ -478,14 +478,14 @@ ${brief.shotlist?.length ? `<div class="section">
   </ul>
 </div>` : ''}
 
-${brief.equipment?.length ? `<div class="section"><div class="section-title">Apparatuur</div><div class="equipment">${brief.equipment.map(e => `<span>${e}</span>`).join('')}</div></div>` : ''}
+${brief.equipment?.length ? `<div class="section"><div class="section-title">Equipment</div><div class="equipment">${brief.equipment.map(e => `<span>${e}</span>`).join('')}</div></div>` : ''}
 
 ${brief.deliverables ? `<div class="section"><div class="section-title">Deliverables</div><div class="section-content">${brief.deliverables}</div></div>` : ''}
 
-${brief.notes ? `<div class="section"><div class="section-title">Notities</div><div class="section-content">${brief.notes}</div></div>` : ''}
+${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div class="section-content">${brief.notes}</div></div>` : ''}
 
 <div class="footer">
-  lcntships — Content Brief — ${format(new Date(), 'd MMMM yyyy', { locale: nl })}
+  lcntships — Content Brief — ${format(new Date(), 'MMMM d, yyyy')}
 </div>
 
 <script>window.onload = function() { window.print(); }</script>
