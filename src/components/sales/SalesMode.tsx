@@ -152,9 +152,15 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
   const [emailTo, setEmailTo] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailMessage, setEmailMessage] = useState('')
+  const [emailSender, setEmailSender] = useState<'rivaldo' | 'uriel'>('rivaldo')
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
+
+  const senderProfiles = {
+    rivaldo: { name: 'Rivaldo van lcntships', email: 'rivaldomacandrew@lctnships.com' },
+    uriel: { name: 'Uriel van lcntships', email: 'Uriel@lctnships.com' },
+  }
 
   const currentLead = leads[currentIndex]
 
@@ -323,10 +329,12 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
     setSendingEmail(true)
     setEmailError(null)
     try {
+      const sender = senderProfiles[emailSender]
       const res = await fetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          from: `${sender.name} <${sender.email}>`,
           to: {
             email: emailTo.trim(),
             name: currentLead.contact_name || currentLead.company_name,
@@ -1117,9 +1125,36 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                 </div>
               </div>
 
+              {/* Sender */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Van</label>
+                <div className="flex gap-2">
+                  {(Object.entries(senderProfiles) as [keyof typeof senderProfiles, typeof senderProfiles[keyof typeof senderProfiles]][]).map(([key, profile]) => (
+                    <button
+                      key={key}
+                      onClick={() => setEmailSender(key)}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all',
+                        emailSender === key
+                          ? 'border-gray-900 bg-gray-900 text-white'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      )}
+                    >
+                      <div className={cn(
+                        'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold',
+                        emailSender === key ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-600'
+                      )}>
+                        {profile.name[0]}
+                      </div>
+                      {profile.name.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* To */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Aan (emailadres)</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Aan</label>
                 <input
                   type="email"
                   value={emailTo}

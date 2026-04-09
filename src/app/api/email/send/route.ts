@@ -43,14 +43,20 @@ export async function POST(request: NextRequest) {
       ? `${greeting},\n\n${message}${trackingPixel}`
       : `${message}${trackingPixel}`
 
+    // Parse sender info from 'from' field (e.g. "Rivaldo van lcntships <rivaldomacandrew@lctnships.com>")
+    const fromStr = from || 'Rivaldo van lcntships <rivaldomacandrew@lctnships.com>'
+    const fromMatch = fromStr.match(/^(.+?)\s*<(.+?)>$/)
+    const senderName = fromMatch ? fromMatch[1].split(' ')[0] : 'Rivaldo'
+    const senderEmail = fromMatch ? fromMatch[2] : 'rivaldomacandrew@lctnships.com'
+
     // Render email with CampaignEmail template
     const html = await render(
       CampaignEmail({
         companyName: to.company || 'Bedrijf',
         contactName: to.name || 'Contact',
         message: fullMessage,
-        senderName: 'Rivaldo',
-        senderEmail: 'rivaldomacandrew@lctnships.com',
+        senderName,
+        senderEmail,
         primaryButtonText: ctaText || 'Bekijk lcntships',
         primaryButtonUrl: ctaUrl || 'https://lctnships.com',
         secondaryButtonText: undefined,
