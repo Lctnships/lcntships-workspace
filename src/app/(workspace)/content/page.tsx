@@ -398,6 +398,84 @@ export default function ContentPage() {
     setTimeout(() => setCopiedLink(false), 2000)
   }
 
+  const downloadBrief = (brief: ContentBrief) => {
+    const ct = brief.content_type ? contentTypeConfig[brief.content_type] : null
+    const st = statusConfig[brief.status]
+    const shotsDone = (brief.shotlist || []).filter(s => s.done).length
+    const shotsTotal = (brief.shotlist || []).length
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${brief.title} — ${brief.studio_name}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; color: #111; padding: 40px; max-width: 800px; margin: 0 auto; font-size: 14px; line-height: 1.6; }
+  .header { border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 24px; }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .header .studio { font-size: 16px; color: #666; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; padding: 16px; background: #f9fafb; border-radius: 12px; }
+  .meta-item { display: flex; flex-direction: column; }
+  .meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 600; margin-bottom: 2px; }
+  .meta-value { font-weight: 500; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .section { margin-bottom: 24px; }
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .section-content { white-space: pre-wrap; color: #333; background: #f9fafb; padding: 14px; border-radius: 10px; }
+  .shotlist { list-style: none; }
+  .shotlist li { padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 6px; display: flex; align-items: flex-start; gap: 10px; }
+  .shotlist .check { width: 20px; height: 20px; border: 2px solid #d1d5db; border-radius: 5px; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; }
+  .shotlist .check.done { background: #10b981; border-color: #10b981; color: white; }
+  .shotlist .shot-name { font-weight: 600; }
+  .shotlist .shot-desc { font-size: 12px; color: #666; margin-top: 2px; }
+  .equipment { display: flex; flex-wrap: wrap; gap: 6px; }
+  .equipment span { padding: 4px 12px; background: #f3f4f6; border-radius: 8px; font-size: 13px; color: #374151; }
+  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #999; text-align: center; }
+  @media print { body { padding: 20px; } .no-print { display: none; } }
+</style></head><body>
+<div class="header">
+  <h1>${brief.title}</h1>
+  <div class="studio">${brief.studio_name}</div>
+</div>
+
+<div class="meta">
+  <div class="meta-item"><span class="meta-label">Type</span><span class="meta-value">${ct?.label || '—'}</span></div>
+  <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">${st.label}</span></div>
+  ${brief.shoot_date ? `<div class="meta-item"><span class="meta-label">Shoot Datum</span><span class="meta-value">${format(new Date(brief.shoot_date + 'T12:00:00'), 'EEEE d MMMM yyyy', { locale: nl })}</span></div>` : ''}
+  ${brief.duration ? `<div class="meta-item"><span class="meta-label">Duur</span><span class="meta-value">${brief.duration}</span></div>` : ''}
+  ${brief.assigned_to ? `<div class="meta-item"><span class="meta-label">Creator</span><span class="meta-value">${brief.assigned_to}</span></div>` : ''}
+  ${brief.shared_with?.length ? `<div class="meta-item"><span class="meta-label">Gedeeld met</span><span class="meta-value">${brief.shared_with.join(', ')}</span></div>` : ''}
+</div>
+
+${brief.description ? `<div class="section"><div class="section-title">Omschrijving</div><div class="section-content">${brief.description}</div></div>` : ''}
+
+${brief.shotlist?.length ? `<div class="section">
+  <div class="section-title">Shotlist (${shotsDone}/${shotsTotal} afgevinkt)</div>
+  <ul class="shotlist">
+    ${brief.shotlist.map((s, i) => `<li>
+      <div class="check ${s.done ? 'done' : ''}">${s.done ? '✓' : ''}</div>
+      <div><div class="shot-name">${i + 1}. ${s.shot}</div><div class="shot-desc">${s.description}</div></div>
+    </li>`).join('')}
+  </ul>
+</div>` : ''}
+
+${brief.equipment?.length ? `<div class="section"><div class="section-title">Apparatuur</div><div class="equipment">${brief.equipment.map(e => `<span>${e}</span>`).join('')}</div></div>` : ''}
+
+${brief.deliverables ? `<div class="section"><div class="section-title">Deliverables</div><div class="section-content">${brief.deliverables}</div></div>` : ''}
+
+${brief.notes ? `<div class="section"><div class="section-title">Notities</div><div class="section-content">${brief.notes}</div></div>` : ''}
+
+<div class="footer">
+  lcntships — Content Brief — ${format(new Date(), 'd MMMM yyyy', { locale: nl })}
+</div>
+
+<script>window.onload = function() { window.print(); }</script>
+</body></html>`
+
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  }
+
   // ─── Template Actions ───
   const openNewTemplate = () => {
     setEditingTemplate(null)
@@ -759,6 +837,10 @@ export default function ContentPage() {
 
               {/* Actions */}
               <div className="flex gap-2 pt-3 border-t border-gray-100">
+                <Button variant="outline" size="sm" className="flex-1 rounded-lg" onClick={() => downloadBrief(selectedBrief)}>
+                  <FileText className="h-3.5 w-3.5 mr-1.5" />
+                  Download PDF
+                </Button>
                 <Button variant="outline" size="sm" className="flex-1 rounded-lg" onClick={() => copyShareLink(selectedBrief)}>
                   {copiedLink ? <Check className="h-3.5 w-3.5 mr-1.5" /> : <Link2 className="h-3.5 w-3.5 mr-1.5" />}
                   {copiedLink ? 'Gekopieerd!' : 'Deel link'}
