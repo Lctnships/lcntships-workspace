@@ -80,10 +80,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save to sent_emails table so email history shows up in Sales Mode
-    if (trackId && supabaseAdmin) {
+    // Save to sent_emails table so email shows up in Verzonden folder
+    if (supabaseAdmin) {
       const { error: dbError } = await supabaseAdmin.from('sent_emails').insert({
-        lead_id: trackId,
+        lead_id: trackId || null,
         subject,
         body: html,
         sent_at: new Date().toISOString(),
@@ -91,6 +91,10 @@ export async function POST(request: NextRequest) {
         resend_id: data?.id || null,
         delivery_status: 'sent',
         last_event: 'sent',
+        to_email: to.email,
+        to_name: to.name || null,
+        from_email: senderEmail,
+        from_name: senderName,
       })
       if (dbError) {
         console.error('Failed to log sent email to sent_emails:', dbError)

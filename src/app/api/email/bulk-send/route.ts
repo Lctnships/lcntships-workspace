@@ -80,10 +80,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save to sent_emails table with Resend message ID
-    if (supabaseAdmin && leadId) {
+    // Parse sender info from the 'from' field (e.g. "Name <email>")
+    const fromMatch = fromAddress.match(/^(.+?)\s*<(.+?)>$/)
+    const fromName = fromMatch ? fromMatch[1].trim() : null
+    const fromEmail = fromMatch ? fromMatch[2].trim() : fromAddress
+
+    // Save to sent_emails table with Resend message ID — always, so Verzonden shows it
+    if (supabaseAdmin) {
       const { error: dbError } = await supabaseAdmin.from('sent_emails').insert({
-        lead_id: leadId,
+        lead_id: leadId || null,
         user_id: user.id,
         subject,
         body: html,
@@ -92,6 +97,10 @@ export async function POST(request: NextRequest) {
         resend_id: data?.id || null,
         delivery_status: 'sent',
         last_event: 'sent',
+        to_email: Array.isArray(to) ? to[0] : to,
+        to_name: null,
+        from_email: fromEmail,
+        from_name: fromName,
       })
       if (dbError) {
         console.error('Failed to log sent email:', dbError)
