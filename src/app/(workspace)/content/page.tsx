@@ -77,6 +77,10 @@ interface ContentBrief {
   equipment: string[]
   duration: string | null
   deliverables: string | null
+  call_time: string | null
+  end_time: string | null
+  contact_person: string | null
+  contact_phone: string | null
   created_at: string
   updated_at: string
 }
@@ -222,6 +226,10 @@ export default function ContentPage() {
   const [briefEquipment, setBriefEquipment] = useState<string[]>([])
   const [briefDuration, setBriefDuration] = useState('')
   const [briefDeliverables, setBriefDeliverables] = useState('')
+  const [briefCallTime, setBriefCallTime] = useState('')
+  const [briefEndTime, setBriefEndTime] = useState('')
+  const [briefContactPerson, setBriefContactPerson] = useState('')
+  const [briefContactPhone, setBriefContactPhone] = useState('')
 
   // Template form
   const [tplName, setTplName] = useState('')
@@ -297,6 +305,8 @@ export default function ContentPage() {
       setBriefDeliverables(''); setBriefNotes('')
     }
     setBriefShootDate(''); setBriefAssignedTo(''); setBriefSharedWith('')
+    setBriefCallTime(''); setBriefEndTime('')
+    setBriefContactPerson('Rivaldo'); setBriefContactPhone('+31 6 12345678')
     setShowBriefModal(true)
   }
 
@@ -314,6 +324,10 @@ export default function ContentPage() {
     setBriefShootDate(brief.shoot_date || '')
     setBriefAssignedTo(brief.assigned_to || '')
     setBriefSharedWith((brief.shared_with || []).join(', '))
+    setBriefCallTime(brief.call_time || '')
+    setBriefEndTime(brief.end_time || '')
+    setBriefContactPerson(brief.contact_person || 'Rivaldo')
+    setBriefContactPhone(brief.contact_phone || '+31 6 12345678')
     setShowBriefModal(true)
   }
 
@@ -329,6 +343,8 @@ export default function ContentPage() {
         shared_with: briefSharedWith.trim() ? briefSharedWith.split(',').map(s => s.trim()) : null,
         shotlist: briefShotlist, equipment: briefEquipment,
         duration: briefDuration.trim() || null, deliverables: briefDeliverables.trim() || null,
+        call_time: briefCallTime.trim() || null, end_time: briefEndTime.trim() || null,
+        contact_person: briefContactPerson.trim() || null, contact_phone: briefContactPhone.trim() || null,
         updated_at: new Date().toISOString(),
       }
       if (editingBrief) {
@@ -429,10 +445,22 @@ ${studio ? `<div class="contact-block">
   </div>
 </div>` : ''}
 
+${(brief.contact_person || brief.contact_phone) ? `<div class="contact-block">
+  <h3>lcntships Contact</h3>
+  <div class="contact-grid">
+    ${brief.contact_person ? `<div class="contact-item"><span class="label">Name</span> ${brief.contact_person}</div>` : ''}
+    ${brief.contact_phone ? `<div class="contact-item"><span class="label">Phone</span> <a href="tel:${brief.contact_phone}">${brief.contact_phone}</a></div>` : ''}
+    ${brief.call_time ? `<div class="contact-item"><span class="label">Call Time</span> ${brief.call_time}</div>` : ''}
+    ${brief.end_time ? `<div class="contact-item"><span class="label">End Time</span> ${brief.end_time}</div>` : ''}
+  </div>
+</div>` : ''}
+
 <div class="meta">
   <div class="meta-item"><span class="meta-label">Type</span><span class="meta-value">${ct?.label || '—'}</span></div>
   <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">${st.label}</span></div>
   ${brief.shoot_date ? `<div class="meta-item"><span class="meta-label">Shoot Date</span><span class="meta-value">${format(new Date(brief.shoot_date + 'T12:00:00'), 'EEEE, MMMM d, yyyy')}</span></div>` : ''}
+  ${brief.call_time ? `<div class="meta-item"><span class="meta-label">Call Time</span><span class="meta-value">${brief.call_time}</span></div>` : ''}
+  ${brief.end_time ? `<div class="meta-item"><span class="meta-label">End Time</span><span class="meta-value">${brief.end_time}</span></div>` : ''}
   ${brief.duration ? `<div class="meta-item"><span class="meta-label">Duration</span><span class="meta-value">${brief.duration}</span></div>` : ''}
   ${brief.assigned_to ? `<div class="meta-item"><span class="meta-label">Creator</span><span class="meta-value">${brief.assigned_to}</span></div>` : ''}
   ${brief.shared_with?.length ? `<div class="meta-item"><span class="meta-label">Shared with</span><span class="meta-value">${brief.shared_with.join(', ')}</span></div>` : ''}
@@ -760,8 +788,11 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
                 <div className="flex gap-2"><span className="text-gray-500 w-20">Studio</span><span className="text-gray-900">{selectedBrief.studio_name}</span></div>
                 {selectedBrief.shoot_date && <div className="flex gap-2"><span className="text-gray-500 w-20">Shoot</span>
                   <span className="text-gray-900">{format(new Date(selectedBrief.shoot_date + 'T12:00:00'), 'EEEE d MMMM yyyy', { locale: nl })}</span></div>}
+                {selectedBrief.call_time && <div className="flex gap-2"><span className="text-gray-500 w-20">Call Time</span><span className="text-gray-900">{selectedBrief.call_time}</span></div>}
+                {selectedBrief.end_time && <div className="flex gap-2"><span className="text-gray-500 w-20">End Time</span><span className="text-gray-900">{selectedBrief.end_time}</span></div>}
                 {selectedBrief.assigned_to && <div className="flex gap-2"><span className="text-gray-500 w-20">Creator</span><span className="text-gray-900">{selectedBrief.assigned_to}</span></div>}
                 {selectedBrief.duration && <div className="flex gap-2"><span className="text-gray-500 w-20">Duur</span><span className="text-gray-900">{selectedBrief.duration}</span></div>}
+                {selectedBrief.contact_person && <div className="flex gap-2"><span className="text-gray-500 w-20">Contact</span><span className="text-gray-900">{selectedBrief.contact_person}{selectedBrief.contact_phone ? ` — ${selectedBrief.contact_phone}` : ''}</span></div>}
               </div>
 
               {/* Description */}
@@ -945,6 +976,24 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
             </Field>
             <Field label="Shoot datum">
               <Input type="date" value={briefShootDate} onChange={e => setBriefShootDate(e.target.value)} className="rounded-xl" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Call Time">
+              <Input type="time" value={briefCallTime} onChange={e => setBriefCallTime(e.target.value)} className="rounded-xl" />
+            </Field>
+            <Field label="End Time">
+              <Input type="time" value={briefEndTime} onChange={e => setBriefEndTime(e.target.value)} className="rounded-xl" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="lcntships Contact">
+              <Input value={briefContactPerson} onChange={e => setBriefContactPerson(e.target.value)} placeholder="bv. Rivaldo" className="rounded-xl" />
+            </Field>
+            <Field label="Telefoonnummer">
+              <Input value={briefContactPhone} onChange={e => setBriefContactPhone(e.target.value)} placeholder="+31 6 ..." className="rounded-xl" />
             </Field>
           </div>
 
