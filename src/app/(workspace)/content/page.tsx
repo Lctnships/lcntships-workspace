@@ -420,6 +420,8 @@ export default function ContentPage() {
   .equipment span { padding: 4px 12px; background: #f3f4f6; border-radius: 8px; font-size: 13px; color: #374151; }
   .contact-block { margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; }
   .contact-block h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .callsheet { background: #fffbea; border-color: #fde68a; }
+  .callsheet h3 { color: #92400e; }
   .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .contact-item { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; }
   .contact-item .label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; min-width: 60px; }
@@ -445,15 +447,17 @@ ${studio ? `<div class="contact-block">
   </div>
 </div>` : ''}
 
-${(brief.contact_person || brief.contact_phone) ? `<div class="contact-block">
-  <h3>lcntships Contact</h3>
+<div class="contact-block callsheet">
+  <h3>Call Sheet</h3>
   <div class="contact-grid">
-    ${brief.contact_person ? `<div class="contact-item"><span class="label">Name</span> ${brief.contact_person}</div>` : ''}
-    ${brief.contact_phone ? `<div class="contact-item"><span class="label">Phone</span> <a href="tel:${brief.contact_phone}">${brief.contact_phone}</a></div>` : ''}
-    ${brief.call_time ? `<div class="contact-item"><span class="label">Call Time</span> ${brief.call_time}</div>` : ''}
-    ${brief.end_time ? `<div class="contact-item"><span class="label">End Time</span> ${brief.end_time}</div>` : ''}
+    <div class="contact-item"><span class="label">Contact</span> ${brief.contact_person || 'Rivaldo'}</div>
+    <div class="contact-item"><span class="label">Phone</span> <a href="tel:${brief.contact_phone || '+31 6 12345678'}">${brief.contact_phone || '+31 6 12345678'}</a></div>
+    <div class="contact-item"><span class="label">Call Time</span> ${brief.call_time || '—'}</div>
+    <div class="contact-item"><span class="label">End Time</span> ${brief.end_time || '—'}</div>
+    ${brief.shoot_date ? `<div class="contact-item"><span class="label">Date</span> ${format(new Date(brief.shoot_date + 'T12:00:00'), 'EEE, MMM d, yyyy')}</div>` : ''}
+    ${studio?.address ? `<div class="contact-item"><span class="label">Location</span> ${studio.address}${studio.city ? ', ' + studio.city : ''}</div>` : ''}
   </div>
-</div>` : ''}
+</div>
 
 <div class="meta">
   <div class="meta-item"><span class="meta-label">Type</span><span class="meta-value">${ct?.label || '—'}</span></div>
