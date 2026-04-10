@@ -51,8 +51,15 @@ interface AgendaItem {
   location: string | null
   status: 'scheduled' | 'completed' | 'cancelled' | 'no_show'
   assigned_to: string | null
+  attendees: string[] | null
   created_at: string
   lead: LeadInfo | null
+}
+
+const TEAM_MEMBERS = ['Rivaldo', 'Uriel'] as const
+const memberColors: Record<string, { bg: string; text: string; ring: string }> = {
+  Rivaldo: { bg: 'bg-blue-500', text: 'text-white', ring: 'ring-blue-500' },
+  Uriel: { bg: 'bg-purple-500', text: 'text-white', ring: 'ring-purple-500' },
 }
 
 interface SalesLead {
@@ -171,6 +178,7 @@ export default function AgendaPage() {
   const [newEndTime, setNewEndTime] = useState('11:00')
   const [newLocation, setNewLocation] = useState('')
   const [newAssignedTo, setNewAssignedTo] = useState('Rivaldo')
+  const [newAttendees, setNewAttendees] = useState<string[]>(['Rivaldo'])
   const [newLeadId, setNewLeadId] = useState<string>('')
   const [saving, setSaving] = useState(false)
 
@@ -297,6 +305,7 @@ export default function AgendaPage() {
     setNewEndTime('11:00')
     setNewLocation('')
     setNewAssignedTo('Rivaldo')
+    setNewAttendees(['Rivaldo'])
     setNewLeadId('')
     setSelectedLead(null)
     setLeadSearch('')
@@ -322,7 +331,8 @@ export default function AgendaPage() {
           start_time: newStartTime,
           end_time: newEndTime || null,
           location: newLocation || null,
-          assigned_to: newAssignedTo || null,
+          assigned_to: newAttendees[0] || newAssignedTo || null,
+          attendees: newAttendees,
         }),
       })
       if (res.ok) {
@@ -632,7 +642,21 @@ export default function AgendaPage() {
                               <Clock className="h-2.5 w-2.5" />
                               {formatTime(item.start_time)}
                               {item.end_time && ` — ${formatTime(item.end_time)}`}
-                              {item.assigned_to && <><span>·</span><span>{item.assigned_to}</span></>}
+                              {((item.attendees && item.attendees.length > 0) || item.assigned_to) && (
+                                <>
+                                  <span>·</span>
+                                  <span className="flex items-center -space-x-1">
+                                    {(item.attendees && item.attendees.length > 0 ? item.attendees : [item.assigned_to!]).map(n => {
+                                      const c = memberColors[n] || { bg: 'bg-gray-500', text: 'text-white', ring: 'ring-gray-500' }
+                                      return (
+                                        <span key={n} className={cn('w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ring-1 ring-white', c.bg, c.text)}>
+                                          {n[0]}
+                                        </span>
+                                      )
+                                    })}
+                                  </span>
+                                </>
+                              )}
                             </div>
                             {item.location && height > 60 && (
                               <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 truncate">
@@ -735,10 +759,19 @@ export default function AgendaPage() {
                         <div className="flex items-center gap-1 mt-0.5 text-gray-500">
                           <Clock className="h-2.5 w-2.5" />
                           <span>{formatTime(item.start_time)}</span>
-                          {item.assigned_to && (
+                          {((item.attendees && item.attendees.length > 0) || item.assigned_to) && (
                             <>
                               <span>·</span>
-                              <span>{item.assigned_to}</span>
+                              <span className="flex items-center -space-x-1">
+                                {(item.attendees && item.attendees.length > 0 ? item.attendees : [item.assigned_to!]).map(n => {
+                                  const c = memberColors[n] || { bg: 'bg-gray-500', text: 'text-white', ring: 'ring-gray-500' }
+                                  return (
+                                    <span key={n} className={cn('w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold ring-1 ring-white', c.bg, c.text)}>
+                                      {n[0]}
+                                    </span>
+                                  )
+                                })}
+                              </span>
                             </>
                           )}
                         </div>
@@ -878,12 +911,30 @@ export default function AgendaPage() {
                     <span className="text-gray-700">{selectedItem.location}</span>
                   </div>
                 )}
-                {selectedItem.assigned_to && (
+                {(selectedItem.attendees && selectedItem.attendees.length > 0) || selectedItem.assigned_to ? (
                   <div className="flex items-center gap-3 text-sm">
                     <User className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-700">{selectedItem.assigned_to}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(selectedItem.attendees && selectedItem.attendees.length > 0
+                        ? selectedItem.attendees
+                        : selectedItem.assigned_to ? [selectedItem.assigned_to] : []
+                      ).map(name => {
+                        const colors = memberColors[name] || { bg: 'bg-gray-500', text: 'text-white', ring: 'ring-gray-500' }
+                        return (
+                          <span
+                            key={name}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700"
+                          >
+                            <span className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', colors.bg, colors.text)}>
+                              {name[0]}
+                            </span>
+                            {name}
+                          </span>
+                        )
+                      })}
+                    </div>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Description */}
@@ -1081,31 +1132,46 @@ export default function AgendaPage() {
                 />
               </div>
 
-              {/* Assigned to */}
+              {/* Attendees */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Toegewezen aan</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Wie is aanwezig?</label>
                 <div className="flex gap-2">
-                  {['Rivaldo', 'Uriel'].map(name => (
-                    <button
-                      key={name}
-                      onClick={() => setNewAssignedTo(name)}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border flex-1 transition-colors',
-                        newAssignedTo === name
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                      )}
-                    >
-                      <div className={cn(
-                        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
-                        newAssignedTo === name ? 'bg-white text-gray-900' : 'bg-gray-100'
-                      )}>
-                        {name[0]}
-                      </div>
-                      {name}
-                    </button>
-                  ))}
+                  {TEAM_MEMBERS.map(name => {
+                    const selected = newAttendees.includes(name)
+                    const colors = memberColors[name]
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => {
+                          setNewAttendees(prev => {
+                            if (prev.includes(name)) {
+                              // don't allow removing the last one
+                              if (prev.length === 1) return prev
+                              return prev.filter(p => p !== name)
+                            }
+                            return [...prev, name]
+                          })
+                        }}
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border flex-1 transition-colors',
+                          selected
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                        )}
+                      >
+                        <div className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
+                          selected ? `${colors.bg} ${colors.text} ring-2 ring-white` : 'bg-gray-100 text-gray-500'
+                        )}>
+                          {name[0]}
+                        </div>
+                        <span className="flex-1 text-left">{name}</span>
+                        {selected && <Check className="h-3.5 w-3.5" />}
+                      </button>
+                    )
+                  })}
                 </div>
+                <p className="text-[11px] text-gray-400 mt-1">Kies een of beide teamleden die bij de afspraak aanwezig zijn.</p>
               </div>
 
               {/* Lead link */}

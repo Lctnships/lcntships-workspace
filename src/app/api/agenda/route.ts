@@ -42,11 +42,18 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseKey)
     const body = await request.json()
 
-    const { lead_id, title, description, type, date, start_time, end_time, location, assigned_to } = body
+    const { lead_id, title, description, type, date, start_time, end_time, location, assigned_to, attendees } = body
 
     if (!title || !date || !start_time) {
       return NextResponse.json({ error: 'Title, date and start_time are required' }, { status: 400 })
     }
+
+    // Normalise attendees: if not provided but assigned_to is, seed the array
+    const attendeeList: string[] = Array.isArray(attendees) && attendees.length > 0
+      ? attendees
+      : assigned_to
+      ? [assigned_to]
+      : []
 
     const { data, error } = await supabase
       .from('sales_agenda')
@@ -59,7 +66,8 @@ export async function POST(request: NextRequest) {
         start_time,
         end_time: end_time || null,
         location: location || null,
-        assigned_to: assigned_to || null,
+        assigned_to: attendeeList[0] || assigned_to || null,
+        attendees: attendeeList,
       })
       .select(`
         *,
