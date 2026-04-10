@@ -180,6 +180,7 @@ export default function AgendaPage() {
   const [newAssignedTo, setNewAssignedTo] = useState('Rivaldo')
   const [newAttendees, setNewAttendees] = useState<string[]>(['Rivaldo'])
   const [newLeadId, setNewLeadId] = useState<string>('')
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Lead search for new event
@@ -297,6 +298,7 @@ export default function AgendaPage() {
 
   const openNewEvent = (date?: Date) => {
     setShowNewEvent(true)
+    setEditingItemId(null)
     setNewDate(date ? formatDateISO(date) : formatDateISO(new Date()))
     setNewTitle('')
     setNewDescription('')
@@ -315,28 +317,64 @@ export default function AgendaPage() {
     }
   }
 
+  const openEditEvent = (item: AgendaItem) => {
+    setShowNewEvent(true)
+    setEditingItemId(item.id)
+    setNewDate(item.date)
+    setNewTitle(item.title)
+    setNewDescription(item.description || '')
+    setNewType(item.type)
+    setNewStartTime(item.start_time.substring(0, 5))
+    setNewEndTime(item.end_time ? item.end_time.substring(0, 5) : '')
+    setNewLocation(item.location || '')
+    setNewAssignedTo(item.assigned_to || 'Rivaldo')
+    const attendees = item.attendees && item.attendees.length > 0
+      ? item.attendees
+      : item.assigned_to ? [item.assigned_to] : ['Rivaldo']
+    setNewAttendees(attendees)
+    setNewLeadId(item.lead_id || '')
+    setSelectedLead(item.lead ? {
+      id: item.lead.id,
+      company_name: item.lead.company_name,
+      contact_name: item.lead.contact_name,
+      email: item.lead.email,
+      phone: item.lead.phone,
+      city: item.lead.city,
+      status: item.lead.status,
+    } : null)
+    setLeadSearch('')
+    setSelectedItem(null)
+
+    if (allLeads.length === 0) {
+      fetch('/api/leads').then(r => r.json()).then(d => setAllLeads(d)).catch(() => {})
+    }
+  }
+
   const saveEvent = async () => {
     if (!newTitle || !newDate || !newStartTime) return
     setSaving(true)
     try {
+      const payload = {
+        lead_id: newLeadId || null,
+        title: newTitle,
+        description: newDescription || null,
+        type: newType,
+        date: newDate,
+        start_time: newStartTime,
+        end_time: newEndTime || null,
+        location: newLocation || null,
+        assigned_to: newAttendees[0] || newAssignedTo || null,
+        attendees: newAttendees,
+      }
+      const isEditing = !!editingItemId
       const res = await fetch('/api/agenda', {
-        method: 'POST',
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lead_id: newLeadId || null,
-          title: newTitle,
-          description: newDescription || null,
-          type: newType,
-          date: newDate,
-          start_time: newStartTime,
-          end_time: newEndTime || null,
-          location: newLocation || null,
-          assigned_to: newAttendees[0] || newAssignedTo || null,
-          attendees: newAttendees,
-        }),
+        body: JSON.stringify(isEditing ? { id: editingItemId, ...payload } : payload),
       })
       if (res.ok) {
         setShowNewEvent(false)
+        setEditingItemId(null)
         fetchAgenda()
       }
     } catch (err) {
@@ -976,6 +1014,17 @@ export default function AgendaPage() {
                 </div>
               )}
 
+              {/* Edit */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full rounded-xl gap-2"
+                onClick={() => openEditEvent(selectedItem)}
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                Afspraak bewerken
+              </Button>
+
               {/* Status actions */}
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Status bijwerken</h3>
@@ -1047,8 +1096,8 @@ export default function AgendaPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">Afspraak plannen</h3>
-              <button onClick={() => setShowNewEvent(false)} className="p-1.5 rounded-lg hover:bg-gray-100">
+              <h3 className="font-semibold text-gray-900">{editingItemId ? 'Afspraak bewerken' : 'Afspraak plannen'}</h3>
+              <button onClick={() => { setShowNewEvent(false); setEditingItemId(null) }} className="p-1.5 rounded-lg hover:bg-gray-100">
                 <X className="h-5 w-5 text-gray-400" />
               </button>
             </div>
@@ -1134,7 +1183,12 @@ export default function AgendaPage() {
 
               {/* Attendees */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Wie is aanwezig?</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700">Wie is aanwezig?</label>
+                  <span className="text-[11px] text-gray-400 font-medium">
+                    {newAttendees.length} {newAttendees.length === 1 ? 'persoon' : 'personen'} geselecteerd
+                  </span>
+                </div>
                 <div className="flex gap-2">
                   {TEAM_MEMBERS.map(name => {
                     const selected = newAttendees.includes(name)
@@ -1142,6 +1196,7 @@ export default function AgendaPage() {
                     return (
                       <button
                         key={name}
+                        type="button"
                         onClick={() => {
                           setNewAttendees(prev => {
                             if (prev.includes(name)) {
@@ -1153,25 +1208,36 @@ export default function AgendaPage() {
                           })
                         }}
                         className={cn(
-                          'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border flex-1 transition-colors',
+                          'relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border-2 flex-1 transition-all',
                           selected
-                            ? 'bg-gray-900 text-white border-gray-900'
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                            ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         )}
                       >
+                        {/* Checkbox indicator */}
                         <div className={cn(
-                          'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
-                          selected ? `${colors.bg} ${colors.text} ring-2 ring-white` : 'bg-gray-100 text-gray-500'
+                          'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                          selected
+                            ? 'bg-white border-white'
+                            : 'bg-white border-gray-300'
+                        )}>
+                          {selected && <Check className="h-3 w-3 text-gray-900 stroke-[3]" />}
+                        </div>
+                        {/* Avatar */}
+                        <div className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0',
+                          colors.bg,
+                          colors.text,
+                          selected && 'ring-2 ring-white'
                         )}>
                           {name[0]}
                         </div>
                         <span className="flex-1 text-left">{name}</span>
-                        {selected && <Check className="h-3.5 w-3.5" />}
                       </button>
                     )
                   })}
                 </div>
-                <p className="text-[11px] text-gray-400 mt-1">Kies een of beide teamleden die bij de afspraak aanwezig zijn.</p>
+                <p className="text-[11px] text-gray-400 mt-1.5">Tip: klik op beide teamleden om ze allebei aan de afspraak toe te voegen.</p>
               </div>
 
               {/* Lead link */}
@@ -1226,7 +1292,7 @@ export default function AgendaPage() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setShowNewEvent(false)} className="rounded-xl">
+                <Button variant="ghost" onClick={() => { setShowNewEvent(false); setEditingItemId(null) }} className="rounded-xl">
                   Annuleren
                 </Button>
                 <Button
@@ -1234,8 +1300,8 @@ export default function AgendaPage() {
                   disabled={saving || !newTitle || !newDate || !newStartTime}
                   className="rounded-xl gap-2"
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Inplannen
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingItemId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  {editingItemId ? 'Opslaan' : 'Inplannen'}
                 </Button>
               </div>
             </div>
