@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   XCircle,
   Minus,
+  Plus,
   Save,
   FileText,
   Video,
@@ -693,8 +694,8 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                   </div>
                   {!editingNotes ? (
                     <Button variant="outline" size="sm" onClick={() => { setEditingNotes(true); setNotes(currentLead.notes || '') }}>
-                      <Edit3 className="h-3.5 w-3.5 mr-1.5" />
-                      Bewerken
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      Notitie toevoegen
                     </Button>
                   ) : (
                     <div className="flex items-center gap-2">
