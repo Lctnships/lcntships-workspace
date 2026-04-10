@@ -145,7 +145,8 @@ function getMonthDates(year: number, month: number): (Date | null)[][] {
 }
 
 export default function AgendaPage() {
-  const [view, setView] = useState<'week' | 'month'>('week')
+  const [view, setView] = useState<'day' | 'week' | 'month'>('week')
+  const [currentDay, setCurrentDay] = useState(() => new Date())
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date()
     const day = now.getDay()
@@ -186,7 +187,10 @@ export default function AgendaPage() {
     setLoading(true)
     try {
       let from: string, to: string
-      if (view === 'week') {
+      if (view === 'day') {
+        from = formatDateISO(currentDay)
+        to = from
+      } else if (view === 'week') {
         from = formatDateISO(weekDays[0])
         to = formatDateISO(weekDays[6])
       } else {
@@ -204,7 +208,8 @@ export default function AgendaPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentWeekStart, currentMonth, currentYear, view])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWeekStart, currentMonth, currentYear, currentDay, view])
 
   useEffect(() => {
     fetchAgenda()
@@ -263,7 +268,24 @@ export default function AgendaPage() {
     setCurrentYear(new Date().getFullYear())
   }
 
+  const goToPreviousDay = () => {
+    const prev = new Date(currentDay)
+    prev.setDate(prev.getDate() - 1)
+    setCurrentDay(prev)
+  }
+
+  const goToNextDay = () => {
+    const next = new Date(currentDay)
+    next.setDate(next.getDate() + 1)
+    setCurrentDay(next)
+  }
+
+  const goToToday = () => {
+    setCurrentDay(new Date())
+  }
+
   const isCurrentMonth = currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear()
+  const isCurrentDay = isToday(currentDay)
 
   const openNewEvent = (date?: Date) => {
     setShowNewEvent(true)
@@ -378,6 +400,15 @@ export default function AgendaPage() {
           {/* View toggle */}
           <div className="flex bg-gray-100 rounded-xl p-1">
             <button
+              onClick={() => setView('day')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                view === 'day' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Dag
+            </button>
+            <button
               onClick={() => setView('week')}
               className={cn(
                 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
@@ -406,17 +437,29 @@ export default function AgendaPage() {
       {/* Navigation */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={view === 'week' ? goToPreviousWeek : goToPreviousMonth} className="rounded-xl">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={view === 'day' ? goToPreviousDay : view === 'week' ? goToPreviousWeek : goToPreviousMonth}
+            className="rounded-xl"
+          >
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
             <Calendar className="h-5 w-5 text-gray-400" />
             <span className="text-lg font-semibold text-gray-900 capitalize">
-              {view === 'week'
+              {view === 'day'
+                ? currentDay.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                : view === 'week'
                 ? weekLabel
                 : new Date(currentYear, currentMonth).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })
               }
             </span>
+            {view === 'day' && !isCurrentDay && (
+              <Button variant="outline" size="sm" onClick={goToToday} className="rounded-lg text-xs">
+                Vandaag
+              </Button>
+            )}
             {view === 'week' && !isCurrentWeek && (
               <Button variant="outline" size="sm" onClick={goToCurrentWeek} className="rounded-lg text-xs">
                 Deze week
@@ -428,7 +471,12 @@ export default function AgendaPage() {
               </Button>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={view === 'week' ? goToNextWeek : goToNextMonth} className="rounded-xl">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={view === 'day' ? goToNextDay : view === 'week' ? goToNextWeek : goToNextMonth}
+            className="rounded-xl"
+          >
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
@@ -440,6 +488,184 @@ export default function AgendaPage() {
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
           <span className="ml-2 text-gray-500">Laden...</span>
         </div>
+      ) : view === 'day' ? (
+        (() => {
+          const dateStr = formatDateISO(currentDay)
+          const dayItems = (itemsByDate.get(dateStr) || []).slice().sort((a, b) => a.start_time.localeCompare(b.start_time))
+          const HOUR_START = 7
+          const HOUR_END = 22
+          const HOUR_HEIGHT = 64 // px per uur
+          const totalHours = HOUR_END - HOUR_START
+          const now = new Date()
+          const showNowLine = isCurrentDay
+          const nowTop = ((now.getHours() - HOUR_START) + now.getMinutes() / 60) * HOUR_HEIGHT
+
+          return (
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {/* Day header */}
+              <div className={cn(
+                'flex items-center justify-between px-5 py-3 border-b',
+                isCurrentDay ? 'bg-gray-900 border-gray-900' : 'bg-gray-50 border-gray-100'
+              )}>
+                <div>
+                  <div className={cn('text-xs font-medium uppercase tracking-wide', isCurrentDay ? 'text-gray-400' : 'text-gray-500')}>
+                    {currentDay.toLocaleDateString('nl-NL', { weekday: 'long' })}
+                  </div>
+                  <div className={cn('text-2xl font-bold', isCurrentDay ? 'text-white' : 'text-gray-900')}>
+                    {currentDay.getDate()} {currentDay.toLocaleDateString('nl-NL', { month: 'long' })}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={cn('text-sm', isCurrentDay ? 'text-gray-300' : 'text-gray-500')}>
+                    {dayItems.length} {dayItems.length === 1 ? 'afspraak' : 'afspraken'}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant={isCurrentDay ? 'outline' : 'default'}
+                    onClick={() => openNewEvent(currentDay)}
+                    className={cn('rounded-lg gap-1.5', isCurrentDay && 'bg-white/10 text-white border-white/20 hover:bg-white/20')}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Nieuw
+                  </Button>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="flex">
+                {/* Hour labels */}
+                <div className="w-16 flex-shrink-0 border-r border-gray-100 relative" style={{ height: totalHours * HOUR_HEIGHT }}>
+                  {Array.from({ length: totalHours + 1 }).map((_, i) => {
+                    const hour = HOUR_START + i
+                    return (
+                      <div
+                        key={hour}
+                        className="absolute right-2 text-[11px] text-gray-400 font-medium -translate-y-1/2"
+                        style={{ top: i * HOUR_HEIGHT }}
+                      >
+                        {String(hour).padStart(2, '0')}:00
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Events column */}
+                <div className="flex-1 relative" style={{ height: totalHours * HOUR_HEIGHT }}>
+                  {/* Hour grid lines */}
+                  {Array.from({ length: totalHours }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute left-0 right-0 border-t border-gray-100"
+                      style={{ top: i * HOUR_HEIGHT }}
+                    >
+                      <div className="absolute left-0 right-0 border-t border-dashed border-gray-100" style={{ top: HOUR_HEIGHT / 2 }} />
+                    </div>
+                  ))}
+
+                  {/* Now indicator */}
+                  {showNowLine && nowTop >= 0 && nowTop <= totalHours * HOUR_HEIGHT && (
+                    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: nowTop }}>
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shadow" />
+                        <div className="flex-1 h-[2px] bg-red-500" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Click layer for creating events at specific time */}
+                  <div className="absolute inset-0">
+                    {Array.from({ length: totalHours * 2 }).map((_, i) => {
+                      const hour = HOUR_START + Math.floor(i / 2)
+                      const minute = i % 2 === 0 ? '00' : '30'
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            openNewEvent(currentDay)
+                            setNewStartTime(`${String(hour).padStart(2, '0')}:${minute}`)
+                            setNewEndTime(`${String(hour + 1).padStart(2, '0')}:${minute}`)
+                          }}
+                          className="absolute left-0 right-0 hover:bg-gray-50/60 transition-colors"
+                          style={{ top: i * (HOUR_HEIGHT / 2), height: HOUR_HEIGHT / 2 }}
+                          aria-label={`Nieuwe afspraak om ${hour}:${minute}`}
+                        />
+                      )
+                    })}
+                  </div>
+
+                  {/* Events */}
+                  {dayItems.map(item => {
+                    const [sh, sm] = item.start_time.split(':').map(Number)
+                    const startMin = (sh - HOUR_START) * 60 + (sm || 0)
+                    let durMin = 60
+                    if (item.end_time) {
+                      const [eh, em] = item.end_time.split(':').map(Number)
+                      durMin = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0))
+                      if (durMin < 30) durMin = 30
+                    }
+                    const top = (startMin / 60) * HOUR_HEIGHT
+                    const height = (durMin / 60) * HOUR_HEIGHT - 4
+                    if (top < 0 || top > totalHours * HOUR_HEIGHT) return null
+                    const config = typeConfig[item.type] || typeConfig.other
+                    const Icon = config.icon
+                    const isCancelled = item.status === 'cancelled'
+                    const isCompleted = item.status === 'completed'
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedItem(item)}
+                        className={cn(
+                          'absolute left-2 right-3 rounded-xl border-l-4 p-2.5 text-left shadow-sm transition-all hover:shadow-md z-10 overflow-hidden',
+                          isCancelled && 'opacity-50 line-through',
+                          isCompleted ? 'bg-emerald-50 border-emerald-500 hover:bg-emerald-100' : `bg-white border-gray-900 hover:bg-gray-50`,
+                          selectedItem?.id === item.id && 'ring-2 ring-gray-900'
+                        )}
+                        style={{ top, height: Math.max(height, 32) }}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className={cn('w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5', config.bg)}>
+                            <Icon className={cn('h-3 w-3', config.color)} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-gray-900 text-sm truncate">{item.title}</div>
+                            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
+                              <Clock className="h-2.5 w-2.5" />
+                              {formatTime(item.start_time)}
+                              {item.end_time && ` — ${formatTime(item.end_time)}`}
+                              {item.assigned_to && <><span>·</span><span>{item.assigned_to}</span></>}
+                            </div>
+                            {item.location && height > 60 && (
+                              <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 truncate">
+                                <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
+                                <span className="truncate">{item.location}</span>
+                              </div>
+                            )}
+                            {item.lead && height > 80 && (
+                              <div className="flex items-center gap-1 text-[11px] text-gray-600 mt-0.5 truncate">
+                                <Building2 className="h-2.5 w-2.5 flex-shrink-0" />
+                                <span className="truncate">{item.lead.company_name}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+
+                  {dayItems.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <Calendar className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+                        <p className="text-sm text-gray-400">Geen afspraken vandaag</p>
+                        <p className="text-xs text-gray-300 mt-1">Klik op een tijdslot om er een in te plannen</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })()
       ) : view === 'week' ? (
         <div className="grid grid-cols-7 gap-3">
           {weekDays.map(day => {
