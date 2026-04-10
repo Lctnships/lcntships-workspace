@@ -306,7 +306,7 @@ export default function ContentPage() {
     }
     setBriefShootDate(''); setBriefAssignedTo(''); setBriefSharedWith('')
     setBriefCallTime(''); setBriefEndTime('')
-    setBriefContactPerson('Rivaldo'); setBriefContactPhone('+31 6 12345678')
+    setBriefContactPerson(''); setBriefContactPhone('')
     setShowBriefModal(true)
   }
 
@@ -326,8 +326,8 @@ export default function ContentPage() {
     setBriefSharedWith((brief.shared_with || []).join(', '))
     setBriefCallTime(brief.call_time || '')
     setBriefEndTime(brief.end_time || '')
-    setBriefContactPerson(brief.contact_person || 'Rivaldo')
-    setBriefContactPhone(brief.contact_phone || '+31 6 12345678')
+    setBriefContactPerson(brief.contact_person || '')
+    setBriefContactPhone(brief.contact_phone || '')
     setShowBriefModal(true)
   }
 
@@ -353,6 +353,15 @@ export default function ContentPage() {
         await supabase.from('content_briefs' as never).insert({ ...data, status: 'draft' } as never)
       }
       await loadData()
+      // Refresh selectedBrief zodat download de nieuwe data gebruikt
+      if (editingBrief) {
+        const { data: fresh } = await supabase
+          .from('content_briefs' as never)
+          .select('*')
+          .eq('id' as never, editingBrief.id as never)
+          .single()
+        if (fresh) setSelectedBrief(fresh as unknown as ContentBrief)
+      }
       setShowBriefModal(false)
     } finally { setSaving(false) }
   }
@@ -447,17 +456,17 @@ ${studio ? `<div class="contact-block">
   </div>
 </div>` : ''}
 
-<div class="contact-block callsheet">
+${(brief.contact_person || brief.contact_phone || brief.call_time || brief.end_time || brief.shoot_date) ? `<div class="contact-block callsheet">
   <h3>Call Sheet</h3>
   <div class="contact-grid">
-    <div class="contact-item"><span class="label">Contact</span> ${brief.contact_person || 'Rivaldo'}</div>
-    <div class="contact-item"><span class="label">Phone</span> <a href="tel:${brief.contact_phone || '+31 6 12345678'}">${brief.contact_phone || '+31 6 12345678'}</a></div>
-    <div class="contact-item"><span class="label">Call Time</span> ${brief.call_time || '—'}</div>
-    <div class="contact-item"><span class="label">End Time</span> ${brief.end_time || '—'}</div>
+    ${brief.contact_person ? `<div class="contact-item"><span class="label">Contact</span> ${brief.contact_person}</div>` : ''}
+    ${brief.contact_phone ? `<div class="contact-item"><span class="label">Phone</span> <a href="tel:${brief.contact_phone}">${brief.contact_phone}</a></div>` : ''}
+    ${brief.call_time ? `<div class="contact-item"><span class="label">Call Time</span> ${brief.call_time}</div>` : ''}
+    ${brief.end_time ? `<div class="contact-item"><span class="label">End Time</span> ${brief.end_time}</div>` : ''}
     ${brief.shoot_date ? `<div class="contact-item"><span class="label">Date</span> ${format(new Date(brief.shoot_date + 'T12:00:00'), 'EEE, MMM d, yyyy')}</div>` : ''}
     ${studio?.address ? `<div class="contact-item"><span class="label">Location</span> ${studio.address}${studio.city ? ', ' + studio.city : ''}</div>` : ''}
   </div>
-</div>
+</div>` : ''}
 
 <div class="meta">
   <div class="meta-item"><span class="meta-label">Type</span><span class="meta-value">${ct?.label || '—'}</span></div>
