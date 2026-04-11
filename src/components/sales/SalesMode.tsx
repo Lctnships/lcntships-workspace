@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -129,8 +129,13 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [loadingEmails, setLoadingEmails] = useState(false)
   const [notes, setNotes] = useState('')
-  const [editingNotes, setEditingNotes] = useState(false)
   const [savingNotes, setSavingNotes] = useState(false)
+  const [notesStatus, setNotesStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  // Refs so flushNotes() always sees the latest values, independent of stale closures.
+  const notesRef = useRef('')
+  const lastSavedNotesRef = useRef('')
+  const currentLeadIdRef = useRef<string | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [sessionStats, setSessionStats] = useState<SessionStats>({
     reviewed: 0,
     statusChanges: 0,
@@ -170,7 +175,10 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
     setLoadingEmails(true)
     setLoadingActivities(true)
     setNotes(lead.notes || '')
-    setEditingNotes(false)
+    notesRef.current = lead.notes || ''
+    lastSavedNotesRef.current = lead.notes || ''
+    currentLeadIdRef.current = lead.id
+    setNotesStatus('idle')
     setShowQuickNote(false)
     setQuickNoteText('')
 
@@ -212,6 +220,42 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
     }
   }, [])
 
+  // Save the current notes value to the DB if it differs from the last saved
+  // version. Safe to call any number of times and from any action (auto-save,
+  // navigation, approval, exit). Uses refs so it always reads the freshest
+  // value, independent of stale closures.
+  const flushNotes = useCallback(async (): Promise<string | null> => {
+    const leadId = currentLeadIdRef.current
+    if (!leadId) return null
+    const pending = notesRef.current
+    if (pending === lastSavedNotesRef.current) return pending
+    // Cancel any pending debounced save — we're saving right now.
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+    setSavingNotes(true)
+    setNotesStatus('saving')
+    try {
+      const updated = await salesLeadsApi.update(leadId, { notes: pending })
+      // Only propagate if the user hasn't moved to a different lead in the
+      // meantime (prevents overwriting another lead's state).
+      if (currentLeadIdRef.current === leadId) {
+        lastSavedNotesRef.current = pending
+        onLeadUpdate(updated)
+        setNotesStatus('saved')
+        setSessionStats(s => ({ ...s, notesEdited: s.notesEdited + 1 }))
+      }
+      return pending
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      setNotesStatus('error')
+      return null
+    } finally {
+      setSavingNotes(false)
+    }
+  }, [onLeadUpdate])
+
   useEffect(() => {
     if (currentLead) {
       loadLeadData(currentLead)
@@ -226,6 +270,30 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
       })
     }
   }, [currentIndex, currentLead, loadLeadData])
+
+  // Debounced auto-save: 800ms after the user stops typing, persist the
+  // pending note. Safe against navigation because flushNotes() is idempotent
+  // and checks the current lead id.
+  useEffect(() => {
+    if (notes === lastSavedNotesRef.current) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      void flushNotes()
+    }, 800)
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
+    }
+  }, [notes, flushNotes])
+
+  // Best-effort flush when the component unmounts (e.g. user exits sales mode).
+  useEffect(() => {
+    return () => {
+      void flushNotes()
+    }
+  }, [flushNotes])
 
   // Keyboard navigation
   useEffect(() => {
@@ -249,25 +317,30 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
     return () => window.removeEventListener('keydown', handleKeyDown)
   })
 
-  const goNext = () => {
+  const goNext = async () => {
     if (currentIndex < leads.length - 1) {
+      await flushNotes()
       setCurrentIndex(currentIndex + 1)
     }
   }
 
-  const goPrev = () => {
+  const goPrev = async () => {
     if (currentIndex > 0) {
+      await flushNotes()
       setCurrentIndex(currentIndex - 1)
     }
   }
 
-  const handleExit = () => {
+  const handleExit = async () => {
+    await flushNotes()
     onExit(sessionStats)
   }
 
   const handleStatusChange = async (newStatus: string) => {
     if (!currentLead || currentLead.status === newStatus) return
     const oldStatus = currentLead.status
+    // Make sure any pending note is persisted before we issue the next update.
+    await flushNotes()
     try {
       const updated = await salesLeadsApi.update(currentLead.id, { status: newStatus as SalesLead['status'] })
       onLeadUpdate(updated)
@@ -281,18 +354,29 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
 
   const handleApproval = async (approval: 'approved' | 'rejected' | 'pending') => {
     if (!currentLead) return
-    // Store approval in notes with a tag pattern, or we could use a separate field
-    // For now, we use a metadata prefix in notes
     const currentApproval = getApproval(currentLead)
     if (currentApproval === approval) return
 
+    // Use the LOCAL notes state (including any unsaved edits) as the source of
+    // truth, not currentLead.notes — otherwise approving would clobber the
+    // user's in-flight note edits.
     try {
-      // Store approval tag in the lead's notes metadata
-      const cleanNotes = (currentLead.notes || '').replace(/\[APPROVAL:(approved|rejected|pending)\]\s*/g, '')
-      const newNotes = `[APPROVAL:${approval}] ${cleanNotes}`.trim()
+      const pending = notesRef.current
+      const cleanNotes = pending.replace(/\[APPROVAL:(approved|rejected|pending)\]\s*/g, '')
+      const newNotes = approval !== 'pending'
+        ? `[APPROVAL:${approval}] ${cleanNotes}`.trim()
+        : cleanNotes.trim()
+      // Cancel any pending debounced save so we don't race with the approval save.
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
       const updated = await salesLeadsApi.update(currentLead.id, { notes: newNotes })
       onLeadUpdate(updated)
       setNotes(newNotes)
+      notesRef.current = newNotes
+      lastSavedNotesRef.current = newNotes
+      setNotesStatus('saved')
       setSessionStats(s => ({
         ...s,
         approved: s.approved + (approval === 'approved' ? 1 : 0),
@@ -300,30 +384,11 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
       }))
     } catch (error) {
       console.error('Error updating approval:', error)
+      setNotesStatus('error')
     }
   }
 
-  const handleSaveNotes = async () => {
-    if (!currentLead) return
-    setSavingNotes(true)
-    try {
-      // Preserve the approval tag
-      const approval = getApproval(currentLead)
-      const cleanInput = notes.replace(/\[APPROVAL:(approved|rejected|pending)\]\s*/g, '').trim()
-      const finalNotes = approval !== 'pending'
-        ? `[APPROVAL:${approval}] ${cleanInput}`.trim()
-        : cleanInput
-      const updated = await salesLeadsApi.update(currentLead.id, { notes: finalNotes })
-      onLeadUpdate(updated)
-      setNotes(finalNotes)
-      setEditingNotes(false)
-      setSessionStats(s => ({ ...s, notesEdited: s.notesEdited + 1 }))
-    } catch (error) {
-      console.error('Error saving notes:', error)
-    } finally {
-      setSavingNotes(false)
-    }
-  }
+  const handleSaveNotes = flushNotes
 
   const handleSendEmail = async () => {
     if (!emailTo.trim() || !emailSubject || !emailMessage) return
@@ -685,49 +750,43 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
                 )}
               </div>
 
-              {/* Notes */}
+              {/* Notes — always editable, auto-saves on blur + debounced while typing */}
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-gray-400" />
                     <h2 className="font-semibold text-gray-900">Notities</h2>
                   </div>
-                  {!editingNotes ? (
-                    <Button variant="outline" size="sm" onClick={() => { setEditingNotes(true); setNotes(currentLead.notes || '') }}>
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      Notitie toevoegen
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => { setEditingNotes(false); setNotes(currentLead.notes || '') }}>
-                        Annuleren
-                      </Button>
-                      <Button size="sm" onClick={handleSaveNotes} disabled={savingNotes}>
-                        {savingNotes ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                        Opslaan
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 text-xs">
+                    {notesStatus === 'saving' && (
+                      <span className="flex items-center gap-1.5 text-gray-500">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Opslaan...
+                      </span>
+                    )}
+                    {notesStatus === 'saved' && (
+                      <span className="text-green-600">Opgeslagen</span>
+                    )}
+                    {notesStatus === 'error' && (
+                      <span className="text-red-600">Opslaan mislukt — klik om opnieuw te proberen</span>
+                    )}
+                  </div>
                 </div>
 
-                {editingNotes ? (
-                  <textarea
-                    value={editableNotes}
-                    onChange={(e) => {
-                      // Preserve approval tag when editing
-                      const approvalVal = getApproval(currentLead)
-                      const prefix = approvalVal !== 'pending' ? `[APPROVAL:${approvalVal}] ` : ''
-                      setNotes(prefix + e.target.value)
-                    }}
-                    className="w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none min-h-[120px] text-gray-700"
-                    placeholder="Voeg notities toe over deze lead..."
-                    autoFocus
-                  />
-                ) : (
-                  <div className="text-gray-600 whitespace-pre-wrap min-h-[60px]">
-                    {displayNotes || <span className="text-gray-400 italic">Geen notities</span>}
-                  </div>
-                )}
+                <textarea
+                  value={editableNotes}
+                  onChange={(e) => {
+                    const approvalVal = getApproval(currentLead)
+                    const prefix = approvalVal !== 'pending' ? `[APPROVAL:${approvalVal}] ` : ''
+                    const next = prefix + e.target.value
+                    setNotes(next)
+                    notesRef.current = next
+                    if (notesStatus !== 'saving') setNotesStatus('idle')
+                  }}
+                  onBlur={() => { void flushNotes() }}
+                  className="w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none min-h-[120px] text-gray-700"
+                  placeholder="Voeg notities toe over deze lead... (slaat automatisch op)"
+                />
               </div>
 
               {/* Email History */}
