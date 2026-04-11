@@ -931,13 +931,40 @@ interface LeadDetailProps {
   onEdit: () => void
   onDelete: () => void
   onStatusChange: (status: SalesLead['status']) => void
-  onNotesChange: (notes: string) => void
+  onNotesChange: (notes: string) => Promise<void>
 }
 
 function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, onNotesChange }: LeadDetailProps) {
   const statusColors = getStatusColor(lead.status)
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesValue, setNotesValue] = useState(lead.notes || '')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [notesError, setNotesError] = useState<string | null>(null)
+
+  // Sync local notes state when the selected lead changes or when the
+  // parent refreshes the lead after an edit elsewhere. Without this, the
+  // textarea would show a stale value from a previously viewed lead.
+  useEffect(() => {
+    setNotesValue(lead.notes || '')
+    setEditingNotes(false)
+    setNotesError(null)
+  }, [lead.id, lead.notes])
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true)
+    setNotesError(null)
+    try {
+      await onNotesChange(notesValue)
+      setEditingNotes(false)
+    } catch (err) {
+      console.error('Error updating notes:', err)
+      setNotesError(
+        err instanceof Error ? err.message : 'Notities opslaan mislukt. Probeer het opnieuw.'
+      )
+    } finally {
+      setSavingNotes(false)
+    }
+  }
 
   return (
     <div className="animate-fade-in">
@@ -1112,17 +1139,29 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
                 <h2 className="font-semibold text-gray-900">Notities</h2>
               </div>
               {editingNotes ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onNotesChange(notesValue)
-                    setEditingNotes(false)
-                  }}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Opslaan
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={savingNotes}
+                    onClick={() => {
+                      setNotesValue(lead.notes || '')
+                      setEditingNotes(false)
+                      setNotesError(null)
+                    }}
+                  >
+                    Annuleren
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={savingNotes}
+                    onClick={handleSaveNotes}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {savingNotes ? 'Opslaan...' : 'Opslaan'}
+                  </Button>
+                </div>
               ) : (
                 <Button
                   variant="outline"
@@ -1130,6 +1169,7 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
                   onClick={() => {
                     setNotesValue(lead.notes || '')
                     setEditingNotes(true)
+                    setNotesError(null)
                   }}
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
@@ -1138,12 +1178,24 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
               )}
             </div>
             {editingNotes ? (
-              <textarea
-                value={notesValue}
-                onChange={(e) => setNotesValue(e.target.value)}
-                className="w-full min-h-[120px] p-3 rounded-xl border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
-                placeholder="Voeg notities toe..."
-              />
+              <>
+                <textarea
+                  value={notesValue}
+                  onChange={(e) => setNotesValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault()
+                      handleSaveNotes()
+                    }
+                  }}
+                  disabled={savingNotes}
+                  className="w-full min-h-[120px] p-3 rounded-xl border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y disabled:opacity-60"
+                  placeholder="Voeg notities toe... (⌘+Enter om op te slaan)"
+                />
+                {notesError && (
+                  <p className="mt-2 text-sm text-red-600">{notesError}</p>
+                )}
+              </>
             ) : (
               <p className="text-gray-600 whitespace-pre-wrap">
                 {lead.notes || 'Geen notities. Klik op Bewerken om notities toe te voegen.'}
@@ -1307,15 +1359,12 @@ export default function SalesPage() {
   }
 
   const handleNotesChange = async (leadId: string, notes: string) => {
-    try {
-      await salesLeadsApi.update(leadId, { notes })
-      setLeads(leads.map(l => l.id === leadId ? { ...l, notes } : l))
-      if (selectedLead?.id === leadId) {
-        setSelectedLead({ ...selectedLead, notes })
-      }
-    } catch (error) {
-      console.error('Error updating notes:', error)
-    }
+    // Let errors bubble up so the caller can show feedback and keep the
+    // editor open if the save fails. Use functional setters to avoid stale
+    // closures when multiple saves happen in quick succession.
+    await salesLeadsApi.update(leadId, { notes })
+    setLeads(prev => prev.map(l => (l.id === leadId ? { ...l, notes } : l)))
+    setSelectedLead(prev => (prev && prev.id === leadId ? { ...prev, notes } : prev))
   }
 
   const handleDeleteLead = async (leadId: string) => {
