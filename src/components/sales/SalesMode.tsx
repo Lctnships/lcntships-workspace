@@ -160,7 +160,7 @@ export function SalesMode({ leads, initialIndex = 0, onExit, onLeadUpdate }: Sal
 
   const senderProfiles = {
     rivaldo: { name: 'Rivaldo van lcntships', email: 'rivaldomacandrew@lctnships.com' },
-    uriel: { name: 'Uriel van lcntships', email: 'Uriel@lctnships.com' },
+    uriel: { name: 'Uriel van lcntships', email: 'uriel@lctnships.com' },
   }
 
   const currentLead = leads[currentIndex]

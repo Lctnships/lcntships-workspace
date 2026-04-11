@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/api-auth'
 
 const ALLOWED_FROM_ADDRESSES = [
   'Rivaldo van lcntships <rivaldomacandrew@lctnships.com>',
-  'Uriel van lcntships <Uriel@lctnships.com>',
+  'Uriel van lcntships <uriel@lctnships.com>',
   'Rivaldo Mac Andrew <rivaldomacandrew@lctnships.com>',
   'lcntships <team@lcntships.com>',
 ]

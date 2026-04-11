@@ -155,7 +155,7 @@ const followUpTemplates: EmailTemplate[] = [
 
 const senderOptions = [
   { email: 'rivaldomacandrew@lctnships.com', name: 'Rivaldo', label: 'Rivaldo Mac Andrew' },
-  { email: 'Uriel@lctnships.com', name: 'Uriel', label: 'Uriel' },
+  { email: 'uriel@lctnships.com', name: 'Uriel', label: 'Uriel' },
 ]
 
 function formatDate(date: Date): string {
