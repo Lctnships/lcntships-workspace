@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { workspaceDb } from '@/lib/supabase/workspace'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -8,11 +9,11 @@ export async function GET() {
   const supabase = createClient(supabaseUrl, supabaseKey)
 
   try {
-    // Try admin API first (requires service role key)
+    // Try admin API first (requires service role key on public DB for auth.admin)
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const { data: { users }, error } = await supabase.auth.admin.listUsers()
       if (!error) {
-        const { data: roles } = await supabase.from('team_members').select('user_id, role, full_name')
+        const { data: roles } = await workspaceDb.from('team_members').select('user_id, role, full_name')
         const roleMap = new Map((roles || []).map(r => [r.user_id, r]))
 
         const members = users.map(user => {
@@ -31,7 +32,7 @@ export async function GET() {
     }
 
     // Fallback: read from team_members table only
-    const { data: members, error } = await supabase
+    const { data: members, error } = await workspaceDb
       .from('team_members')
       .select('*')
       .order('created_at', { ascending: true })

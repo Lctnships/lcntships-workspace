@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { supabase, salesLeadsApi, type SalesLead } from '@/lib/supabase'
+import { salesLeadsApi, type SalesLead } from '@/lib/supabase'
+import { workspaceClient } from '@/lib/workspace-client'
 
 interface CampaignSelectLeadsProps {
   onNext: (selectedLeads: SalesLead[]) => void
@@ -68,7 +69,7 @@ export function CampaignSelectLeads({ onNext, onCancel }: CampaignSelectLeadsPro
       try {
         const [leadsData, sentData] = await Promise.all([
           salesLeadsApi.getAll(),
-          supabase.from('sent_emails').select('lead_id, sent_at').order('sent_at', { ascending: false }).then(res => res.data || []),
+          workspaceClient.from<{lead_id: string; sent_at: string}[]>('sent_emails').select('lead_id, sent_at').order('sent_at', { ascending: false }).then(res => res.data || []),
         ])
         const leadsWithEmail = leadsData.filter(lead => lead.email)
         setLeads(leadsWithEmail)

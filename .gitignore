@@ -42,3 +42,8 @@ next-env.d.ts
 
 # SonarQube/SonarCloud
 .scannerwork/
+
+# playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/

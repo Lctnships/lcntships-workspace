@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { workspaceDb } from '@/lib/supabase/workspace'
 
 interface EmailAccountRow {
   id: string
@@ -21,11 +22,11 @@ export async function GET() {
     return NextResponse.json({ accounts: [] })
   }
 
-  const { data, error } = await supabase
-    .from('email_accounts' as never)
+  const { data, error } = await workspaceDb
+    .from('email_accounts')
     .select('*')
-    .eq('user_id' as never, user.id)
-    .order('created_at' as never, { ascending: true })
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
 
   if (error) {
     console.error('[EMAIL ACCOUNTS]', error)

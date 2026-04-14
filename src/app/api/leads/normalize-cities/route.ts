@@ -1,16 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { workspaceDb as supabase } from '@/lib/supabase/workspace'
 
 export async function POST() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey)
 
     // 1. Get all leads with a city value
     const { data: leads, error } = await supabase

@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-const supabaseAdmin = supabaseUrl && (serviceKey || anonKey)
-  ? createClient(supabaseUrl, (serviceKey || anonKey)!)
-  : null
+import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
 
 const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
 
@@ -51,10 +43,6 @@ function verifySignature(rawBody: string, headers: Headers): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'DB not configured' }, { status: 500 })
-    }
-
     const rawBody = await request.text()
     if (!verifySignature(rawBody, request.headers)) {
       console.warn('[resend webhook] signature verification failed')

@@ -32,7 +32,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { supabase, SalesLead } from '@/lib/supabase'
+import { SalesLead } from '@/lib/supabase'
+import { workspaceClient as supabase } from '@/lib/workspace-client'
 
 type SortField = 'company_name' | 'city' | 'status' | 'enriched'
 type SortDir = 'asc' | 'desc'

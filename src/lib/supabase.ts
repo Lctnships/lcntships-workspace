@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { workspaceClient } from './workspace-client'
 
 // Use placeholder values during build when env vars are not available
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
@@ -309,7 +310,7 @@ export const customersApi = {
   async getAll() {
     try {
       // First try customers table
-      const { data: customersData, error: customersError } = await supabase
+      const { data: customersData, error: customersError } = await workspaceClient
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false })
@@ -353,7 +354,7 @@ export const customersApi = {
   async getById(id: string) {
     try {
       // Try customers table first
-      const { data: customerData, error: customerError } = await supabase
+      const { data: customerData, error: customerError } = await workspaceClient
         .from('customers')
         .select('*')
         .eq('id', id)
@@ -395,7 +396,7 @@ export const customersApi = {
 
   async create(customer: Partial<Customer>) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await workspaceClient
         .from('customers')
         .insert(customer)
         .select()
@@ -411,7 +412,7 @@ export const customersApi = {
 
   async update(id: string, customer: Partial<Customer>) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await workspaceClient
         .from('customers')
         .update(customer)
         .eq('id', id)
@@ -428,7 +429,7 @@ export const customersApi = {
 
   async delete(id: string) {
     try {
-      const { error } = await supabase
+      const { error } = await workspaceClient
         .from('customers')
         .delete()
         .eq('id', id)
@@ -604,7 +605,7 @@ export const transactionsApi = {
 // Sales Leads API functions
 export const salesLeadsApi = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sales_leads')
       .select('*')
       .order('created_at', { ascending: false })
@@ -614,7 +615,7 @@ export const salesLeadsApi = {
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sales_leads')
       .select('*')
       .eq('id', id)
@@ -625,7 +626,7 @@ export const salesLeadsApi = {
   },
 
   async create(lead: Partial<SalesLead>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sales_leads')
       .insert(lead)
       .select()
@@ -636,7 +637,7 @@ export const salesLeadsApi = {
   },
 
   async update(id: string, lead: Partial<SalesLead>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sales_leads')
       .update(lead)
       .eq('id', id)
@@ -648,7 +649,7 @@ export const salesLeadsApi = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('sales_leads')
       .delete()
       .eq('id', id)
@@ -657,7 +658,7 @@ export const salesLeadsApi = {
   },
 
   async createMany(leads: Partial<SalesLead>[]) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sales_leads')
       .insert(leads)
       .select()
@@ -670,7 +671,7 @@ export const salesLeadsApi = {
 // Lead Contacts API functions
 export const leadContactsApi = {
   async getByLeadId(leadId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('lead_contacts')
       .select('*')
       .eq('lead_id', leadId)
@@ -682,7 +683,7 @@ export const leadContactsApi = {
   },
 
   async create(contact: Partial<LeadContact>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('lead_contacts')
       .insert(contact)
       .select()
@@ -693,7 +694,7 @@ export const leadContactsApi = {
   },
 
   async update(id: string, contact: Partial<LeadContact>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('lead_contacts')
       .update(contact)
       .eq('id', id)
@@ -705,7 +706,7 @@ export const leadContactsApi = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('lead_contacts')
       .delete()
       .eq('id', id)
@@ -714,7 +715,7 @@ export const leadContactsApi = {
   },
 
   async createMany(contacts: Partial<LeadContact>[]) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('lead_contacts')
       .insert(contacts)
       .select()
@@ -980,7 +981,7 @@ export const analyticsApi = {
     ] = await Promise.all([
       supabase.from('bookings').select('*', { count: 'exact', head: true }),
       supabase.from('studios').select('*', { count: 'exact', head: true }),
-      supabase.from('customers').select('*', { count: 'exact', head: true }),
+      workspaceClient.from('customers').select('*', { count: 'exact', head: true }),
       supabase.from('bookings').select('subtotal'),
     ])
 
@@ -1179,7 +1180,7 @@ export interface EmailTracking {
 // Email Accounts API
 export const emailAccountsApi = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_accounts')
       .select('*')
       .order('created_at', { ascending: false })
@@ -1189,7 +1190,7 @@ export const emailAccountsApi = {
   },
 
   async create(account: Partial<EmailAccount>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_accounts')
       .insert(account)
       .select()
@@ -1200,7 +1201,7 @@ export const emailAccountsApi = {
   },
 
   async update(id: string, account: Partial<EmailAccount>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_accounts')
       .update(account)
       .eq('id', id)
@@ -1212,7 +1213,7 @@ export const emailAccountsApi = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('email_accounts')
       .delete()
       .eq('id', id)
@@ -1224,7 +1225,7 @@ export const emailAccountsApi = {
 // Emails API
 export const emailsApi = {
   async getByFolder(accountId: string, folder: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('emails')
       .select('*')
       .eq('account_id', accountId)
@@ -1236,7 +1237,7 @@ export const emailsApi = {
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('emails')
       .select('*')
       .eq('id', id)
@@ -1247,7 +1248,7 @@ export const emailsApi = {
   },
 
   async create(email: Partial<Email>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('emails')
       .insert(email)
       .select()
@@ -1258,7 +1259,7 @@ export const emailsApi = {
   },
 
   async update(id: string, email: Partial<Email>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('emails')
       .update(email)
       .eq('id', id)
@@ -1282,7 +1283,7 @@ export const emailsApi = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('emails')
       .delete()
       .eq('id', id)
@@ -1294,7 +1295,7 @@ export const emailsApi = {
 // Email Templates API
 export const emailTemplatesApi = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_templates')
       .select('*')
       .order('created_at', { ascending: false })
@@ -1304,7 +1305,7 @@ export const emailTemplatesApi = {
   },
 
   async create(template: Partial<EmailTemplate>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_templates')
       .insert(template)
       .select()
@@ -1315,7 +1316,7 @@ export const emailTemplatesApi = {
   },
 
   async update(id: string, template: Partial<EmailTemplate>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_templates')
       .update(template)
       .eq('id', id)
@@ -1327,7 +1328,7 @@ export const emailTemplatesApi = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('email_templates')
       .delete()
       .eq('id', id)
@@ -1339,7 +1340,7 @@ export const emailTemplatesApi = {
 // Email Sequences API
 export const emailSequencesApi = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_sequences')
       .select(`
         *,
@@ -1352,7 +1353,7 @@ export const emailSequencesApi = {
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_sequences')
       .select(`
         *,
@@ -1367,7 +1368,7 @@ export const emailSequencesApi = {
   },
 
   async create(sequence: Partial<EmailSequence>, emails: Partial<SequenceEmail>[]) {
-    const { data: sequenceData, error: sequenceError } = await supabase
+    const { data: sequenceData, error: sequenceError } = await workspaceClient
       .from('email_sequences')
       .insert(sequence)
       .select()
@@ -1376,7 +1377,7 @@ export const emailSequencesApi = {
     if (sequenceError) throw sequenceError
 
     if (emails.length > 0) {
-      const { error: emailsError } = await supabase
+      const { error: emailsError } = await workspaceClient
         .from('sequence_emails')
         .insert(emails.map((e, i) => ({
           ...e,
@@ -1391,7 +1392,7 @@ export const emailSequencesApi = {
   },
 
   async update(id: string, sequence: Partial<EmailSequence>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_sequences')
       .update(sequence)
       .eq('id', id)
@@ -1403,7 +1404,7 @@ export const emailSequencesApi = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('email_sequences')
       .delete()
       .eq('id', id)
@@ -1413,7 +1414,7 @@ export const emailSequencesApi = {
 
   // Sequence Emails
   async addSequenceEmail(sequenceEmail: Partial<SequenceEmail>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sequence_emails')
       .insert(sequenceEmail)
       .select()
@@ -1424,7 +1425,7 @@ export const emailSequencesApi = {
   },
 
   async updateSequenceEmail(id: string, sequenceEmail: Partial<SequenceEmail>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sequence_emails')
       .update(sequenceEmail)
       .eq('id', id)
@@ -1436,7 +1437,7 @@ export const emailSequencesApi = {
   },
 
   async deleteSequenceEmail(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('sequence_emails')
       .delete()
       .eq('id', id)
@@ -1446,7 +1447,7 @@ export const emailSequencesApi = {
 
   // Enrollments
   async enrollLead(sequenceId: string, leadId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sequence_enrollments')
       .insert({
         sequence_id: sequenceId,
@@ -1462,7 +1463,7 @@ export const emailSequencesApi = {
   },
 
   async getEnrollments(sequenceId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sequence_enrollments')
       .select(`
         *,
@@ -1475,7 +1476,7 @@ export const emailSequencesApi = {
   },
 
   async updateEnrollment(id: string, enrollment: Partial<SequenceEnrollment>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('sequence_enrollments')
       .update(enrollment)
       .eq('id', id)
@@ -1716,7 +1717,7 @@ export const contractsApi = {
 // Email Tracking API
 export const emailTrackingApi = {
   async trackOpen(emailId: string, ipAddress?: string, userAgent?: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('email_tracking')
       .insert({
         email_id: emailId,
@@ -1729,7 +1730,7 @@ export const emailTrackingApi = {
   },
 
   async trackClick(emailId: string, linkUrl: string, ipAddress?: string, userAgent?: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('email_tracking')
       .insert({
         email_id: emailId,
@@ -1743,7 +1744,7 @@ export const emailTrackingApi = {
   },
 
   async getStats(emailId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('email_tracking')
       .select('*')
       .eq('email_id', emailId)

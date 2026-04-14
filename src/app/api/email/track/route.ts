@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Only create client if env vars are available
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-const supabaseAdmin = supabaseUrl && serviceKey 
-  ? createClient(supabaseUrl, serviceKey)
-  : null
+import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
 
 // 1x1 transparent GIF
 const TRACKING_PIXEL = Buffer.from(
@@ -31,7 +23,7 @@ export async function GET(request: NextRequest) {
     const userAgent = request.headers.get('user-agent') || 'unknown'
 
     // Track in database (if configured)
-    if (type === 'open' && supabaseAdmin) {
+    if (type === 'open') {
       await supabaseAdmin.from('email_tracking').insert({
         email_id: emailId,
         tracking_type: 'open',
@@ -50,7 +42,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    if (type === 'click' && linkUrl && supabaseAdmin) {
+    if (type === 'click' && linkUrl) {
       // Validate URL to prevent open redirect attacks (OWASP A07)
       let parsedUrl: URL
       try {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/api-auth'
+import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
 
 const ALLOWED_FROM_ADDRESSES = [
   'Rivaldo van lcntships <rivaldomacandrew@lctnships.com>',
@@ -12,14 +12,6 @@ const ALLOWED_FROM_ADDRESSES = [
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-const supabaseAdmin = supabaseUrl && (serviceKey || anonKey)
-  ? createClient(supabaseUrl, (serviceKey || anonKey)!)
-  : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,7 +78,7 @@ export async function POST(request: NextRequest) {
     const fromEmail = fromMatch ? fromMatch[2].trim() : fromAddress
 
     // Save to sent_emails table with Resend message ID — always, so Verzonden shows it
-    if (supabaseAdmin) {
+    {
       const { error: dbError } = await supabaseAdmin.from('sent_emails').insert({
         lead_id: leadId || null,
         user_id: user.id,

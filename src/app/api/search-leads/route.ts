@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { workspaceDb as supabase } from '@/lib/supabase/workspace'
 
 const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   'Amsterdam': { lat: 52.3676, lng: 4.9041 },

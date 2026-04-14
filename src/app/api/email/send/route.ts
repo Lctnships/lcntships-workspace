@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
 import { render } from '@react-email/render'
 import CampaignEmail from '@/emails/CampaignEmail'
+import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
-
-// Initialize Supabase client (service role preferred, anon key as fallback)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-const supabaseAdmin = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey)
-  : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to sent_emails table so email shows up in Verzonden folder
-    if (supabaseAdmin) {
+    {
       const { error: dbError } = await supabaseAdmin.from('sent_emails').insert({
         lead_id: trackId || null,
         subject,

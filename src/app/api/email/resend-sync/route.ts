@@ -1,24 +1,16 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/api-auth'
+import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-const supabaseAdmin = supabaseUrl && (serviceKey || anonKey)
-  ? createClient(supabaseUrl, (serviceKey || anonKey)!)
-  : null
 
 export async function GET() {
   const { error: authError } = await requireAuth()
   if (authError) return authError
   try {
-    if (!resend || !supabaseAdmin) {
+    if (!resend) {
       return NextResponse.json(
         { error: 'Services not configured' },
         { status: 500 }
@@ -113,7 +105,7 @@ export async function POST() {
   if (authError2) return authError2
 
   try {
-    if (!resend || !supabaseAdmin) {
+    if (!resend) {
       return NextResponse.json(
         { error: 'Services not configured' },
         { status: 500 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { workspaceDb } from '@/lib/supabase/workspace'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -38,7 +39,7 @@ export async function GET() {
     }
 
     // Pull from our DB so we always have the body + full context
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await workspaceDb
       .from('sent_emails')
       .select('id, lead_id, subject, body, sent_at, status, resend_id, delivery_status, last_event, to_email, to_name, from_email, from_name')
       .order('sent_at', { ascending: false })
@@ -58,7 +59,7 @@ export async function GET() {
 
     const leadMap = new Map<string, LeadLite>()
     if (leadIds.length > 0) {
-      const { data: leads } = await supabaseAdmin
+      const { data: leads } = await workspaceDb
         .from('sales_leads')
         .select('id, email, company_name, contact_name')
         .in('id', leadIds)

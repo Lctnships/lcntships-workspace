@@ -183,7 +183,7 @@ export default function DashboardPage() {
           setUserName(profile.full_name.split(' ')[0])
         }
       } catch (err) {
-        console.error('Failed to load dashboard data:', err)
+        console.error('Failed to load dashboard data:', err, JSON.stringify(err, Object.getOwnPropertyNames(err as object)))
       } finally {
         setLoading(false)
       }

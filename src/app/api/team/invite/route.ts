@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { workspaceDb } from '@/lib/supabase/workspace'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
 
       // Store in team_members
       if (user) {
-        await supabase.from('team_members').upsert({
+        await workspaceDb.from('team_members').upsert({
           user_id: user.id,
           email,
           full_name: full_name || null,
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
 
       // Store in team_members table
       if (data?.user) {
-        await supabase.from('team_members').upsert({
+        await workspaceDb.from('team_members').upsert({
           user_id: data.user.id,
           email,
           full_name: full_name || null,

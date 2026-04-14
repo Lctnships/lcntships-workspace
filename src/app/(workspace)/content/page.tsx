@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
+import { workspaceClient } from '@/lib/workspace-client'
 
 // ─── Types ───
 interface ClosedStudio {
@@ -246,7 +247,7 @@ export default function ContentPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const { data: closedLeads } = await supabase
+      const { data: closedLeads } = await workspaceClient
         .from('sales_leads')
         .select('id, company_name, contact_name, email, phone, city, address, website, instagram, notes, updated_at')
         .eq('status', 'closed')
@@ -348,9 +349,9 @@ export default function ContentPage() {
         updated_at: new Date().toISOString(),
       }
       if (editingBrief) {
-        await supabase.from('content_briefs' as never).update(data as never).eq('id' as never, editingBrief.id as never)
+        await workspaceClient.from('content_briefs').update(data as never).eq('id' as never, editingBrief.id as never)
       } else {
-        await supabase.from('content_briefs' as never).insert({ ...data, status: 'draft' } as never)
+        await workspaceClient.from('content_briefs').insert({ ...data, status: 'draft' } as never)
       }
       await loadData()
       // Refresh selectedBrief zodat download de nieuwe data gebruikt
@@ -367,14 +368,14 @@ export default function ContentPage() {
   }
 
   const updateBriefStatus = async (id: string, status: ContentBrief['status']) => {
-    await supabase.from('content_briefs' as never).update({ status, updated_at: new Date().toISOString() } as never).eq('id' as never, id as never)
+    await workspaceClient.from('content_briefs').update({ status, updated_at: new Date().toISOString() } as never).eq('id' as never, id as never)
     await loadData()
     if (selectedBrief?.id === id) setSelectedBrief(prev => prev ? { ...prev, status } : null)
   }
 
   const deleteBrief = async (id: string) => {
     if (!confirm('Brief verwijderen?')) return
-    await supabase.from('content_briefs' as never).delete().eq('id' as never, id as never)
+    await workspaceClient.from('content_briefs').delete().eq('id' as never, id as never)
     await loadData()
     if (selectedBrief?.id === id) setSelectedBrief(null)
   }
@@ -384,7 +385,7 @@ export default function ContentPage() {
     if (!brief) return
     const updated = [...(brief.shotlist || [])]
     updated[shotIndex] = { ...updated[shotIndex], done: !updated[shotIndex].done }
-    await supabase.from('content_briefs' as never).update({ shotlist: updated } as never).eq('id' as never, briefId as never)
+    await workspaceClient.from('content_briefs').update({ shotlist: updated } as never).eq('id' as never, briefId as never)
     setBriefs(prev => prev.map(b => b.id === briefId ? { ...b, shotlist: updated } : b))
     if (selectedBrief?.id === briefId) setSelectedBrief(prev => prev ? { ...prev, shotlist: updated } : null)
   }
@@ -538,9 +539,9 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
         notes: tplNotes.trim() || null, created_by: 'Rivaldo',
       }
       if (editingTemplate) {
-        await supabase.from('content_templates' as never).update(data as never).eq('id' as never, editingTemplate.id as never)
+        await workspaceClient.from('content_templates').update(data as never).eq('id' as never, editingTemplate.id as never)
       } else {
-        await supabase.from('content_templates' as never).insert(data as never)
+        await workspaceClient.from('content_templates').insert(data as never)
       }
       await loadData()
       setShowTemplateModal(false)
@@ -549,7 +550,7 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
 
   const deleteTemplate = async (id: string) => {
     if (!confirm('Template verwijderen?')) return
-    await supabase.from('content_templates' as never).delete().eq('id' as never, id as never)
+    await workspaceClient.from('content_templates').delete().eq('id' as never, id as never)
     await loadData()
   }
 
