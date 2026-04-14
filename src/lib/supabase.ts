@@ -729,7 +729,7 @@ export const leadContactsApi = {
 export const marketingApi = {
   async getAll() {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await workspaceClient
         .from('marketing_posts')
         .select('*')
         .order('created_at', { ascending: false })
@@ -747,7 +747,7 @@ export const marketingApi = {
 
   async getById(id: string) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await workspaceClient
         .from('marketing_posts')
         .select('*')
         .eq('id', id)
@@ -762,7 +762,7 @@ export const marketingApi = {
   },
 
   async create(post: Partial<MarketingPost>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('marketing_posts')
       .insert(post)
       .select()
@@ -773,7 +773,7 @@ export const marketingApi = {
   },
 
   async update(id: string, post: Partial<MarketingPost>) {
-    const { data, error } = await supabase
+    const { data, error } = await workspaceClient
       .from('marketing_posts')
       .update(post)
       .eq('id', id)
@@ -785,7 +785,7 @@ export const marketingApi = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await workspaceClient
       .from('marketing_posts')
       .delete()
       .eq('id', id)

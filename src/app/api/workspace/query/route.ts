@@ -21,6 +21,7 @@ const ALLOWED_TABLES = new Set([
   'upload_links', 'uploaded_files',
   'content_briefs', 'content_templates',
   'portfolio_items',
+  'marketing_posts',
 ])
 
 type Filter = { col: string; op: string; val: unknown }
