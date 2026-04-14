@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 import { render } from '@react-email/render'
 import CampaignEmail from '@/emails/CampaignEmail'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!process.env.RESEND_API_KEY) {
+    if (!resend) {
       return NextResponse.json(
         { error: 'Resend API key niet geconfigureerd' },
         { status: 500 }

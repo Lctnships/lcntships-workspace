@@ -976,14 +976,15 @@ export const analyticsApi = {
     const [
       { count: totalBookings },
       { count: totalStudios },
-      { count: totalCustomers },
+      { data: customersData },
       { data: revenueData },
     ] = await Promise.all([
       supabase.from('bookings').select('*', { count: 'exact', head: true }),
       supabase.from('studios').select('*', { count: 'exact', head: true }),
-      workspaceClient.from('customers').select('*', { count: 'exact', head: true }),
+      workspaceClient.from('customers').select('id'),
       supabase.from('bookings').select('subtotal'),
     ])
+    const totalCustomers = customersData?.length ?? 0
 
     const totalRevenue = (revenueData || []).reduce((sum, b) => sum + (Number(b.subtotal) || 0), 0)
 
@@ -1751,10 +1752,12 @@ export const emailTrackingApi = {
 
     if (error) throw error
 
+    type TrackingRow = { tracking_type: string; ip_address?: string }
+    const rows = (data || []) as TrackingRow[]
     return {
-      opens: data?.filter(t => t.tracking_type === 'open').length || 0,
-      clicks: data?.filter(t => t.tracking_type === 'click').length || 0,
-      uniqueOpens: new Set(data?.filter(t => t.tracking_type === 'open').map(t => t.ip_address)).size || 0,
+      opens: rows.filter(t => t.tracking_type === 'open').length,
+      clicks: rows.filter(t => t.tracking_type === 'click').length,
+      uniqueOpens: new Set(rows.filter(t => t.tracking_type === 'open').map(t => t.ip_address)).size,
     }
   }
 }

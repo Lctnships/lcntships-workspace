@@ -234,7 +234,7 @@ export default function ScraperPage() {
       .from('sales_leads')
       .select('company_name')
     if (pipelineData) {
-      const pipelineNames = new Set(pipelineData.map((p: { company_name: string }) => p.company_name))
+      const pipelineNames = new Set<string>(pipelineData.map((p: { company_name: string }) => p.company_name))
       setPipelineExisting(new Set()) // reset
       // Store pipeline names for filtering after search
       setPipelineNames(pipelineNames)

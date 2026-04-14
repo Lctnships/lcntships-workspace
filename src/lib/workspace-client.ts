@@ -10,7 +10,8 @@ type Order = { col: string; ascending?: boolean }
 
 type Result<T = unknown> = { data: T | null; error: { message: string } | null }
 
-class WorkspaceQueryBuilder<T = unknown> implements PromiseLike<Result<T>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+class WorkspaceQueryBuilder<T = any> implements PromiseLike<Result<T>> {
   private body: any
 
   constructor(table: string) {
@@ -65,7 +66,8 @@ class WorkspaceQueryBuilder<T = unknown> implements PromiseLike<Result<T>> {
 }
 
 export const workspaceClient = {
-  from<T = unknown>(table: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from<T = any>(table: string) {
     return new WorkspaceQueryBuilder<T>(table)
   },
 }
