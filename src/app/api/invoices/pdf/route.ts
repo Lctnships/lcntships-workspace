@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from '@/lib/api-auth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -232,6 +233,9 @@ function generateInvoiceHTML(invoice: any) {
 }
 
 export async function GET(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -330,6 +334,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     if (!supabaseAdmin) {
       return NextResponse.json(

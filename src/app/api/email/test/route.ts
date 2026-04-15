@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json(

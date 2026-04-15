@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { render } from '@react-email/render'
 import CampaignEmail from '@/emails/CampaignEmail'
+import { requireAuth } from '@/lib/api-auth'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export async function POST(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const { leads, fromEmail, subject, message, ctaText, ctaUrl, attachments, greeting } = await request.json()
 

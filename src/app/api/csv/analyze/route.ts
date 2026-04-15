@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { requireAuth } from '@/lib/api-auth'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
 export async function POST(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const { csvContent } = await request.json()
 

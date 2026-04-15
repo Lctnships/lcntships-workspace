@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const { id } = await params
 

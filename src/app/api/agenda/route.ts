@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const { searchParams } = new URL(request.url)
     const from = searchParams.get('from')
@@ -34,6 +38,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const body = await request.json()
 
@@ -83,6 +90,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const body = await request.json()
     const { id, ...updates } = body
@@ -114,6 +124,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

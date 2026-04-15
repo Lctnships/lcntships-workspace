@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import imaps from 'imap-simple'
 import { simpleParser } from 'mailparser'
 import { validateImapHost } from '@/lib/imap-validation'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   const body = await req.json()
   const { host, port, tls, folder = 'INBOX', limit = 50 } = body
   const user = (body.user || '').trim()

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { workspaceDb } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -33,6 +34,9 @@ interface LeadLite {
 }
 
 export async function GET() {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })

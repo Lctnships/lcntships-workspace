@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Imap from 'imap'
 import { validateImapHost } from '@/lib/imap-validation'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   const _body = await req.json()
   const { host, port, tls, uid } = _body
   const user = (_body.user || '').trim()
