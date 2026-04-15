@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const SmtpBody = z.object({
+  account: z.object({
+    name: z.string().max(200).optional(),
+    user: z.string().max(320).optional(),
+    password: z.string().max(500).optional(),
+    smtpHost: z.string().max(253).optional(),
+    smtpPort: z.number().int().optional(),
+  }).passthrough().optional(),
+  to: z.union([z.string().max(2000), z.array(z.string().max(320)).max(1000)]).optional(),
+  subject: z.string().max(2000).optional(),
+  body: z.string().max(200000).optional(),
+}).passthrough()
 
 export async function POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
-  const { account, to, subject, body } = await req.json()
+  const { data: __body, error: __validationError } = await parseJson(req, SmtpBody)
+  if (__validationError) return __validationError
+  const { account, to, subject, body } = __body
 
   if (!account || !to || !subject || !body) {
     return NextResponse.json({ error: 'account, to, subject en body zijn verplicht' }, { status: 400 })

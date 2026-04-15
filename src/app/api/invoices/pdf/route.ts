@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import { createClient } from '@supabase/supabase-js'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const InvoicePdfBody = z.object({
+  invoiceId: z.string().max(200).optional(),
+}).passthrough()
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -345,7 +351,9 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const { invoiceId } = await request.json()
+    const { data: __body, error: __validationError } = await parseJson(request, InvoicePdfBody)
+    if (__validationError) return __validationError
+    const { invoiceId } = __body
 
     if (!invoiceId) {
       return NextResponse.json(

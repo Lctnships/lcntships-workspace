@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { z } from 'zod'
 import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
+
+const WebhookPayload = z.object({
+  type: z.string().max(200).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
+}).passthrough()
 
 const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
 
@@ -49,9 +55,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    const payload = JSON.parse(rawBody)
+    let payloadRaw: unknown
+    try {
+      payloadRaw = JSON.parse(rawBody)
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
+    const validation = WebhookPayload.safeParse(payloadRaw)
+    if (!validation.success) {
+      return NextResponse.json({ error: 'Validation failed' }, { status: 400 })
+    }
+    const payload = validation.data as { type?: string; data?: Record<string, unknown> }
     const eventType: string = payload.type || ''
-    const data = payload.data || {}
+    const data = (payload.data || {}) as Record<string, any>
+
     const emailId: string | undefined = data.email_id || data.id
 
     if (!emailId) {

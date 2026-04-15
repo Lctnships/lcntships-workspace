@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Imap from 'imap'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { validateImapHost } from '@/lib/imap-validation'
 import { requireAuth } from '@/lib/api-auth'
+
+const MarkReadBody = z.object({
+  host: z.string().max(253).optional(),
+  port: z.number().int().optional(),
+  tls: z.boolean().optional(),
+  uid: z.union([z.string().max(200), z.number()]).optional(),
+  user: z.string().max(320).optional(),
+  password: z.string().max(500).optional(),
+}).passthrough()
 
 export async function POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
-  const _body = await req.json()
+  const { data: _body, error: __validationError } = await parseJson(req, MarkReadBody)
+  if (__validationError) return __validationError
   const { host, port, tls, uid } = _body
   const user = (_body.user || '').trim()
   const password = (_body.password || '').trim()

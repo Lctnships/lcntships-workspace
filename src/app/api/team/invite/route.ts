@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { workspaceDb } from '@/lib/supabase/workspace'
+import { parseJson } from '@/lib/api-validate'
+
+const InviteBody = z.object({
+  email: z.string().max(320).optional(),
+  full_name: z.string().max(200).optional(),
+  role: z.string().max(64).optional(),
+}).passthrough()
 
 /**
  * POST /api/team/invite
@@ -47,7 +55,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Validate payload
-    const body = await request.json().catch(() => ({}))
+    const { data: body, error: __validationError } = await parseJson(request, InviteBody)
+    if (__validationError) return __validationError
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
     const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : ''
     const requestedRole = typeof body.role === 'string' ? body.role : 'member'

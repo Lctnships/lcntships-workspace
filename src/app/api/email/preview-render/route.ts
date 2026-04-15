@@ -1,13 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { render } from '@react-email/render'
+import { z } from 'zod'
 import CampaignEmail from '@/emails/CampaignEmail'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const PreviewRenderBody = z.object({
+  contactName: z.string().max(200).default(''),
+  companyName: z.string().max(200).default(''),
+  message: z.string().max(200000).default(''),
+  senderName: z.string().max(200).default(''),
+  senderEmail: z.string().max(320).default(''),
+  primaryButtonText: z.string().max(200).default(''),
+  primaryButtonUrl: z.string().max(2000).default(''),
+  secondaryButtonText: z.string().max(200).optional(),
+  secondaryButtonUrl: z.string().max(2000).optional(),
+  attachments: z.array(z.any()).max(1000).optional(),
+}).passthrough()
 
 export async function POST(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
   try {
+    const { data: __body, error: __validationError } = await parseJson(request, PreviewRenderBody)
+    if (__validationError) return __validationError
     const {
       contactName,
       companyName,
@@ -19,7 +36,7 @@ export async function POST(request: NextRequest) {
       secondaryButtonText,
       secondaryButtonUrl,
       attachments,
-    } = await request.json()
+    } = __body
 
     const html = await render(
       CampaignEmail({

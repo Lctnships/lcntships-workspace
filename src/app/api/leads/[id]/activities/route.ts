@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
+
+const ActivityBody = z.object({
+  type: z.string().max(64).optional(),
+  summary: z.string().max(2000).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+}).passthrough()
 
 export async function GET(
   request: NextRequest,
@@ -40,7 +49,8 @@ export async function POST(
 
   try {
     const { id } = await params
-    const body = await request.json()
+    const { data: body, error: __validationError } = await parseJson(request, ActivityBody)
+    if (__validationError) return __validationError
 
     const { type, summary, notes, metadata } = body
 
