@@ -6,6 +6,10 @@ import { workspaceDb } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
 
 export async function GET() {
+  // LCN-008 — debug endpoint exposes env-presence flags; restrict to non-prod.
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 

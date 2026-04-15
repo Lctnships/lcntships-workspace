@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { workspaceDb } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-const supabaseAdmin = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey)
-  : null
+// LCN-008 — this route only reads via workspaceDb (service-role to the
+// workspace project). The previous public-anon fallback was unused and is
+// removed so a missing service-role key cannot silently downgrade access.
 
 interface SentEmailRow {
   id: string
@@ -38,10 +34,6 @@ export async function GET() {
   if (__authError) return __authError
 
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-    }
-
     // Pull from our DB so we always have the body + full context
     const { data: rows, error } = await workspaceDb
       .from('sent_emails')
