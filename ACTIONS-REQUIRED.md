@@ -45,6 +45,15 @@ Vink af zodra het is gedaan.
 
 ---
 
+### LCN-012 — CSP + HSTS + security headers
+- [ ] Na deploy: open `https://app.lcntships.com` in DevTools → Console. Check op CSP-violations (rode errors). Veelvoorkomend: third-party script of font niet in whitelist.
+- [ ] Voeg eventuele extra origins toe aan `next.config.ts` → `cspDirectives` (bv. analytics, error-tracker).
+- [ ] HSTS preload: registreer domein op https://hstspreload.org/ pas **nadat** je 100% zeker bent dat alle subdomeinen HTTPS-only zijn (preload is moeilijk terug te draaien).
+- [ ] Als Cloudflare ook HSTS injecteert: zet één van beide uit (dubbele headers = browser kiest één, kan inconsistent zijn). Voorkeur: laat Next.js het doen.
+- [ ] Test scoring op https://securityheaders.com/?q=app.lcntships.com → mikken op A+.
+
+---
+
 ## 🟢 Done — historisch overzicht
 
 *(leeg tot eerste afvinking)*
