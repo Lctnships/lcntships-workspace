@@ -399,6 +399,12 @@ export default function SettingsPage() {
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900">Two-Factor Authentication</h4>
                     <p className="text-xs text-gray-500 mt-1">Add an extra layer of security to your account.</p>
+                    <a
+                      href="/settings/security/mfa-enroll"
+                      className="text-xs text-indigo-600 underline mt-1 inline-block"
+                    >
+                      MFA-instellingen
+                    </a>
                   </div>
                   <Toggle checked={twoFactorEnabled} onChange={setTwoFactorEnabled} />
                 </div>

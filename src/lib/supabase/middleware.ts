@@ -1,5 +1,27 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getMfaStatus } from '@/lib/mfa'
+
+/**
+ * Paths that must always bypass the MFA gate to avoid redirect loops.
+ * - /login, /signup, /auth/* : unauthenticated or MFA challenge itself
+ * - /settings/security/mfa-enroll : required to set up MFA
+ * - /api/* : API auth is enforced separately in src/middleware.ts
+ */
+const MFA_BYPASS_PREFIXES = [
+  '/login',
+  '/signup',
+  '/auth/',
+  '/api/',
+  '/settings/security/mfa-enroll',
+]
+
+function shouldBypassMfa(pathname: string): boolean {
+  if (pathname === '/auth' || pathname === '/auth/mfa-challenge') return true
+  return MFA_BYPASS_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p)
+  )
+}
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -69,6 +91,28 @@ export async function updateSession(request: NextRequest) {
   if (user && isAuthPage) {
     const dashboardUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(dashboardUrl)
+  }
+
+  // MFA enforcement (LCN-010). Escape hatch: MFA_ENFORCEMENT=off
+  if (
+    user &&
+    process.env.MFA_ENFORCEMENT !== 'off' &&
+    !shouldBypassMfa(pathname)
+  ) {
+    const { hasVerifiedFactor, currentAal, nextLevel } = await getMfaStatus(supabase)
+
+    if (!hasVerifiedFactor) {
+      const url = new URL('/settings/security/mfa-enroll', request.url)
+      return NextResponse.redirect(url)
+    }
+
+    // Has a verified factor but hasn't completed the challenge this session.
+    // Per Supabase: nextLevel becomes 'aal2' once a verified factor exists.
+    if (currentAal !== 'aal2' && nextLevel === 'aal2') {
+      const url = new URL('/auth/mfa-challenge', request.url)
+      url.searchParams.set('redirect', pathname + request.nextUrl.search)
+      return NextResponse.redirect(url)
+    }
   }
 
   return response
