@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { supabase, type SalesLead } from '@/lib/supabase'
+import DOMPurify from 'dompurify'
 
 interface CampaignReviewSendProps {
   selectedLeads: SalesLead[]
@@ -504,7 +505,12 @@ export function CampaignReviewSend({
                   {showContent ? (
                     <div
                       className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: emailData.body }}
+                      // LCN-005 — sanitize untrusted HTML before injecting
+                      dangerouslySetInnerHTML={{
+                        __html: typeof window !== 'undefined'
+                          ? DOMPurify.sanitize(emailData.body, { USE_PROFILES: { html: true } })
+                          : '',
+                      }}
                     />
                   ) : (
                     <div className="space-y-3 opacity-60">
