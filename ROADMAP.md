@@ -10,13 +10,13 @@
 ## 🎯 Totaal
 
 ```
-[████░░░░░░░░░░░░░░░░] 9 / 52 tickets (17%)
+[████░░░░░░░░░░░░░░░░] 10 / 52 tickets (19%)
 ```
 
 | Fase | Periode | Tickets | 🟢 | Status |
 |---|---|---:|---:|---|
 | 1 — Security Lockdown (P0) | Week 1 | LCN-001..005 (5) | 5 | 🟢 |
-| 2 — Security Hardening (P1) | Week 2 | LCN-006..009 (4) | 3 | 🟡 |
+| 2 — Security Hardening (P1) | Week 2 | LCN-006..009 (4) | 4 | 🟢 |
 | 3 — IAM & Crypto | Week 3-4 | LCN-010..016 (7) | 0 | 🔴 |
 | 4 — Secure SDLC & AppSec | Week 5-6 | LCN-017..025 (9) | 0 | 🔴 |
 | 5 — Ops, GRC & Privacy | Week 7-9 | LCN-026..037 (12) | 0 | 🔴 |
@@ -49,9 +49,9 @@
 | LCN-006 SSRF guard enrich-lead | 2u | 🟢 |
 | LCN-007 Zod-schemas alle routes | 1d | 🟢 |
 | LCN-008 Hard-fail missing secrets | 2u | 🟢 |
-| LCN-009 Webhook signature verplicht | 30m | ⚪ |
+| LCN-009 Webhook signature verplicht | 30m | 🟢 |
 
-`[███████████████░░░░░] 3/4`
+`[████████████████████] 4/4` ✅ Fase 2 compleet
 
 ---
 

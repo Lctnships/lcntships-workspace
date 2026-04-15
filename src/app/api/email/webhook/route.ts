@@ -9,17 +9,37 @@ const WebhookPayload = z.object({
 }).passthrough()
 
 const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
+const isProd = process.env.NODE_ENV === 'production'
+
+// LCN-009 — accepted timestamp window (5 min, matches Svix default).
+const TIMESTAMP_TOLERANCE_SECONDS = 5 * 60
+
+type VerifyResult = { ok: true } | { ok: false; status: number; reason: string }
 
 // Resend uses Svix for webhook signing. Header names are:
 // svix-id, svix-timestamp, svix-signature
-function verifySignature(rawBody: string, headers: Headers): boolean {
-  if (!webhookSecret) return true // no secret configured → skip verification
+function verifySignature(rawBody: string, headers: Headers): VerifyResult {
+  if (!webhookSecret) {
+    // LCN-009 — in production we must fail closed; missing secret = misconfig.
+    if (isProd) return { ok: false, status: 500, reason: 'webhook secret not configured' }
+    return { ok: true }
+  }
 
   const svixId = headers.get('svix-id')
   const svixTimestamp = headers.get('svix-timestamp')
   const svixSignature = headers.get('svix-signature')
 
-  if (!svixId || !svixTimestamp || !svixSignature) return false
+  if (!svixId || !svixTimestamp || !svixSignature) {
+    return { ok: false, status: 401, reason: 'missing svix headers' }
+  }
+
+  // Replay protection: reject stale or future-dated timestamps.
+  const tsSeconds = Number(svixTimestamp)
+  if (!Number.isFinite(tsSeconds)) return { ok: false, status: 401, reason: 'bad timestamp' }
+  const skew = Math.abs(Math.floor(Date.now() / 1000) - tsSeconds)
+  if (skew > TIMESTAMP_TOLERANCE_SECONDS) {
+    return { ok: false, status: 401, reason: 'timestamp outside tolerance' }
+  }
 
   // Secret format: whsec_<base64>
   const secret = webhookSecret.startsWith('whsec_')
@@ -34,25 +54,27 @@ function verifySignature(rawBody: string, headers: Headers): boolean {
     .digest('base64')
 
   // svix-signature is a space separated list of "v1,<sig>"
-  const signatures = svixSignature.split(' ').map(s => s.split(',')[1])
-  return signatures.some(sig => {
+  const signatures = svixSignature.split(' ').map(s => s.split(',')[1]).filter(Boolean)
+  const expectedBuf = Buffer.from(expectedSignature)
+  const matched = signatures.some((sig) => {
     try {
-      return crypto.timingSafeEqual(
-        Buffer.from(sig),
-        Buffer.from(expectedSignature)
-      )
+      const sigBuf = Buffer.from(sig)
+      if (sigBuf.length !== expectedBuf.length) return false
+      return crypto.timingSafeEqual(sigBuf, expectedBuf)
     } catch {
       return false
     }
   })
+  return matched ? { ok: true } : { ok: false, status: 401, reason: 'signature mismatch' }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text()
-    if (!verifySignature(rawBody, request.headers)) {
-      console.warn('[resend webhook] signature verification failed')
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    const verdict = verifySignature(rawBody, request.headers)
+    if (!verdict.ok) {
+      console.warn('[resend webhook] signature verification failed:', verdict.reason)
+      return NextResponse.json({ error: 'Invalid signature' }, { status: verdict.status })
     }
 
     let payloadRaw: unknown
