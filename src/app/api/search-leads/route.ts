@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
+
+const SearchLeadsBody = z.object({
+  query: z.string().max(2000).optional(),
+  city: z.string().max(200).optional(),
+}).passthrough()
 
 const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   'Amsterdam': { lat: 52.3676, lng: 4.9041 },
@@ -51,7 +58,9 @@ export async function POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
-  const { query, city } = await req.json()
+  const { data: __body, error: __validationError } = await parseJson(req, SearchLeadsBody)
+  if (__validationError) return __validationError
+  const { query, city } = __body
 
   if (!query) {
     return NextResponse.json({ error: 'query is verplicht' }, { status: 400 })

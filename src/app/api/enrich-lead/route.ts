@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
 import { assertPublicUrl, SsrfBlockedError } from '@/lib/ssrf-guard'
+
+const EnrichBody = z.object({
+  url: z.string().min(1).max(2000),
+}).passthrough()
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 const TIMEOUT_MS = 10000
@@ -126,7 +132,9 @@ export async function POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
-  const { url } = await req.json()
+  const { data: parsed, error: __validationError } = await parseJson(req, EnrichBody)
+  if (__validationError) return __validationError
+  const { url } = parsed
   if (!url) return NextResponse.json({ error: 'url is verplicht' }, { status: 400 })
 
   const baseUrl = normalizeUrl(url)

@@ -11,11 +11,11 @@
 
 ```
 🔴 Kritiek (P0)   [████████████████████]  5 / 5
-🟠 Hoog (P1)      [█░░░░░░░░░░░░░░░░░░░]  1 / 20
+🟠 Hoog (P1)      [██░░░░░░░░░░░░░░░░░░]  2 / 20
 🟡 Medium (P2)    [░░░░░░░░░░░░░░░░░░░░]  0 / 23
 🟢 Laag (P3)      [█████░░░░░░░░░░░░░░░]  1 / 4
 ─────────────────────────────────────────────
-TOTAAL            [███░░░░░░░░░░░░░░░░░]  7 / 52  (13%)
+TOTAAL            [███░░░░░░░░░░░░░░░░░]  8 / 52  (15%)
 ```
 
 | Categorie | Totaal | 🟢 Done | 🟡 Partial | ⚪ Todo |
@@ -70,7 +70,7 @@ TOTAAL            [███░░░░░░░░░░░░░░░░░]
 | ID | Type | Titel | Component | OWASP | Effort | Status |
 |---|---|---|---|---|---|---|
 | **LCN-006** | 🔒 | SSRF-guard op `enrich-lead` (block private IP-ranges) | Backend | A10 | 2u | 🟢 |
-| **LCN-007** | 🔒 | Zod-schemas op alle POST/PATCH routes | Backend | A04 | 1d | ⚪ |
+| **LCN-007** | 🔒 | Zod-schemas op alle POST/PATCH routes | Backend | A04 | 1d | 🟢 |
 | **LCN-008** | 🔒 | Hard-fail op missing secrets i.p.v. anon-key fallback | Backend | A05 | 2u | ⚪ |
 | **LCN-009** | 🔒 | Resend webhook signature verplicht in prod | Backend | A08 | 30m | ⚪ |
 

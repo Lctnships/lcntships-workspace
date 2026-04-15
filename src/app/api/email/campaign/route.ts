@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { render } from '@react-email/render'
+import { z } from 'zod'
 import CampaignEmail from '@/emails/CampaignEmail'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const CampaignBody = z.object({
+  leads: z.array(z.record(z.string(), z.unknown())).max(1000).optional(),
+  fromEmail: z.string().max(2000).optional(),
+  subject: z.string().max(2000).optional(),
+  message: z.string().max(200000).optional(),
+  ctaText: z.string().max(200).optional(),
+  ctaUrl: z.string().max(2000).optional(),
+  attachments: z.array(z.any()).max(1000).optional(),
+  greeting: z.string().max(2000).optional(),
+}).passthrough()
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -11,7 +24,9 @@ export async function POST(request: NextRequest) {
   if (__authError) return __authError
 
   try {
-    const { leads, fromEmail, subject, message, ctaText, ctaUrl, attachments, greeting } = await request.json()
+    const { data: __body, error: __validationError } = await parseJson(request, CampaignBody)
+    if (__validationError) return __validationError
+    const { leads, fromEmail, subject, message, ctaText, ctaUrl, attachments, greeting } = __body
 
     if (!leads || !Array.isArray(leads) || leads.length === 0) {
       return NextResponse.json(
@@ -35,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Filter alleen leads met email
-    const leadsWithEmail = leads.filter((l: { email?: string }) => l.email && l.email.includes('@'))
+    const leadsWithEmail = (leads as Array<Record<string, any>>).filter((l: { email?: string }) => l.email && l.email.includes('@'))
 
     if (leadsWithEmail.length === 0) {
       return NextResponse.json(

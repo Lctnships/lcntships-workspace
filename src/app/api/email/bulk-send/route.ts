@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { z } from 'zod'
 import { requireAuth } from '@/lib/api-auth'
+import { parseJson } from '@/lib/api-validate'
 import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
+
+const BulkSendBody = z.object({
+  to: z.union([z.string().max(2000), z.array(z.string().max(320)).max(1000)]).optional(),
+  subject: z.string().max(2000).optional(),
+  html: z.string().max(500000).optional(),
+  text: z.string().max(500000).optional(),
+  from: z.string().max(2000).optional(),
+  leadId: z.string().max(200).optional(),
+  attachments: z.array(z.any()).max(1000).optional(),
+}).passthrough()
 
 const ALLOWED_FROM_ADDRESSES = [
   'Rivaldo van lcntships <rivaldomacandrew@lctnships.com>',
@@ -25,7 +37,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { to, subject, html, text, from, leadId, attachments } = await request.json()
+    const { data: __body, error: __validationError } = await parseJson(request, BulkSendBody)
+    if (__validationError) return __validationError
+    const { to, subject, html, text, from, leadId, attachments } = __body
 
     if (!to || !subject || !html) {
       return NextResponse.json(
