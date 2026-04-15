@@ -10,17 +10,17 @@
 ## 📊 Dashboard
 
 ```
-🔴 Kritiek (P0)   [████████████████░░░░]  4 / 5
+🔴 Kritiek (P0)   [████████████████████]  5 / 5
 🟠 Hoog (P1)      [░░░░░░░░░░░░░░░░░░░░]  0 / 20
 🟡 Medium (P2)    [░░░░░░░░░░░░░░░░░░░░]  0 / 23
 🟢 Laag (P3)      [█████░░░░░░░░░░░░░░░]  1 / 4
 ─────────────────────────────────────────────
-TOTAAL            [██░░░░░░░░░░░░░░░░░░]  5 / 52  (10%)
+TOTAAL            [███░░░░░░░░░░░░░░░░░]  6 / 52  (12%)
 ```
 
 | Categorie | Totaal | 🟢 Done | 🟡 Partial | ⚪ Todo |
 |---|---:|---:|---:|---:|
-| Security (P0) | 5 | 4 | 0 | 1 |
+| Security (P0) | 5 | 5 | 0 | 0 |
 | Security (P1 hardening) | 4 | 0 | 0 | 4 |
 | Security IAM & Crypto | 7 | 0 | 0 | 7 |
 | Security SDLC & AppSec | 9 | 0 | 0 | 9 |
@@ -44,7 +44,7 @@ TOTAAL            [██░░░░░░░░░░░░░░░░░░]
 | **LCN-002** | 🔒 | `/api/team/invite` achter admin-role, geen tempPassword in response | Backend | A01/A07 | 2u | 🟢 |
 | **LCN-003** | 🔒 | `/api/leads` + alle data-routes dichtzetten met `requireAuth()` | Backend | A01 | 2u | 🟢 |
 | **LCN-004** | 🔒 | RLS `qual='true'` vervangen door `authenticated` (9 tabellen) | DB | A01 | 1d | 🟢 |
-| **LCN-005** | 🔒 | DOMPurify in `CampaignReviewSend.tsx:507` | Frontend | A03 | 30m | ⚪ |
+| **LCN-005** | 🔒 | DOMPurify in `CampaignReviewSend.tsx:507` | Frontend | A03 | 30m | 🟢 |
 
 <details>
 <summary><b>LCN-001 — Middleware auth voor `/api/*`</b> (klik voor detail)</summary>
