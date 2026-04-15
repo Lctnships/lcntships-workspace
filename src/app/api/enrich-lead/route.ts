@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { assertPublicUrl, SsrfBlockedError } from '@/lib/ssrf-guard'
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 const TIMEOUT_MS = 10000
@@ -69,8 +70,13 @@ function extractSocials(html: string, baseUrl: string): {
   return socials
 }
 
-async function fetchPage(url: string): Promise<string | null> {
+async function fetchPage(url: string, hops = 0): Promise<string | null> {
+  if (hops > 3) return null
   try {
+    // LCN-006 — re-validate every URL (incl. each redirect target) so
+    // path-joins or 3xx Location headers cannot smuggle internal hosts past
+    // the entry check.
+    await assertPublicUrl(url)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
     const res = await fetch(url, {
@@ -80,9 +86,15 @@ async function fetchPage(url: string): Promise<string | null> {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'nl-NL,nl;q=0.9,en;q=0.8',
       },
-      redirect: 'follow',
+      redirect: 'manual',
     })
     clearTimeout(timeout)
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location')
+      if (!loc) return null
+      const next = new URL(loc, url).href
+      return fetchPage(next, hops + 1)
+    }
     if (!res.ok) return null
     const contentType = res.headers.get('content-type') || ''
     if (!contentType.includes('text/html')) return null
@@ -118,6 +130,17 @@ export async function POST(req: NextRequest) {
   if (!url) return NextResponse.json({ error: 'url is verplicht' }, { status: 400 })
 
   const baseUrl = normalizeUrl(url)
+
+  // LCN-006 — entry-point SSRF check; gives a clean 400 instead of a generic null result.
+  try {
+    await assertPublicUrl(baseUrl)
+  } catch (e) {
+    if (e instanceof SsrfBlockedError) {
+      return NextResponse.json({ error: `URL geweigerd: ${e.message}` }, { status: 400 })
+    }
+    throw e
+  }
+
   let allEmails: string[] = []
   let socials = {}
   let pagesScraped = 0
