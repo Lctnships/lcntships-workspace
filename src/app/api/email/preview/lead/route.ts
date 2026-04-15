@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { render } from '@react-email/render'
 import CampaignEmail from '@/emails/CampaignEmail'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   const { searchParams } = new URL(request.url)
 
   const html = await render(

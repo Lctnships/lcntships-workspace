@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date') // YYYY-MM-DD format

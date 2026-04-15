@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function POST() {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
 
     // 1. Get all leads with a city value
