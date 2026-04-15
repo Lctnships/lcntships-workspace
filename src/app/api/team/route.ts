@@ -3,18 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 import { workspaceDb } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// LCN-008 — no anon fallback. Admin API requires the service-role key;
+// if it isn't configured we skip straight to the table fallback rather
+// than silently widening privileges with the public anon key.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export async function GET() {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
-  const supabase = createClient(supabaseUrl, supabaseKey)
-
   try {
-    // Try admin API first (requires service role key on public DB for auth.admin)
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Try admin API first — only when both URL and SERVICE ROLE are present.
+    if (supabaseUrl && serviceRoleKey) {
+      const supabase = createClient(supabaseUrl, serviceRoleKey)
       const { data: { users }, error } = await supabase.auth.admin.listUsers()
       if (!error) {
         const { data: roles } = await workspaceDb.from('team_members').select('user_id, role, full_name')
