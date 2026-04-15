@@ -3,8 +3,32 @@
 // Auth: requires a valid Supabase session on the public DB.
 // (Optional stricter check: also verify team_members membership.)
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { workspaceDb } from '@/lib/supabase/workspace'
 import { createClient } from '@/lib/supabase/server'
+import { parseJson } from '@/lib/api-validate'
+
+const FilterSchema = z.object({
+  col: z.string().max(64),
+  op: z.string().max(16),
+  val: z.unknown(),
+})
+
+const QuerySchema = z.object({
+  table: z.string().max(64),
+  op: z.enum(['select', 'insert', 'update', 'delete', 'upsert']),
+  columns: z.string().max(2000).optional(),
+  values: z.unknown().optional(),
+  filters: z.array(FilterSchema).max(1000).optional(),
+  order: z.object({
+    col: z.string().max(64),
+    ascending: z.boolean().optional(),
+  }).optional(),
+  limit: z.number().int().optional(),
+  single: z.boolean().optional(),
+  maybeSingle: z.boolean().optional(),
+  returning: z.boolean().optional(),
+}).passthrough()
 
 const ALLOWED_TABLES = new Set([
   // batch 1 (sales)
@@ -46,7 +70,9 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await auth.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = (await req.json()) as QueryBody
+    const { data: parsed, error: __validationError } = await parseJson(req, QuerySchema)
+    if (__validationError) return __validationError
+    const body = parsed as QueryBody
     if (!body.table || !ALLOWED_TABLES.has(body.table)) {
       return NextResponse.json({ error: 'Invalid table' }, { status: 400 })
     }

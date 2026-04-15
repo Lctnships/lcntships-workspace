@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const TestEmailBody = z.object({
+  to: z.union([z.string().email().max(320), z.array(z.string().email().max(320)).max(1000)]).optional(),
+  subject: z.string().max(2000).optional(),
+  html: z.string().max(200000).optional(),
+}).passthrough()
 
 export async function POST(request: NextRequest) {
   const { error: __authError } = await requireAuth()
@@ -15,7 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY)
-    const { to, subject, html } = await request.json()
+    const { data: __body, error: __validationError } = await parseJson(request, TestEmailBody)
+    if (__validationError) return __validationError
+    const { to, subject, html } = __body
 
     if (!to || !subject || !html) {
       return NextResponse.json(

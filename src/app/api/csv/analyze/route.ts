@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const CsvAnalyzeBody = z.object({
+  csvContent: z.string().max(200000).optional(),
+}).passthrough()
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -11,7 +17,9 @@ export async function POST(request: NextRequest) {
   if (__authError) return __authError
 
   try {
-    const { csvContent } = await request.json()
+    const { data: __body, error: __validationError } = await parseJson(request, CsvAnalyzeBody)
+    if (__validationError) return __validationError
+    const { csvContent } = __body
 
     if (!csvContent || typeof csvContent !== 'string') {
       return NextResponse.json(

@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { render } from '@react-email/render'
+import { z } from 'zod'
 import CampaignEmail from '@/emails/CampaignEmail'
 import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const SendEmailBody = z.object({
+  to: z.object({
+    email: z.string().max(320).optional(),
+    name: z.string().max(200).optional(),
+    company: z.string().max(200).optional(),
+  }).passthrough().optional(),
+  subject: z.string().max(2000).optional(),
+  message: z.string().max(200000).optional(),
+  from: z.string().max(2000).optional(),
+  greeting: z.string().max(2000).optional(),
+  ctaText: z.string().max(200).optional(),
+  ctaUrl: z.string().max(2000).optional(),
+  trackId: z.string().max(200).optional(),
+}).passthrough()
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
@@ -20,7 +37,9 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const { to, subject, message, from, greeting, ctaText, ctaUrl, trackId } = await request.json()
+    const { data: __body, error: __validationError } = await parseJson(request, SendEmailBody)
+    if (__validationError) return __validationError
+    const { to, subject, message, from, greeting, ctaText, ctaUrl, trackId } = __body
 
     if (!to || !subject || !message) {
       return NextResponse.json(
@@ -63,7 +82,7 @@ export async function POST(request: NextRequest) {
     // Send via Resend
     const { data, error } = await resend.emails.send({
       from: from || 'Rivaldo van lcntships <rivaldomacandrew@lctnships.com>',
-      to: to.email,
+      to: to?.email || '',
       subject,
       html,
     })

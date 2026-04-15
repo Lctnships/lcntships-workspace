@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
+import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
+
+const AgendaCreateBody = z.object({
+  lead_id: z.string().max(200).nullable().optional(),
+  title: z.string().max(2000).optional(),
+  description: z.string().max(5000).nullable().optional(),
+  type: z.string().max(64).optional(),
+  date: z.string().max(64).optional(),
+  start_time: z.string().max(64).optional(),
+  end_time: z.string().max(64).nullable().optional(),
+  location: z.string().max(2000).nullable().optional(),
+  assigned_to: z.string().max(200).nullable().optional(),
+  attendees: z.array(z.string().max(200)).max(1000).optional(),
+}).passthrough()
+
+const AgendaPatchBody = z.object({
+  id: z.string().max(200).optional(),
+}).passthrough()
 
 export async function GET(request: NextRequest) {
   const { error: __authError } = await requireAuth()
@@ -42,7 +61,8 @@ export async function POST(request: NextRequest) {
   if (__authError) return __authError
 
   try {
-    const body = await request.json()
+    const { data: body, error: __validationError } = await parseJson(request, AgendaCreateBody)
+    if (__validationError) return __validationError
 
     const { lead_id, title, description, type, date, start_time, end_time, location, assigned_to, attendees } = body
 
@@ -94,7 +114,8 @@ export async function PATCH(request: NextRequest) {
   if (__authError) return __authError
 
   try {
-    const body = await request.json()
+    const { data: body, error: __validationError } = await parseJson(request, AgendaPatchBody)
+    if (__validationError) return __validationError
     const { id, ...updates } = body
 
     if (!id) {

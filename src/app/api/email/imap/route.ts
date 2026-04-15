@@ -1,14 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import imaps from 'imap-simple'
 import { simpleParser } from 'mailparser'
+import { z } from 'zod'
+import { parseJson } from '@/lib/api-validate'
 import { validateImapHost } from '@/lib/imap-validation'
 import { requireAuth } from '@/lib/api-auth'
+
+const ImapBody = z.object({
+  host: z.string().max(253).optional(),
+  port: z.number().int().optional(),
+  tls: z.boolean().optional(),
+  folder: z.string().max(200).optional(),
+  limit: z.number().int().optional(),
+  user: z.string().max(320).optional(),
+  password: z.string().max(500).optional(),
+  uid: z.number().optional(),
+}).passthrough()
 
 export async function POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
-  const body = await req.json()
+  const { data: body, error: __validationError } = await parseJson(req, ImapBody)
+  if (__validationError) return __validationError
   const { host, port, tls, folder = 'INBOX', limit = 50 } = body
   const user = (body.user || '').trim()
   const password = (body.password || '').trim()
