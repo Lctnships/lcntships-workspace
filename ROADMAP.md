@@ -10,14 +10,14 @@
 ## 🎯 Totaal
 
 ```
-[████░░░░░░░░░░░░░░░░] 10 / 52 tickets (19%)
+[████░░░░░░░░░░░░░░░░] 11 / 52 tickets (21%)
 ```
 
 | Fase | Periode | Tickets | 🟢 | Status |
 |---|---|---:|---:|---|
 | 1 — Security Lockdown (P0) | Week 1 | LCN-001..005 (5) | 5 | 🟢 |
 | 2 — Security Hardening (P1) | Week 2 | LCN-006..009 (4) | 4 | 🟢 |
-| 3 — IAM & Crypto | Week 3-4 | LCN-010..016 (7) | 0 | 🔴 |
+| 3 — IAM & Crypto | Week 3-4 | LCN-010..016 (7) | 1 | 🟡 |
 | 4 — Secure SDLC & AppSec | Week 5-6 | LCN-017..025 (9) | 0 | 🔴 |
 | 5 — Ops, GRC & Privacy | Week 7-9 | LCN-026..037 (12) | 0 | 🔴 |
 | 6 — Refactor Core | Week 9-10 | LCN-038..042 (5) | 0 | 🔴 |
@@ -59,7 +59,7 @@
 
 | Ticket | Effort | Status |
 |---|---|---|
-| LCN-010 MFA verplicht | 1d | ⚪ |
+| LCN-010 MFA verplicht | 1d | 🟢 |
 | LCN-011 WAF + bot-management | 2u | ⚪ |
 | LCN-012 CSP + HSTS + headers | 2u | ⚪ |
 | LCN-013 Rate-limiting | 1d | ⚪ |
@@ -67,7 +67,7 @@
 | LCN-015 Field-level encryption | 1d | ⚪ |
 | LCN-016 Session-beleid | 1d | ⚪ |
 
-`[░░░░░░░░░░░░░░░░░░░░] 0/7`
+`[██░░░░░░░░░░░░░░░░░░] 1/7`
 
 ---
 

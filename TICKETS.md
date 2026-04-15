@@ -11,11 +11,11 @@
 
 ```
 🔴 Kritiek (P0)   [████████████████████]  5 / 5
-🟠 Hoog (P1)      [████░░░░░░░░░░░░░░░░]  4 / 20
+🟠 Hoog (P1)      [█████░░░░░░░░░░░░░░░]  5 / 20
 🟡 Medium (P2)    [░░░░░░░░░░░░░░░░░░░░]  0 / 23
 🟢 Laag (P3)      [█████░░░░░░░░░░░░░░░]  1 / 4
 ─────────────────────────────────────────────
-TOTAAL            [████░░░░░░░░░░░░░░░░]  10 / 52 (19%)
+TOTAAL            [████░░░░░░░░░░░░░░░░]  11 / 52 (21%)
 ```
 
 | Categorie | Totaal | 🟢 Done | 🟡 Partial | ⚪ Todo |
@@ -80,7 +80,7 @@ TOTAAL            [████░░░░░░░░░░░░░░░░]
 
 | ID | Type | Titel | Component | Std | Effort | Status |
 |---|---|---|---|---|---|---|
-| **LCN-010** | 🔒 | MFA verplicht voor alle team_members | Backend | A07/ISO A.9 | 1d | ⚪ |
+| **LCN-010** | 🔒 | MFA verplicht voor alle team_members | Backend | A07/ISO A.9 | 1d | 🟢 |
 | **LCN-011** | 🔒 | WAF + bot-management via Cloudflare | Infra | A05 | 2u | ⚪ |
 | **LCN-012** | 🔒 | Strict CSP + HSTS preload + security headers | Frontend | A05 | 2u | ⚪ |
 | **LCN-013** | 🔒 | Rate-limiting op auth + write-endpoints | Backend | A04 | 1d | ⚪ |
