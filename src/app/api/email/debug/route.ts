@@ -3,8 +3,12 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { workspaceDb } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET() {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   const report: Record<string, unknown> = {}
 
   // 1. Env vars

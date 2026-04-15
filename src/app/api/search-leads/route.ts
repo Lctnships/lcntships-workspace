@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   'Amsterdam': { lat: 52.3676, lng: 4.9041 },
@@ -47,6 +48,9 @@ async function getUsage() {
 }
 
 export async function POST(req: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   const { query, city } = await req.json()
 
   if (!query) {
@@ -187,6 +191,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   const usage = await getUsage()
   const { data: history } = await supabase
     .from('search_history')

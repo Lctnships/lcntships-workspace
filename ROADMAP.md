@@ -10,12 +10,12 @@
 ## 🎯 Totaal
 
 ```
-[█░░░░░░░░░░░░░░░░░░░] 3 / 52 tickets (6%)
+[██░░░░░░░░░░░░░░░░░░] 4 / 52 tickets (8%)
 ```
 
 | Fase | Periode | Tickets | 🟢 | Status |
 |---|---|---:|---:|---|
-| 1 — Security Lockdown (P0) | Week 1 | LCN-001..005 (5) | 2 | 🟡 |
+| 1 — Security Lockdown (P0) | Week 1 | LCN-001..005 (5) | 3 | 🟡 |
 | 2 — Security Hardening (P1) | Week 2 | LCN-006..009 (4) | 0 | 🔴 |
 | 3 — IAM & Crypto | Week 3-4 | LCN-010..016 (7) | 0 | 🔴 |
 | 4 — Secure SDLC & AppSec | Week 5-6 | LCN-017..025 (9) | 0 | 🔴 |
@@ -34,11 +34,11 @@
 |---|---|---|
 | LCN-001 Middleware auth `/api/*` | 2u | 🟢 |
 | LCN-002 `/api/team/invite` dichtzetten | 2u | 🟢 |
-| LCN-003 Data-routes achter auth | 2u | ⚪ |
+| LCN-003 Data-routes achter auth | 2u | 🟢 |
 | LCN-004 RLS policies tighten | 1d | ⚪ |
 | LCN-005 DOMPurify XSS fix | 30m | ⚪ |
 
-`[████████░░░░░░░░░░░░] 2/5`
+`[████████████░░░░░░░░] 3/5`
 
 ---
 

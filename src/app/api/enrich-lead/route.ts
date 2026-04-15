@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 const TIMEOUT_MS = 10000
@@ -110,6 +111,9 @@ function resolveContactUrl(base: string, path: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   const { url } = await req.json()
   if (!url) return NextResponse.json({ error: 'url is verplicht' }, { status: 400 })
 

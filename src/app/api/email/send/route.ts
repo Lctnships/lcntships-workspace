@@ -3,11 +3,15 @@ import { Resend } from 'resend'
 import { render } from '@react-email/render'
 import CampaignEmail from '@/emails/CampaignEmail'
 import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
+import { requireAuth } from '@/lib/api-auth'
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
 
 export async function POST(request: NextRequest) {
+  const { error: __authError } = await requireAuth()
+  if (__authError) return __authError
+
   try {
     if (!resend) {
       return NextResponse.json(
