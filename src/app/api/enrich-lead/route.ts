@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { z } from 'zod'
 import { parseJson } from '@/lib/api-validate'
 import { requireAuth } from '@/lib/api-auth'
@@ -128,7 +129,7 @@ function resolveContactUrl(base: string, path: string): string {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -186,3 +187,5 @@ export async function POST(req: NextRequest) {
     success: true,
   })
 }
+
+export const POST = withRateLimit(_POST, { limit: 20, windowSec: 60, route: 'enrich-lead:POST' })

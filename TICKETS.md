@@ -11,11 +11,11 @@
 
 ```
 🔴 Kritiek (P0)   [████████████████████]  5 / 5
-🟠 Hoog (P1)      [███████░░░░░░░░░░░░░]  7 / 20
+🟠 Hoog (P1)      [████████░░░░░░░░░░░░]  8 / 20
 🟡 Medium (P2)    [░░░░░░░░░░░░░░░░░░░░]  0 / 23
 🟢 Laag (P3)      [█████░░░░░░░░░░░░░░░]  1 / 4
 ─────────────────────────────────────────────
-TOTAAL            [█████░░░░░░░░░░░░░░░]  13 / 52 (25%)
+TOTAAL            [█████░░░░░░░░░░░░░░░]  14 / 52 (27%)
 ```
 
 | Categorie | Totaal | 🟢 Done | 🟡 Partial | ⚪ Todo |
@@ -83,7 +83,7 @@ TOTAAL            [█████░░░░░░░░░░░░░░░]
 | **LCN-010** | 🔒 | MFA verplicht voor alle team_members | Backend | A07/ISO A.9 | 1d | 🟢 |
 | **LCN-011** | 🔒 | WAF + bot-management via Cloudflare | Infra | A05 | 2u | 🟢 |
 | **LCN-012** | 🔒 | Strict CSP + HSTS preload + security headers | Frontend | A05 | 2u | 🟢 |
-| **LCN-013** | 🔒 | Rate-limiting op auth + write-endpoints | Backend | A04 | 1d | ⚪ |
+| **LCN-013** | 🔒 | Rate-limiting op auth + write-endpoints | Backend | A04 | 1d | 🟢 |
 | **LCN-014** | 🔒 | Immutable `audit_log` tabel (INSERT-only) | DB | A09/SOC2 CC7 | 1d | ⚪ |
 | **LCN-015** | 🔒 | Field-level encryption (pgsodium) voor IMAP-passwords | DB | A02 | 1d | ⚪ |
 | **LCN-016** | 🔒 | Session-beleid (device-fingerprint, IP-change, concurrent limit) | Backend | A07 | 1d | ⚪ |

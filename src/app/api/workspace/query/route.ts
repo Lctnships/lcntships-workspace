@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { workspaceDb } from '@/lib/supabase/workspace'
 import { createClient } from '@/lib/supabase/server'
 import { parseJson } from '@/lib/api-validate'
+import { withRateLimit } from '@/lib/with-rate-limit'
 
 const FilterSchema = z.object({
   col: z.string().max(64),
@@ -63,7 +64,7 @@ interface QueryBody {
   returning?: boolean
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   try {
     // Auth: must be logged in on the public Supabase
     const auth = await createClient()
@@ -127,3 +128,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 60, windowSec: 60, route: 'workspace-query:POST' })

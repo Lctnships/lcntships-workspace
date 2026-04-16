@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { Resend } from 'resend'
 import { z } from 'zod'
 import { requireAuth } from '@/lib/api-auth'
@@ -25,7 +26,7 @@ const ALLOWED_FROM_ADDRESSES = [
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
 
-export async function POST(request: NextRequest) {
+async function _POST(request: NextRequest) {
   try {
     const { user, error: authError } = await requireAuth()
     if (authError) return authError
@@ -126,3 +127,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 30, windowSec: 60, route: 'email-bulk-send:POST' })

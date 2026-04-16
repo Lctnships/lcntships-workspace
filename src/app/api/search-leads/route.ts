@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { z } from 'zod'
 import { parseJson } from '@/lib/api-validate'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
@@ -54,7 +55,7 @@ async function getUsage() {
   return data || { searches_used: 0, max_searches: 100 }
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -257,3 +258,5 @@ function extractCity(address: string | undefined): string {
   // Nothing found — return empty, never store unvalidated strings as city
   return ''
 }
+
+export const POST = withRateLimit(_POST, { limit: 30, windowSec: 60, route: 'search-leads:POST' })

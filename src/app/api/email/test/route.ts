@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { Resend } from 'resend'
 import { z } from 'zod'
 import { parseJson } from '@/lib/api-validate'
@@ -10,7 +11,7 @@ const TestEmailBody = z.object({
   html: z.string().max(200000).optional(),
 }).passthrough()
 
-export async function POST(request: NextRequest) {
+async function _POST(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -60,3 +61,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 30, windowSec: 60, route: 'email-test:POST' })

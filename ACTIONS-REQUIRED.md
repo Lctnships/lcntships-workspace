@@ -10,6 +10,17 @@ Vink af zodra het is gedaan.
 
 ## 🔴 Open — vereist actie
 
+### LCN-013 — Rate-limiting (optioneel: distributed via Upstash)
+- [ ] **Optioneel** — voor distributed rate-limiting over alle Vercel instances, Upstash Redis instellen:
+  - Maak een gratis Upstash Redis DB aan op https://upstash.com
+  - Kopieer `UPSTASH_REDIS_REST_URL` en `UPSTASH_REDIS_REST_TOKEN`
+  - Op **Vercel → Project → Settings → Environment Variables** toevoegen (alle environments):
+    - `UPSTASH_REDIS_REST_URL`
+    - `UPSTASH_REDIS_REST_TOKEN`
+  - Redeploy.
+- **Waarom:** zonder Upstash valt de rate-limiter terug op een in-memory Map die **per-instance** is. Op Vercel (multi-lambda) kunnen aanvallers dit omzeilen door verschillende instances te raken. Voor echt effectieve bescherming → Upstash zetten.
+- **Skip:** `/api/email/webhook` (Resend callback) en `/api/email/track` (tracking pixel) zijn bewust niet rate-limited.
+
 ### LCN-008 — Hard-fail missing secrets
 - [ ] Op **Vercel → Project → Settings → Environment Variables** zetten (alle environments):
   - `SUPABASE_SERVICE_ROLE_KEY` — uit Supabase project `ytmkmiofoluespwysfxa` → Settings → API → service_role

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 import { parseJson } from '@/lib/api-validate'
@@ -12,7 +13,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-export async function POST(request: NextRequest) {
+async function _POST(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -116,3 +117,5 @@ ${csvContent}`
     )
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 10, windowSec: 60, route: 'csv-analyze:POST' })
