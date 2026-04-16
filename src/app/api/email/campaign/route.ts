@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { Resend } from 'resend'
 import { render } from '@react-email/render'
 import { z } from 'zod'
@@ -19,7 +20,7 @@ const CampaignBody = z.object({
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
-export async function POST(request: NextRequest) {
+async function _POST(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -131,3 +132,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 30, windowSec: 60, route: 'email-campaign:POST' })

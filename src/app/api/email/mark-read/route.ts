@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import Imap from 'imap'
 import { z } from 'zod'
 import { parseJson } from '@/lib/api-validate'
@@ -14,7 +15,7 @@ const MarkReadBody = z.object({
   password: z.string().max(500).optional(),
 }).passthrough()
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -65,3 +66,5 @@ export async function POST(req: NextRequest) {
     imap.connect()
   })
 }
+
+export const POST = withRateLimit(_POST, { limit: 60, windowSec: 60, route: 'email-mark-read:POST' })

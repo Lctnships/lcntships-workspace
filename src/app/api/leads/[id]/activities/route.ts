@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { z } from 'zod'
 import { parseJson } from '@/lib/api-validate'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
@@ -40,7 +41,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+async function _POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -90,3 +91,5 @@ export async function POST(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 60, windowSec: 60, route: 'leads-activities:POST' })

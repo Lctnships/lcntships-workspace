@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import imaps from 'imap-simple'
 import { simpleParser } from 'mailparser'
 import { z } from 'zod'
@@ -17,7 +18,7 @@ const ImapBody = z.object({
   uid: z.number().optional(),
 }).passthrough()
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -157,3 +158,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: userMessage }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 30, windowSec: 60, route: 'email-imap:POST' })

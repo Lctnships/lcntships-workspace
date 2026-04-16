@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
 
-export async function DELETE(
+async function _DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -35,3 +36,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const DELETE = withRateLimit(_DELETE, { limit: 60, windowSec: 60, route: 'leads-id:DELETE' })

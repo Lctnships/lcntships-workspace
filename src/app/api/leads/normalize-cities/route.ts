@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
 
-export async function POST() {
+async function _POST() {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -152,3 +153,5 @@ export async function POST() {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 10, windowSec: 60, route: 'leads-normalize-cities:POST' })

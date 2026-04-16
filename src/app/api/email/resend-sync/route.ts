@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { Resend } from 'resend'
 import { requireAuth } from '@/lib/api-auth'
 import { workspaceDb as supabaseAdmin } from '@/lib/supabase/workspace'
@@ -100,7 +101,7 @@ export async function GET() {
 }
 
 // Also fetch all recent emails from Resend and match by recipient
-export async function POST() {
+async function _POST() {
   const { error: authError2 } = await requireAuth()
   if (authError2) return authError2
 
@@ -171,3 +172,5 @@ export async function POST() {
     )
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 30, windowSec: 60, route: 'email-resend-sync:POST' })
