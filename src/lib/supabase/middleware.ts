@@ -17,7 +17,9 @@ const MFA_BYPASS_PREFIXES = [
 ]
 
 function shouldBypassMfa(pathname: string): boolean {
-  if (pathname === '/auth' || pathname === '/auth/mfa-challenge') return true
+  // Route groups like (auth) are stripped from URLs by Next.js — the
+  // mfa-challenge page lives at /mfa-challenge, not /auth/mfa-challenge.
+  if (pathname === '/mfa-challenge' || pathname === '/login' || pathname === '/signup') return true
   return MFA_BYPASS_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p)
   )
@@ -109,7 +111,7 @@ export async function updateSession(request: NextRequest) {
     // Has a verified factor but hasn't completed the challenge this session.
     // Per Supabase: nextLevel becomes 'aal2' once a verified factor exists.
     if (currentAal !== 'aal2' && nextLevel === 'aal2') {
-      const url = new URL('/auth/mfa-challenge', request.url)
+      const url = new URL('/mfa-challenge', request.url)
       url.searchParams.set('redirect', pathname + request.nextUrl.search)
       return NextResponse.redirect(url)
     }
