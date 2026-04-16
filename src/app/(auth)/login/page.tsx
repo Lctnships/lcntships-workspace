@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,8 +34,20 @@ export default function LoginPage() {
           setError(error.message)
         }
       } else {
-        router.push('/dashboard')
-        router.refresh()
+        // If the user has a verified MFA factor, the session is still at AAL1
+        // after password login and must complete the TOTP challenge. Route
+        // there directly; middleware enforces the same rule as a safety net.
+        const { data: factors } = await supabase.auth.mfa.listFactors()
+        const hasVerifiedFactor = (factors?.totp ?? []).some(
+          (f) => f.status === 'verified'
+        )
+
+        // Use a hard navigation so the middleware runs against fresh session
+        // cookies — avoids a race where router.push() hits a cached RSC
+        // response from before the session existed and bypasses MFA.
+        window.location.href = hasVerifiedFactor
+          ? '/auth/mfa-challenge'
+          : '/dashboard'
       }
     } catch {
       setError('Er is een onverwachte fout opgetreden')
