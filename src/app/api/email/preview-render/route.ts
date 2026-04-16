@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { render } from '@react-email/render'
 import { z } from 'zod'
 import CampaignEmail from '@/emails/CampaignEmail'
@@ -18,7 +19,7 @@ const PreviewRenderBody = z.object({
   attachments: z.array(z.any()).max(1000).optional(),
 }).passthrough()
 
-export async function POST(request: NextRequest) {
+async function _POST(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -62,3 +63,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 60, windowSec: 60, route: 'email-preview-render:POST' })

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import nodemailer from 'nodemailer'
 import { z } from 'zod'
 import { parseJson } from '@/lib/api-validate'
@@ -17,7 +18,7 @@ const SmtpBody = z.object({
   body: z.string().max(200000).optional(),
 }).passthrough()
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -56,3 +57,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 30, windowSec: 60, route: 'email-smtp:POST' })

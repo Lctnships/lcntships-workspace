@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { z } from 'zod'
 import { workspaceDb as supabase } from '@/lib/supabase/workspace'
 import { parseJson } from '@/lib/api-validate'
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function _POST(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+async function _PATCH(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -144,7 +145,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+async function _DELETE(request: NextRequest) {
   const { error: __authError } = await requireAuth()
   if (__authError) return __authError
 
@@ -172,3 +173,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 60, windowSec: 60, route: 'agenda:POST' })
+export const PATCH = withRateLimit(_PATCH, { limit: 60, windowSec: 60, route: 'agenda:PATCH' })
+export const DELETE = withRateLimit(_DELETE, { limit: 60, windowSec: 60, route: 'agenda:DELETE' })

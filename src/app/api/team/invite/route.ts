@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/with-rate-limit'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
@@ -24,7 +25,7 @@ const InviteBody = z.object({
  *   4. Response NEVER contains a password. The invitee receives a
  *      Supabase invite-email with a magic link to set their own password.
  */
-export async function POST(request: NextRequest) {
+async function _POST(request: NextRequest) {
   try {
     // 1. Authenticated?
     const supabaseServer = await createClient()
@@ -123,3 +124,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(_POST, { limit: 5, windowSec: 60, route: 'team-invite:POST' })
