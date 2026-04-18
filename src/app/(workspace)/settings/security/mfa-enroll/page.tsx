@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import DOMPurify from 'dompurify'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 interface EnrollData {
   factorId: string
-  qrSvg: string
+  qrImage: string
   secret: string
+  uri: string
 }
 
 export default function MfaEnrollPage() {
@@ -43,8 +43,9 @@ export default function MfaEnrollPage() {
 
       setEnroll({
         factorId: data.id,
-        qrSvg: data.totp.qr_code,
+        qrImage: data.totp.qr_code,
         secret: data.totp.secret,
+        uri: data.totp.uri,
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Enrollment mislukt')
@@ -97,8 +98,6 @@ export default function MfaEnrollPage() {
     await startEnrollment()
   }
 
-  const sanitizedQr = enroll ? DOMPurify.sanitize(enroll.qrSvg, { USE_PROFILES: { svg: true, svgFilters: true } }) : ''
-
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
       <div>
@@ -112,14 +111,22 @@ export default function MfaEnrollPage() {
 
       {enroll && (
         <>
-          <div
-            className="border rounded p-4 bg-white flex justify-center"
-            // QR is SVG produced by Supabase; sanitized via DOMPurify SVG profile.
-            dangerouslySetInnerHTML={{ __html: sanitizedQr }}
-          />
+          <div className="border rounded p-4 bg-white flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={enroll.qrImage}
+              alt="MFA QR code"
+              width={240}
+              height={240}
+              style={{ imageRendering: 'pixelated' }}
+            />
+          </div>
           <details className="text-xs">
             <summary className="cursor-pointer">Geen QR kunnen scannen? Toon secret</summary>
             <code className="block mt-2 p-2 bg-muted break-all">{enroll.secret}</code>
+            <p className="mt-2 text-muted-foreground">
+              Voer deze code handmatig in je authenticator-app in (type: Time-based).
+            </p>
           </details>
 
           <form onSubmit={handleVerify} className="space-y-3">
