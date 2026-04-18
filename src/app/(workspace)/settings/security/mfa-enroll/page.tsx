@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { RecoveryCodesPanel } from '@/components/mfa/RecoveryCodesPanel'
 
 interface EnrollData {
   factorId: string
@@ -22,12 +23,12 @@ export default function MfaEnrollPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
   async function startEnrollment() {
     setError(null)
     setLoading(true)
     try {
-      // Clean up any stale unverified factors first.
       const { data: factors } = await supabase.auth.mfa.listFactors()
       const unverified = (factors?.all ?? []).filter((f) => f.status !== 'verified')
       for (const f of unverified) {
@@ -79,7 +80,13 @@ export default function MfaEnrollPage() {
       })
       if (verifyErr) throw verifyErr
 
-      router.replace('/dashboard')
+      const res = await fetch('/api/mfa/recovery-codes', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setRecoveryCodes(data.codes)
+      } else {
+        router.replace('/dashboard')
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Verificatie mislukt')
     } finally {
@@ -97,6 +104,17 @@ export default function MfaEnrollPage() {
     setEnroll(null)
     setCode('')
     await startEnrollment()
+  }
+
+  if (recoveryCodes) {
+    return (
+      <div className="max-w-md mx-auto p-6">
+        <RecoveryCodesPanel
+          codes={recoveryCodes}
+          onContinue={() => router.replace('/dashboard')}
+        />
+      </div>
+    )
   }
 
   return (
