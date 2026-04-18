@@ -36,6 +36,7 @@ export default function MfaEnrollPage() {
 
       const { data, error: enrollErr } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
+        issuer: 'lcntships Workspace',
         friendlyName: `Authenticator-${Date.now()}`,
       })
       if (enrollErr) throw enrollErr
