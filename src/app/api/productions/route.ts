@@ -9,6 +9,7 @@ const createSchema = z.object({
   description: z.string().max(2000).optional().nullable(),
   location: z.string().max(200).optional().nullable(),
   proposed_dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(20),
+  deadline: z.string().datetime().optional().nullable(),
 })
 
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
 
   const { data, error: dbError } = await workspaceDb
     .from('productions')
-    .select('id, title, description, location, proposed_dates, share_token, status, final_date, created_at, updated_at')
+    .select('id, title, description, location, proposed_dates, share_token, status, final_date, deadline, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -47,10 +48,11 @@ export async function POST(req: NextRequest) {
       description: parsed.data.description ?? null,
       location: parsed.data.location ?? null,
       proposed_dates: parsed.data.proposed_dates,
+      deadline: parsed.data.deadline ?? null,
       share_token,
       created_by: user!.id,
     })
-    .select('id, title, description, location, proposed_dates, share_token, status, final_date, created_at, updated_at')
+    .select('id, title, description, location, proposed_dates, share_token, status, final_date, deadline, created_at, updated_at')
     .single()
 
   if (dbError) {

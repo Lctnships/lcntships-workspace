@@ -50,6 +50,8 @@ interface TeamMember {
   role: string
   created_at: string
   last_sign_in_at: string | null
+  mfa_enabled?: boolean
+  recovery_codes_remaining?: number
 }
 
 // Mock data
@@ -509,6 +511,22 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            'px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1',
+                            member.mfa_enabled
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-amber-50 text-amber-700',
+                          )}
+                          title={
+                            member.mfa_enabled
+                              ? `MFA aan (${member.recovery_codes_remaining ?? 0} recovery codes over)`
+                              : 'MFA nog niet ingeschakeld'
+                          }
+                        >
+                          {member.mfa_enabled ? <Shield className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                          {member.mfa_enabled ? 'MFA' : 'Geen MFA'}
+                        </span>
                         <span className={cn(
                           'px-2.5 py-1 rounded-full text-xs font-medium capitalize',
                           member.role === 'admin' ? 'bg-purple-100 text-purple-700' :

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import { Calendar, Check, Loader2, MapPin, Lock } from 'lucide-react'
+import { Calendar, Check, Loader2, MapPin, Lock, Clock } from 'lucide-react'
 
 type PublicProduction = {
   id: string
@@ -18,6 +18,7 @@ type PublicProduction = {
   proposed_dates: string[]
   status: 'open' | 'closed'
   final_date: string | null
+  deadline: string | null
 }
 
 function formatDate(d: string) {
@@ -33,11 +34,13 @@ export default function PublicVotePage({ params }: { params: Promise<{ token: st
   const [production, setProduction] = useState<PublicProduction | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isDuplicate, setIsDuplicate] = useState(false)
 
   useEffect(() => {
     fetch(`/api/productions/public/${token}`)
@@ -58,8 +61,12 @@ export default function PublicVotePage({ params }: { params: Promise<{ token: st
 
   const submit = async () => {
     setError(null)
+    setIsDuplicate(false)
     if (!name.trim()) return setError('Vul je naam in')
     if (selected.size === 0) return setError('Selecteer minimaal één datum')
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return setError('Ongeldig emailadres')
+    }
 
     setSubmitting(true)
     const res = await fetch(`/api/productions/public/${token}`, {
@@ -67,6 +74,7 @@ export default function PublicVotePage({ params }: { params: Promise<{ token: st
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         voter_name: name.trim(),
+        voter_email: email.trim() || null,
         available_dates: Array.from(selected),
         note: note.trim() || null,
       }),
@@ -75,6 +83,7 @@ export default function PublicVotePage({ params }: { params: Promise<{ token: st
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       setError(data.error ?? 'Kon niet opslaan')
+      if (data.duplicate) setIsDuplicate(true)
       return
     }
     setSubmitted(true)
@@ -151,6 +160,13 @@ export default function PublicVotePage({ params }: { params: Promise<{ token: st
             </div>
           )}
 
+          {!isClosed && production.deadline && (
+            <div className="mt-5 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+              <Clock className="h-3.5 w-3.5" />
+              Sluit op {format(parseISO(production.deadline), 'd MMM HH:mm', { locale: nl })}
+            </div>
+          )}
+
           {!isClosed && (
             <>
               <div className="mt-6">
@@ -158,8 +174,20 @@ export default function PublicVotePage({ params }: { params: Promise<{ token: st
                 <Input
                   id="name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { setName(e.target.value); if (isDuplicate) setIsDuplicate(false) }}
                   placeholder="Bijv. Nova"
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="mt-4">
+                <Label htmlFor="email">Email (optioneel)</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voor bevestiging finale datum"
                   className="mt-1"
                 />
               </div>

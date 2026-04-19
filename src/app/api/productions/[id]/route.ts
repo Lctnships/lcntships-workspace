@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { workspaceDb } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
+import { notifyFinalDate } from '@/lib/production-notify'
 
 const updateSchema = z.object({
   status: z.enum(['open', 'closed']).optional(),
   final_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  deadline: z.string().datetime().nullable().optional(),
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).nullable().optional(),
   location: z.string().max(200).nullable().optional(),
@@ -19,7 +21,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   const [{ data: production, error: pErr }, { data: votes, error: vErr }] = await Promise.all([
     workspaceDb
       .from('productions')
-      .select('id, title, description, location, proposed_dates, share_token, status, final_date, created_at, updated_at')
+      .select('id, title, description, location, proposed_dates, share_token, status, final_date, deadline, created_at, updated_at')
       .eq('id', id)
       .single(),
     workspaceDb
@@ -49,6 +51,12 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
+  const { data: before } = await workspaceDb
+    .from('productions')
+    .select('final_date')
+    .eq('id', id)
+    .single()
+
   const { data, error: dbError } = await workspaceDb
     .from('productions')
     .update(parsed.data)
@@ -60,6 +68,15 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     console.error('production PATCH', dbError)
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
   }
+
+  // Fire-and-forget notify when final_date is newly set or changed
+  if (
+    parsed.data.final_date &&
+    before?.final_date !== parsed.data.final_date
+  ) {
+    notifyFinalDate(id).catch((e) => console.error('notify final date', e))
+  }
+
   return NextResponse.json(data)
 }
 

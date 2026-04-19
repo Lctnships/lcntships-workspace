@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { RecoveryCodesPanel } from './RecoveryCodesPanel'
-import { Check, Loader2, Shield, ShieldOff, RefreshCw } from 'lucide-react'
+import { Check, Loader2, Shield, ShieldOff, RefreshCw, AlertTriangle } from 'lucide-react'
 
 type FactorInfo = {
   id: string
@@ -123,7 +124,28 @@ export function MfaManager() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+      {recoveryRemaining !== null && recoveryRemaining < 3 && (
+        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900">
+              {recoveryRemaining === 0 ? 'Geen recovery codes meer' : `Nog maar ${recoveryRemaining} recovery code${recoveryRemaining === 1 ? '' : 's'} over`}
+            </p>
+            <p className="text-xs text-amber-800/80 mt-0.5">
+              Genereer nieuwe codes zodat je niet buitengesloten raakt als je telefoon kwijt is.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          'flex items-center justify-between p-3 border rounded-lg',
+          recoveryRemaining !== null && recoveryRemaining < 3
+            ? 'border-amber-200 bg-amber-50/40'
+            : 'border-gray-100',
+        )}
+      >
         <div className="text-sm">
           <p className="font-medium text-gray-900">Recovery codes</p>
           <p className="text-xs text-gray-500 mt-0.5">

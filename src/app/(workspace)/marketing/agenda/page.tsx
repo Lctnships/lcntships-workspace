@@ -32,6 +32,7 @@ type Production = {
   share_token: string
   status: 'open' | 'closed'
   final_date: string | null
+  deadline: string | null
   created_at: string
   updated_at: string
 }
@@ -168,7 +169,12 @@ export default function ProductieAgendaPage() {
                   {p.status === 'open' ? 'Open' : 'Gesloten'}
                 </Badge>
               </div>
-              {p.location && <p className="text-xs text-gray-500 mb-2">{p.location}</p>}
+              {p.location && <p className="text-xs text-gray-500 mb-1">{p.location}</p>}
+              {p.deadline && (
+                <p className="text-xs text-gray-400 mb-2">
+                  Sluit {format(parseISO(p.deadline), 'd MMM HH:mm', { locale: nl })}
+                </p>
+              )}
               <div className="flex flex-wrap gap-1 mb-3">
                 {p.proposed_dates.slice(0, 3).map((d) => (
                   <span
@@ -249,6 +255,7 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const [description, setDescription] = useState('')
   const [location, setLocation] = useState('')
   const [dates, setDates] = useState<string[]>([''])
+  const [deadline, setDeadline] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -259,6 +266,13 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
     if (!title.trim()) return setError('Titel is verplicht')
     if (validDates.length === 0) return setError('Voeg minstens één datum toe')
 
+    let deadlineIso: string | null = null
+    if (deadline) {
+      const d = new Date(deadline)
+      if (isNaN(d.getTime())) return setError('Ongeldige deadline')
+      deadlineIso = d.toISOString()
+    }
+
     setSubmitting(true)
     const res = await fetch('/api/productions', {
       method: 'POST',
@@ -268,6 +282,7 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
         description: description.trim() || null,
         location: location.trim() || null,
         proposed_dates: Array.from(new Set(validDates)),
+        deadline: deadlineIso,
       }),
     })
     setSubmitting(false)
@@ -347,6 +362,16 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
                 Datum toevoegen
               </Button>
             </div>
+          </div>
+          <div>
+            <Label htmlFor="deadline">Deadline (optioneel)</Label>
+            <Input
+              id="deadline"
+              type="datetime-local"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">Na deze tijd sluit de poll automatisch.</p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
