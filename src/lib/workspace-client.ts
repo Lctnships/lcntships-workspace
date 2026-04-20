@@ -18,7 +18,19 @@ class WorkspaceQueryBuilder<T = any> implements PromiseLike<Result<T>> {
     this.body = { table, filters: [] as Filter[] }
   }
 
-  select(columns = '*') { this.body.op = 'select'; this.body.columns = columns; return this }
+  select(columns = '*') {
+    // If a mutation (insert/update/upsert) already set op, keep it — the
+    // trailing .select() just means "return the affected rows". Only set
+    // op to 'select' when this is a fresh query.
+    if (!this.body.op || this.body.op === 'select') {
+      this.body.op = 'select'
+      this.body.columns = columns
+    } else {
+      this.body.returning = true
+      this.body.columns = columns
+    }
+    return this
+  }
   insert(values: unknown) { this.body.op = 'insert'; this.body.values = values; return this }
   update(values: unknown) { this.body.op = 'update'; this.body.values = values; return this }
   delete() { this.body.op = 'delete'; return this }
