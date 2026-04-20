@@ -59,7 +59,7 @@ export default function LeadEmail({
             {/* Header */}
             <Section className="bg-[#111111] px-8 py-6">
               <Text className="text-white text-2xl font-bold text-center m-0">
-                lcntships
+                lctnships
               </Text>
             </Section>
 
@@ -90,14 +90,14 @@ export default function LeadEmail({
               <Text className="text-gray-500 text-sm mt-8">
                 Met vriendelijke groet,
                 <br />
-                <strong className="text-gray-900">Het lcntships Team</strong>
+                <strong className="text-gray-900">Het lctnships Team</strong>
               </Text>
             </Section>
 
             {/* Footer */}
             <Section className="bg-gray-100 px-8 py-6 border-t border-gray-200">
               <Text className="text-gray-500 text-xs text-center mb-2">
-                © {new Date().getFullYear()} lcntships. Alle rechten voorbehouden.
+                © {new Date().getFullYear()} lctnships. Alle rechten voorbehouden.
               </Text>
               <Text className="text-gray-400 text-xs text-center">
                 Je ontvangt deze email omdat {companyName} is geregistreerd als potentiele partner.
