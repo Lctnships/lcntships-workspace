@@ -18,11 +18,13 @@ const isProd = process.env.NODE_ENV === "production";
 const cspDirectives = [
   "default-src 'self'",
   // Inline + eval: needed by Next dev runtime; tighten under LCN-022.
-  `script-src 'self' 'unsafe-inline' ${isProd ? "" : "'unsafe-eval'"}`.trim(),
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co",
-  "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com",
+  // vercel.live = Vercel's live feedback script injected op preview/prod
+  `script-src 'self' 'unsafe-inline' https://vercel.live ${isProd ? "" : "'unsafe-eval'"}`.trim(),
+  "style-src 'self' 'unsafe-inline' https://vercel.live",
+  "img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://vercel.com https://vercel.live",
+  "font-src 'self' data: https://vercel.live https://assets.vercel.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://vercel.live wss://ws-us3.pusher.com",
+  "frame-src 'self' https://vercel.live",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",
