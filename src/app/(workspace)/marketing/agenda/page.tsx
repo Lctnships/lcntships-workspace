@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
+import { useRouter } from 'next/navigation'
 import {
   Calendar,
   Plus,
@@ -21,7 +22,10 @@ import {
   Lock,
   Unlock,
   Star,
+  Clapperboard,
+  ExternalLink,
 } from 'lucide-react'
+import { workspaceClient } from '@/lib/workspace-client'
 
 type Production = {
   id: string
@@ -125,6 +129,44 @@ export default function ProductieAgendaPage() {
       setSelected(null)
       setVotes([])
       await loadProductions()
+    }
+  }
+
+  const router = useRouter()
+  const createBriefFromProduction = async (p: Production) => {
+    // Check of er al een brief is voor deze productie
+    const existing = await workspaceClient
+      .from<Array<{ id: string }>>('content_briefs')
+      .select('id')
+      .eq('production_id', p.id)
+      .limit(1)
+    if (existing.data && existing.data.length > 0) {
+      router.push(`/content?brief=${existing.data[0].id}`)
+      return
+    }
+    const { data, error } = await workspaceClient
+      .from<Array<{ id: string }>>('content_briefs')
+      .insert({
+        production_id: p.id,
+        studio_name: p.location ?? p.title,
+        title: p.title,
+        description: p.description,
+        shoot_date: p.final_date ?? (p.proposed_dates[0] ?? null),
+        status: 'draft',
+        shotlist: [],
+        equipment: [],
+        share_link: crypto.randomUUID(),
+      })
+      .select()
+    if (error) {
+      alert(`Kon brief niet aanmaken: ${error.message}`)
+      return
+    }
+    const row = Array.isArray(data) ? data[0] : null
+    if (row) {
+      router.push(`/content?brief=${row.id}`)
+    } else {
+      router.push('/content')
     }
   }
 
@@ -233,6 +275,7 @@ export default function ProductieAgendaPage() {
           onSetFinal={(d) => setFinalDate(selected, d)}
           onDelete={() => deleteProduction(selected.id)}
           onCopyLink={() => copyLink(selected.share_token, selected.id)}
+          onCreateBrief={() => createBriefFromProduction(selected)}
           copied={copiedId === selected.id}
         />
       )}
@@ -399,6 +442,7 @@ function DetailPanel({
   onSetFinal,
   onDelete,
   onCopyLink,
+  onCreateBrief,
   copied,
 }: {
   production: Production
@@ -409,6 +453,7 @@ function DetailPanel({
   onSetFinal: (d: string | null) => void
   onDelete: () => void
   onCopyLink: () => void
+  onCreateBrief: () => void
   copied: boolean
 }) {
   const tally = useMemo(() => {
@@ -470,6 +515,10 @@ function DetailPanel({
                   Heropenen
                 </>
               )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onCreateBrief}>
+              <Clapperboard className="h-3.5 w-3.5 mr-1.5" />
+              Maak content brief
             </Button>
             <Button variant="outline" size="sm" onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />

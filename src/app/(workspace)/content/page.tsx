@@ -32,6 +32,7 @@ import {
   ChevronUp,
   Copy,
   Settings2,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -82,6 +83,7 @@ interface ContentBrief {
   end_time: string | null
   contact_person: string | null
   contact_phone: string | null
+  production_id: string | null
   created_at: string
   updated_at: string
 }
@@ -279,6 +281,18 @@ export default function ContentPage() {
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
+
+  // Auto-open brief from ?brief=<id> query param (used when navigating from
+  // Productie Agenda "Maak content brief" knop)
+  useEffect(() => {
+    if (briefs.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const briefId = params.get('brief')
+    if (briefId) {
+      const match = briefs.find((b) => b.id === briefId)
+      if (match) setSelectedBrief(match)
+    }
+  }, [briefs])
 
   // ─── Helpers ───
   const filteredStudios = studios.filter(s =>
@@ -800,6 +814,13 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
                   </div>
                 )}
                 <div className="flex gap-2"><span className="text-gray-500 w-20">Studio</span><span className="text-gray-900">{selectedBrief.studio_name}</span></div>
+                {selectedBrief.production_id && (
+                  <div className="flex gap-2"><span className="text-gray-500 w-20">Productie</span>
+                    <a href="/marketing/agenda" className="text-indigo-600 hover:underline inline-flex items-center gap-1">
+                      Open agenda <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
                 {selectedBrief.shoot_date && <div className="flex gap-2"><span className="text-gray-500 w-20">Shoot</span>
                   <span className="text-gray-900">{format(new Date(selectedBrief.shoot_date + 'T12:00:00'), 'EEEE d MMMM yyyy', { locale: nl })}</span></div>}
                 {selectedBrief.call_time && <div className="flex gap-2"><span className="text-gray-500 w-20">Call Time</span><span className="text-gray-900">{selectedBrief.call_time}</span></div>}
