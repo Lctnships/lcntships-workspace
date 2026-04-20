@@ -39,7 +39,7 @@ const ALLOWED_TABLES = new Set([
   'customers', 'team_members',
   'email_accounts', 'email_templates', 'email_sequences',
   'sequence_emails', 'sequence_enrollments', 'sequence_email_logs',
-  'emails', 'email_tracking', 'sent_emails',
+  'emails', 'email_tracking', 'sent_emails', 'email_outbox',
   // batch 3 (briefings / uploads / content / portfolio)
   'processed_webhook_events',
   'briefings', 'briefing_responses',

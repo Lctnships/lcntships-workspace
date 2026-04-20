@@ -32,6 +32,7 @@ import { Users, UserPlus, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { MfaManager } from '@/components/mfa/MfaManager'
 import { EmailHealthCheck } from '@/components/email/EmailHealthCheck'
+import { OutboxViewer } from '@/components/email/OutboxViewer'
 
 const navItems = [
   { id: 'business-profile', label: 'Business Profile', icon: Briefcase },
@@ -621,6 +622,11 @@ export default function SettingsPage() {
             {/* Email pipeline test */}
             <div className="mb-6">
               <EmailHealthCheck />
+            </div>
+
+            {/* Email outbox */}
+            <div className="mb-6">
+              <OutboxViewer />
             </div>
 
             {/* Email Configuration */}
