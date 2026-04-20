@@ -13,6 +13,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 const PUBLIC_API_ROUTES = [
   '/api/email/webhook',
   '/api/email/track',
+  '/api/productions/public',
 ]
 
 function isPublicApiRoute(pathname: string): boolean {

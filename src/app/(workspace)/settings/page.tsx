@@ -30,6 +30,8 @@ import { cn } from '@/lib/utils'
 
 import { Users, UserPlus, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { MfaManager } from '@/components/mfa/MfaManager'
+import { EmailHealthCheck } from '@/components/email/EmailHealthCheck'
 
 const navItems = [
   { id: 'business-profile', label: 'Business Profile', icon: Briefcase },
@@ -49,6 +51,8 @@ interface TeamMember {
   role: string
   created_at: string
   last_sign_in_at: string | null
+  mfa_enabled?: boolean
+  recovery_codes_remaining?: number
 }
 
 // Mock data
@@ -101,7 +105,6 @@ function SmallToggle({ checked, onChange }: { checked: boolean; onChange: (check
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('business-profile')
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
 
   // User profile state
@@ -393,36 +396,23 @@ export default function SettingsPage() {
 
             {/* Security */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold mb-6">Security</h3>
-              <div className="flex flex-col gap-6">
-                <div className="flex items-center justify-between py-2">
+              <h3 className="text-lg font-semibold mb-4">Twee-factor authenticatie</h3>
+              <MfaManager />
+
+              <div className="border-t border-gray-100 pt-6 mt-6">
+                <h4 className="text-sm font-semibold text-gray-900 mb-4">Wachtwoord wijzigen</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900">Two-Factor Authentication</h4>
-                    <p className="text-xs text-gray-500 mt-1">Add an extra layer of security to your account.</p>
-                    <a
-                      href="/settings/security/mfa-enroll"
-                      className="text-xs text-indigo-600 underline mt-1 inline-block"
-                    >
-                      MFA-instellingen
-                    </a>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Huidig wachtwoord</label>
+                    <Input className="h-10 rounded-xl bg-gray-50" type="password" />
                   </div>
-                  <Toggle checked={twoFactorEnabled} onChange={setTwoFactorEnabled} />
-                </div>
-                <div className="border-t border-gray-100 pt-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-4">Change Password</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Current Password</label>
-                      <Input className="h-10 rounded-xl bg-gray-50" type="password" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">New Password</label>
-                      <Input className="h-10 rounded-xl bg-gray-50" type="password" />
-                    </div>
-                    <Button variant="outline" className="h-10 rounded-xl">
-                      Update Password
-                    </Button>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Nieuw wachtwoord</label>
+                    <Input className="h-10 rounded-xl bg-gray-50" type="password" />
                   </div>
+                  <Button variant="outline" className="h-10 rounded-xl">
+                    Bijwerken
+                  </Button>
                 </div>
               </div>
             </div>
@@ -522,6 +512,22 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            'px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1',
+                            member.mfa_enabled
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-amber-50 text-amber-700',
+                          )}
+                          title={
+                            member.mfa_enabled
+                              ? `MFA aan (${member.recovery_codes_remaining ?? 0} recovery codes over)`
+                              : 'MFA nog niet ingeschakeld'
+                          }
+                        >
+                          {member.mfa_enabled ? <Shield className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                          {member.mfa_enabled ? 'MFA' : 'Geen MFA'}
+                        </span>
                         <span className={cn(
                           'px-2.5 py-1 rounded-full text-xs font-medium capitalize',
                           member.role === 'admin' ? 'bg-purple-100 text-purple-700' :
@@ -610,6 +616,11 @@ export default function SettingsPage() {
                   <Toggle checked={googleAuthEnabled} onChange={setGoogleAuthEnabled} />
                 </div>
               </div>
+            </div>
+
+            {/* Email pipeline test */}
+            <div className="mb-6">
+              <EmailHealthCheck />
             </div>
 
             {/* Email Configuration */}

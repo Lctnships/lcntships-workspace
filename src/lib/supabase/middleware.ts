@@ -82,9 +82,10 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isAuthPage = pathname === '/login' || pathname === '/signup'
+  const isPublicPage = pathname.startsWith('/p/')
 
-  // If not logged in and not on an auth page, redirect to login
-  if (!user && !isAuthPage) {
+  // If not logged in and not on an auth/public page, redirect to login
+  if (!user && !isAuthPage && !isPublicPage) {
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }
