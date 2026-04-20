@@ -90,13 +90,15 @@ async function _POST(req: NextRequest) {
         break
       case 'update':
         q = q.update(body.values as object)
+        if (body.returning) q = q.select(body.columns || '*')
         break
       case 'delete':
         q = q.delete()
+        if (body.returning) q = q.select(body.columns || '*')
         break
       case 'upsert':
         q = q.upsert(body.values as object)
-        if (body.returning !== false) q = q.select()
+        if (body.returning !== false) q = q.select(body.columns || '*')
         break
       default:
         return NextResponse.json({ error: 'Invalid op' }, { status: 400 })

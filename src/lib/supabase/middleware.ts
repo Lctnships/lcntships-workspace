@@ -96,10 +96,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl)
   }
 
-  // MFA enforcement (LCN-010). Escape hatch: MFA_ENFORCEMENT=off
+  // MFA enforcement disabled on main — set MFA_ENFORCEMENT=on to re-enable.
   if (
     user &&
-    process.env.MFA_ENFORCEMENT !== 'off' &&
+    process.env.MFA_ENFORCEMENT === 'on' &&
     !shouldBypassMfa(pathname)
   ) {
     const { hasVerifiedFactor, currentAal, nextLevel } = await getMfaStatus(supabase)
@@ -109,8 +109,6 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // Has a verified factor but hasn't completed the challenge this session.
-    // Per Supabase: nextLevel becomes 'aal2' once a verified factor exists.
     if (currentAal !== 'aal2' && nextLevel === 'aal2') {
       const url = new URL('/mfa-challenge', request.url)
       url.searchParams.set('redirect', pathname + request.nextUrl.search)
