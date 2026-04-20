@@ -1,0 +1,571 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import { format, parseISO } from 'date-fns'
+import { nl } from 'date-fns/locale'
+import {
+  Calendar,
+  Plus,
+  Copy,
+  Check,
+  Loader2,
+  Trash2,
+  X,
+  Users,
+  Lock,
+  Unlock,
+  Star,
+} from 'lucide-react'
+
+type Production = {
+  id: string
+  title: string
+  description: string | null
+  location: string | null
+  proposed_dates: string[]
+  share_token: string
+  status: 'open' | 'closed'
+  final_date: string | null
+  deadline: string | null
+  created_at: string
+  updated_at: string
+}
+
+type Vote = {
+  id: string
+  voter_name: string
+  available_dates: string[]
+  note: string | null
+  created_at: string
+}
+
+function formatDate(d: string) {
+  try {
+    return format(parseISO(d), 'EEE d MMM yyyy', { locale: nl })
+  } catch {
+    return d
+  }
+}
+
+export default function ProductieAgendaPage() {
+  const [productions, setProductions] = useState<Production[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [selected, setSelected] = useState<Production | null>(null)
+  const [votes, setVotes] = useState<Vote[]>([])
+  const [loadingVotes, setLoadingVotes] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const loadProductions = useCallback(async () => {
+    setLoading(true)
+    const res = await fetch('/api/productions')
+    if (res.ok) {
+      setProductions(await res.json())
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    loadProductions()
+  }, [loadProductions])
+
+  const loadDetail = useCallback(async (id: string) => {
+    setLoadingVotes(true)
+    const res = await fetch(`/api/productions/${id}`)
+    if (res.ok) {
+      const data = await res.json()
+      setSelected(data.production)
+      setVotes(data.votes)
+    }
+    setLoadingVotes(false)
+  }, [])
+
+  const copyLink = async (token: string, id: string) => {
+    const url = `${window.location.origin}/p/${token}`
+    await navigator.clipboard.writeText(url)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 1500)
+  }
+
+  const toggleStatus = async (p: Production) => {
+    const next = p.status === 'open' ? 'closed' : 'open'
+    const res = await fetch(`/api/productions/${p.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    })
+    if (res.ok) {
+      await loadProductions()
+      if (selected?.id === p.id) await loadDetail(p.id)
+    }
+  }
+
+  const setFinalDate = async (p: Production, date: string | null) => {
+    const res = await fetch(`/api/productions/${p.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ final_date: date }),
+    })
+    if (res.ok) {
+      await loadProductions()
+      if (selected?.id === p.id) await loadDetail(p.id)
+    }
+  }
+
+  const deleteProduction = async (id: string) => {
+    if (!confirm('Weet je zeker dat je deze productie wilt verwijderen?')) return
+    const res = await fetch(`/api/productions/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setSelected(null)
+      setVotes([])
+      await loadProductions()
+    }
+  }
+
+  return (
+    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Productie Agenda</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Plan productiedagen en laat het team stemmen op beschikbare datums.
+          </p>
+        </div>
+        <Button onClick={() => setCreating(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nieuwe productie
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+        </div>
+      ) : productions.length === 0 ? (
+        <div className="border border-dashed border-gray-200 rounded-xl py-16 text-center">
+          <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Nog geen producties. Klik op "Nieuwe productie" om te beginnen.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {productions.map((p) => (
+            <div
+              key={p.id}
+              className={cn(
+                'border border-gray-100 rounded-xl p-4 bg-white hover:shadow-sm transition cursor-pointer',
+                selected?.id === p.id && 'ring-2 ring-gray-900',
+              )}
+              onClick={() => loadDetail(p.id)}
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-semibold text-gray-900 line-clamp-1">{p.title}</h3>
+                <Badge variant={p.status === 'open' ? 'default' : 'secondary'}>
+                  {p.status === 'open' ? 'Open' : 'Gesloten'}
+                </Badge>
+              </div>
+              {p.location && <p className="text-xs text-gray-500 mb-1">{p.location}</p>}
+              {p.deadline && (
+                <p className="text-xs text-gray-400 mb-2">
+                  Sluit {format(parseISO(p.deadline), 'd MMM HH:mm', { locale: nl })}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1 mb-3">
+                {p.proposed_dates.slice(0, 3).map((d) => (
+                  <span
+                    key={d}
+                    className={cn(
+                      'text-xs px-2 py-0.5 rounded-md border',
+                      p.final_date === d
+                        ? 'bg-green-50 border-green-300 text-green-800'
+                        : 'bg-gray-50 border-gray-200 text-gray-700',
+                    )}
+                  >
+                    {formatDate(d)}
+                  </span>
+                ))}
+                {p.proposed_dates.length > 3 && (
+                  <span className="text-xs text-gray-400">+{p.proposed_dates.length - 3}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    copyLink(p.share_token, p.id)
+                  }}
+                >
+                  {copiedId === p.id ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 mr-1.5" />
+                      Gekopieerd
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5 mr-1.5" />
+                      Deel-link
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {selected && (
+        <DetailPanel
+          production={selected}
+          votes={votes}
+          loading={loadingVotes}
+          onClose={() => {
+            setSelected(null)
+            setVotes([])
+          }}
+          onToggleStatus={() => toggleStatus(selected)}
+          onSetFinal={(d) => setFinalDate(selected, d)}
+          onDelete={() => deleteProduction(selected.id)}
+          onCopyLink={() => copyLink(selected.share_token, selected.id)}
+          copied={copiedId === selected.id}
+        />
+      )}
+
+      {creating && (
+        <CreateDialog
+          onClose={() => setCreating(false)}
+          onCreated={async () => {
+            setCreating(false)
+            await loadProductions()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [location, setLocation] = useState('')
+  const [dates, setDates] = useState<string[]>([''])
+  const [deadline, setDeadline] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const validDates = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+
+  const submit = async () => {
+    setError(null)
+    if (!title.trim()) return setError('Titel is verplicht')
+    if (validDates.length === 0) return setError('Voeg minstens één datum toe')
+
+    let deadlineIso: string | null = null
+    if (deadline) {
+      const d = new Date(deadline)
+      if (isNaN(d.getTime())) return setError('Ongeldige deadline')
+      deadlineIso = d.toISOString()
+    }
+
+    setSubmitting(true)
+    const res = await fetch('/api/productions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: title.trim(),
+        description: description.trim() || null,
+        location: location.trim() || null,
+        proposed_dates: Array.from(new Set(validDates)),
+        deadline: deadlineIso,
+      }),
+    })
+    setSubmitting(false)
+    if (!res.ok) {
+      setError('Kon niet aanmaken')
+      return
+    }
+    onCreated()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Nieuwe productie</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Titel *</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Bijv. Shoot nieuwe studio"
+            />
+          </div>
+          <div>
+            <Label htmlFor="location">Locatie</Label>
+            <Input
+              id="location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Bijv. Amsterdam"
+            />
+          </div>
+          <div>
+            <Label htmlFor="description">Omschrijving</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Korte beschrijving voor het team..."
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label>Voorgestelde datums *</Label>
+            <div className="space-y-2 mt-1">
+              {dates.map((d, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    type="date"
+                    value={d}
+                    onChange={(e) => {
+                      const next = [...dates]
+                      next[i] = e.target.value
+                      setDates(next)
+                    }}
+                  />
+                  {dates.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDates(dates.filter((_, idx) => idx !== i))}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setDates([...dates, ''])}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Datum toevoegen
+              </Button>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="deadline">Deadline (optioneel)</Label>
+            <Input
+              id="deadline"
+              type="datetime-local"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">Na deze tijd sluit de poll automatisch.</p>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={onClose}>
+            Annuleren
+          </Button>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Aanmaken
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DetailPanel({
+  production,
+  votes,
+  loading,
+  onClose,
+  onToggleStatus,
+  onSetFinal,
+  onDelete,
+  onCopyLink,
+  copied,
+}: {
+  production: Production
+  votes: Vote[]
+  loading: boolean
+  onClose: () => void
+  onToggleStatus: () => void
+  onSetFinal: (d: string | null) => void
+  onDelete: () => void
+  onCopyLink: () => void
+  copied: boolean
+}) {
+  const tally = useMemo(() => {
+    const m = new Map<string, string[]>()
+    production.proposed_dates.forEach((d) => m.set(d, []))
+    votes.forEach((v) => {
+      v.available_dates.forEach((d) => {
+        if (m.has(d)) m.get(d)!.push(v.voter_name)
+      })
+    })
+    return m
+  }, [production.proposed_dates, votes])
+
+  const bestCount = Math.max(0, ...Array.from(tally.values()).map((a) => a.length))
+
+  return (
+    <div className="fixed inset-0 z-40 bg-black/30 flex justify-end" onClick={onClose}>
+      <div
+        className="bg-white w-full max-w-xl h-full overflow-y-auto shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold text-gray-900">{production.title}</h2>
+            {production.location && <p className="text-sm text-gray-500 mt-0.5">{production.location}</p>}
+            {production.description && (
+              <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{production.description}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={onCopyLink}>
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                  Gekopieerd
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Deel-link kopiëren
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onToggleStatus}>
+              {production.status === 'open' ? (
+                <>
+                  <Lock className="h-3.5 w-3.5 mr-1.5" />
+                  Sluiten
+                </>
+              ) : (
+                <>
+                  <Unlock className="h-3.5 w-3.5 mr-1.5" />
+                  Heropenen
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onDelete}>
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              Verwijderen
+            </Button>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-400" />
+              Resultaten ({votes.length} {votes.length === 1 ? 'stem' : 'stemmen'})
+            </h3>
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            ) : (
+              <div className="space-y-2">
+                {production.proposed_dates.map((d) => {
+                  const names = tally.get(d) ?? []
+                  const isFinal = production.final_date === d
+                  const isBest = names.length === bestCount && bestCount > 0
+                  return (
+                    <div
+                      key={d}
+                      className={cn(
+                        'border rounded-lg p-3',
+                        isFinal
+                          ? 'border-green-300 bg-green-50'
+                          : isBest
+                            ? 'border-gray-900'
+                            : 'border-gray-100',
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">{formatDate(d)}</span>
+                          {isFinal && (
+                            <Badge className="bg-green-600 hover:bg-green-600">Finale datum</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-700">
+                            {names.length} / {votes.length}
+                          </span>
+                          <Button
+                            variant={isFinal ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => onSetFinal(isFinal ? null : d)}
+                            className="h-7 px-2"
+                          >
+                            <Star className={cn('h-3.5 w-3.5', isFinal && 'fill-current')} />
+                          </Button>
+                        </div>
+                      </div>
+                      {names.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {names.map((n) => (
+                            <span key={n} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5">
+                              {n}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {votes.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Stemmen</h3>
+              <div className="space-y-2">
+                {votes.map((v) => (
+                  <div key={v.id} className="border border-gray-100 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm text-gray-900">{v.voter_name}</span>
+                      <span className="text-xs text-gray-400">
+                        {format(parseISO(v.created_at), 'd MMM HH:mm', { locale: nl })}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {v.available_dates.map((d) => (
+                        <span key={d} className="text-xs bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
+                          {formatDate(d)}
+                        </span>
+                      ))}
+                    </div>
+                    {v.note && <p className="text-xs text-gray-600 mt-1.5 italic">"{v.note}"</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

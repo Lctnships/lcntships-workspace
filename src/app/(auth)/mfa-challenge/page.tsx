@@ -6,15 +6,19 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
+type Mode = 'totp' | 'recovery'
+
 function MfaChallengeInner() {
   const router = useRouter()
   const params = useSearchParams()
   const redirectTo = params.get('redirect') || '/dashboard'
   const supabase = createClient()
 
+  const [mode, setMode] = useState<Mode>('totp')
   const [factorId, setFactorId] = useState<string | null>(null)
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [code, setCode] = useState('')
+  const [recoveryCode, setRecoveryCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
@@ -59,11 +63,32 @@ function MfaChallengeInner() {
       router.replace(redirectTo)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Verificatie mislukt')
-      // Start a fresh challenge so the user can retry.
       if (factorId) {
         const { data: ch } = await supabase.auth.mfa.challenge({ factorId })
         if (ch) setChallengeId(ch.id)
       }
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  async function handleRecovery(e: React.FormEvent) {
+    e.preventDefault()
+    setVerifying(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/mfa/recovery-codes/consume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: recoveryCode }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'Ongeldige code')
+      }
+      router.replace('/settings/security/mfa-enroll')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Kon code niet verifiëren')
     } finally {
       setVerifying(false)
     }
@@ -77,31 +102,69 @@ function MfaChallengeInner() {
   return (
     <div className="max-w-sm mx-auto p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Verifieer je identiteit</h1>
+        <h1 className="text-2xl font-semibold">
+          {mode === 'totp' ? 'Verifieer je identiteit' : 'Gebruik recovery code'}
+        </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Voer de 6-cijferige code uit je authenticator-app in.
+          {mode === 'totp'
+            ? 'Voer de 6-cijferige code uit je authenticator-app in.'
+            : 'Voer een recovery code in. Daarna moet je een nieuw apparaat koppelen.'}
         </p>
       </div>
 
       {loading ? (
         <p className="text-sm">Laden…</p>
+      ) : mode === 'totp' ? (
+        <>
+          <form onSubmit={handleVerify} className="space-y-3">
+            <Input
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              required
+              autoFocus
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button type="submit" disabled={verifying || code.length !== 6} className="w-full">
+              {verifying ? 'Verifiëren…' : 'Verifiëren'}
+            </Button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => { setMode('recovery'); setError(null) }}
+            className="text-xs text-muted-foreground underline block"
+          >
+            Geen toegang tot je authenticator? Gebruik een recovery code
+          </button>
+        </>
       ) : (
-        <form onSubmit={handleVerify} className="space-y-3">
-          <Input
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={6}
-            placeholder="123456"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-            required
-            autoFocus
-          />
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" disabled={verifying || code.length !== 6} className="w-full">
-            {verifying ? 'Verifiëren…' : 'Verifiëren'}
-          </Button>
-        </form>
+        <>
+          <form onSubmit={handleRecovery} className="space-y-3">
+            <Input
+              placeholder="XXXX-XXXX-XXXX"
+              value={recoveryCode}
+              onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+              required
+              autoFocus
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button type="submit" disabled={verifying || recoveryCode.length < 12} className="w-full">
+              {verifying ? 'Verifiëren…' : 'Gebruik code'}
+            </Button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => { setMode('totp'); setError(null) }}
+            className="text-xs text-muted-foreground underline block"
+          >
+            Terug naar authenticator-code
+          </button>
+        </>
       )}
 
       <button

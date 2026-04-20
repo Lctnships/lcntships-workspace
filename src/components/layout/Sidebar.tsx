@@ -46,15 +46,19 @@ const businessNavItems = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
 ]
 
-const growthNavItems = [
+const salesNavItems = [
   { href: '/sales', label: 'Sales Pipeline', icon: Rocket },
   { href: '/sales/call-log', label: 'Bel Samenvatting', icon: PhoneCall },
-  { href: '/sales/agenda', label: 'Agenda', icon: Calendar },
+  { href: '/sales/agenda', label: 'Sales Agenda', icon: Calendar },
   { href: '/sales/review', label: 'Wekelijkse Review', icon: ClipboardCheck },
   { href: '/scraper', label: 'Lead Scraper', icon: Zap },
   { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
+]
+
+const marketingNavItems = [
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
   { href: '/marketing/analytics', label: 'Email Analytics', icon: Mail },
+  { href: '/marketing/agenda', label: 'Productie Agenda', icon: Calendar },
   { href: '/content', label: 'Content', icon: Camera },
 ]
 
@@ -185,7 +189,11 @@ export function Sidebar() {
 
           {(!collapsed || mobileOpen) && <Separator className="my-3" />}
 
-          <NavSection title="Growth" items={growthNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
+          <NavSection title="Sales" items={salesNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
+
+          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
+
+          <NavSection title="Marketing & Content" items={marketingNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
 
           {(!collapsed || mobileOpen) && <Separator className="my-3" />}
 

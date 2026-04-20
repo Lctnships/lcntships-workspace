@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import DOMPurify from 'dompurify'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { RecoveryCodesPanel } from '@/components/mfa/RecoveryCodesPanel'
 
 interface EnrollData {
   factorId: string
-  qrSvg: string
+  qrImage: string
   secret: string
+  uri: string
 }
 
 export default function MfaEnrollPage() {
@@ -22,12 +23,12 @@ export default function MfaEnrollPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
   async function startEnrollment() {
     setError(null)
     setLoading(true)
     try {
-      // Clean up any stale unverified factors first.
       const { data: factors } = await supabase.auth.mfa.listFactors()
       const unverified = (factors?.all ?? []).filter((f) => f.status !== 'verified')
       for (const f of unverified) {
@@ -36,6 +37,7 @@ export default function MfaEnrollPage() {
 
       const { data, error: enrollErr } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
+        issuer: 'lcntships Workspace',
         friendlyName: `Authenticator-${Date.now()}`,
       })
       if (enrollErr) throw enrollErr
@@ -43,8 +45,9 @@ export default function MfaEnrollPage() {
 
       setEnroll({
         factorId: data.id,
-        qrSvg: data.totp.qr_code,
+        qrImage: data.totp.qr_code,
         secret: data.totp.secret,
+        uri: data.totp.uri,
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Enrollment mislukt')
@@ -77,7 +80,13 @@ export default function MfaEnrollPage() {
       })
       if (verifyErr) throw verifyErr
 
-      router.replace('/dashboard')
+      const res = await fetch('/api/mfa/recovery-codes', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setRecoveryCodes(data.codes)
+      } else {
+        router.replace('/dashboard')
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Verificatie mislukt')
     } finally {
@@ -97,7 +106,16 @@ export default function MfaEnrollPage() {
     await startEnrollment()
   }
 
-  const sanitizedQr = enroll ? DOMPurify.sanitize(enroll.qrSvg, { USE_PROFILES: { svg: true, svgFilters: true } }) : ''
+  if (recoveryCodes) {
+    return (
+      <div className="max-w-md mx-auto p-6">
+        <RecoveryCodesPanel
+          codes={recoveryCodes}
+          onContinue={() => router.replace('/dashboard')}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
@@ -112,14 +130,22 @@ export default function MfaEnrollPage() {
 
       {enroll && (
         <>
-          <div
-            className="border rounded p-4 bg-white flex justify-center"
-            // QR is SVG produced by Supabase; sanitized via DOMPurify SVG profile.
-            dangerouslySetInnerHTML={{ __html: sanitizedQr }}
-          />
+          <div className="border rounded p-4 bg-white flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={enroll.qrImage}
+              alt="MFA QR code"
+              width={240}
+              height={240}
+              style={{ imageRendering: 'pixelated' }}
+            />
+          </div>
           <details className="text-xs">
             <summary className="cursor-pointer">Geen QR kunnen scannen? Toon secret</summary>
             <code className="block mt-2 p-2 bg-muted break-all">{enroll.secret}</code>
+            <p className="mt-2 text-muted-foreground">
+              Voer deze code handmatig in je authenticator-app in (type: Time-based).
+            </p>
           </details>
 
           <form onSubmit={handleVerify} className="space-y-3">

@@ -22,6 +22,30 @@ export async function GET() {
         const { data: roles } = await workspaceDb.from('team_members').select('user_id, role, full_name')
         const roleMap = new Map((roles || []).map(r => [r.user_id, r]))
 
+        const userIds = users.map((u) => u.id)
+        const { data: codesRows } = await workspaceDb
+          .from('mfa_recovery_codes')
+          .select('user_id')
+          .in('user_id', userIds)
+          .is('consumed_at', null)
+        const recoveryCount = new Map<string, number>()
+        for (const row of codesRows ?? []) {
+          recoveryCount.set(row.user_id, (recoveryCount.get(row.user_id) ?? 0) + 1)
+        }
+
+        const mfaChecks = await Promise.all(
+          users.map(async (u) => {
+            try {
+              const { data } = await supabase.auth.admin.mfa.listFactors({ userId: u.id })
+              const hasVerified = (data?.factors ?? []).some((f) => f.status === 'verified')
+              return [u.id, hasVerified] as const
+            } catch {
+              return [u.id, false] as const
+            }
+          }),
+        )
+        const mfaMap = new Map(mfaChecks)
+
         const members = users.map(user => {
           const roleInfo = roleMap.get(user.id)
           return {
@@ -31,6 +55,8 @@ export async function GET() {
             role: roleInfo?.role || 'member',
             created_at: user.created_at,
             last_sign_in_at: user.last_sign_in_at,
+            mfa_enabled: mfaMap.get(user.id) ?? false,
+            recovery_codes_remaining: recoveryCount.get(user.id) ?? 0,
           }
         })
         return NextResponse.json({ members })
