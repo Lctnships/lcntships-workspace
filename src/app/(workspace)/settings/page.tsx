@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils'
 import { Users, UserPlus, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { MfaManager } from '@/components/mfa/MfaManager'
+import { EmailHealthCheck } from '@/components/email/EmailHealthCheck'
 
 const navItems = [
   { id: 'business-profile', label: 'Business Profile', icon: Briefcase },
@@ -615,6 +616,11 @@ export default function SettingsPage() {
                   <Toggle checked={googleAuthEnabled} onChange={setGoogleAuthEnabled} />
                 </div>
               </div>
+            </div>
+
+            {/* Email pipeline test */}
+            <div className="mb-6">
+              <EmailHealthCheck />
             </div>
 
             {/* Email Configuration */}
