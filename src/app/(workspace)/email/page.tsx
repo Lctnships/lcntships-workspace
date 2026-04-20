@@ -66,6 +66,7 @@ interface ComposeModalProps {
   onClose: () => void
   replyTo?: EmailMessage
   templates?: EmailTemplate[]
+  account: ImapAccount | null
 }
 
 interface EmailTemplate {
@@ -75,11 +76,12 @@ interface EmailTemplate {
   body: string
 }
 
-function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps) {
+function ComposeModal({ isOpen, onClose, replyTo, templates, account }: ComposeModalProps) {
   const [to, setTo] = useState('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   // selectedTemplate managed inline
   const [showTemplates, setShowTemplates] = useState(false)
 
@@ -109,13 +111,38 @@ function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps
 
   const handleSend = async () => {
     if (!to || !subject || !body) return
-    
+    if (!account) {
+      setSendError('Geen email-account geselecteerd — voeg er een toe via Instellingen')
+      return
+    }
+
     setSending(true)
+    setSendError(null)
     try {
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const res = await fetch('/api/email/smtp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account: {
+            name: account.name,
+            user: account.user,
+            password: account.password,
+            smtpHost: account.smtpHost,
+            smtpPort: account.smtpPort,
+          },
+          to,
+          subject,
+          body,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Versturen mislukt')
+      }
       onClose()
     } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Onbekende fout'
+      setSendError(msg)
       console.error('Failed to send email:', error)
     } finally {
       setSending(false)
@@ -197,6 +224,9 @@ function ComposeModal({ isOpen, onClose, replyTo, templates }: ComposeModalProps
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
             />
           </div>
+          {sendError && (
+            <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm">{sendError}</div>
+          )}
         </div>
 
         {/* Footer */}
@@ -1093,6 +1123,7 @@ export default function EmailPage() {
         onClose={() => setIsComposeOpen(false)}
         replyTo={selectedEmail || undefined}
         templates={templates}
+        account={activeAccount}
       />
 
       <EmailSettingsModal

@@ -40,7 +40,8 @@ async function _POST(req: NextRequest) {
       user: account.user,
       pass: account.password,
     },
-    tls: { rejectUnauthorized: false },
+    // mail.lctnships.com cert is expired 25-3-2026; allow anyway
+    tls: { rejectUnauthorized: false, servername: smtpHost },
   })
 
   try {
