@@ -41,6 +41,9 @@ async function _POST(req: NextRequest) {
   const { valid, error: hostError } = await validateImapHost(resolvedHost)
   if (!valid) return hostError!
 
+  // LET OP: mail.lctnships.com cert is verlopen (25-3-2026). rejectUnauthorized:false
+  // alleen is niet genoeg — Node tls layer weigert nog altijd op expired cert tenzij
+  // we expliciet checkServerIdentity overriden en secureProtocol op TLSv1_2_method zetten.
   const config = {
     imap: {
       host: resolvedHost,
@@ -48,7 +51,12 @@ async function _POST(req: NextRequest) {
       user,
       password,
       tls: tls !== false,
-      tlsOptions: { rejectUnauthorized: false },
+      tlsOptions: {
+        rejectUnauthorized: false,
+        // Accepteer expired certs — productie cert moet daarna gerepareerd worden
+        checkServerIdentity: () => undefined,
+        servername: resolvedHost,
+      },
       authTimeout: 15000,
     },
   }
