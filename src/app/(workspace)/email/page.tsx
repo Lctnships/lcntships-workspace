@@ -743,8 +743,48 @@ export default function EmailPage() {
       let data: { emails?: EmailMessage[] }
 
       if (folder === 'sent') {
-        const res = await fetch('/api/email/sent')
-        data = await res.json()
+        // Merge DB sent_emails (Resend/outbox) + IMAP Sent folder (SMTP)
+        const dbRes = await fetch('/api/email/sent')
+        const dbData = await dbRes.json().catch(() => ({ emails: [] }))
+        let imapEmails: EmailMessage[] = []
+        if (activeAccount) {
+          try {
+            const imapRes = await fetch('/api/email/imap', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                host: activeAccount.imapHost,
+                port: activeAccount.imapPort,
+                user: activeAccount.user,
+                password: activeAccount.password,
+                tls: activeAccount.tls,
+                folder: 'Sent',
+              }),
+            })
+            if (imapRes.ok) {
+              const imapData = await imapRes.json()
+              imapEmails = imapData.emails ?? []
+            }
+          } catch {
+            // IMAP 'Sent' folder niet bereikbaar — val terug op alleen DB rows
+          }
+        }
+        // Dedupe op subject+to+date (binnen 60s venster)
+        const seen = new Set<string>()
+        const merge = (e: EmailMessage) => {
+          const toEmail = Array.isArray(e.to) ? e.to[0]?.email ?? '' : ''
+          const key = `${e.subject}|${toEmail}|${(e.date ?? '').slice(0, 16)}`
+          if (seen.has(key)) return null
+          seen.add(key)
+          return e
+        }
+        const dbMapped = (dbData.emails ?? []).map((e: EmailMessage) => merge(e)).filter(Boolean) as EmailMessage[]
+        const imapMapped = imapEmails.map((e) => merge(e)).filter(Boolean) as EmailMessage[]
+        data = {
+          emails: [...dbMapped, ...imapMapped].sort(
+            (a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime(),
+          ),
+        }
       } else {
         const res = await fetch('/api/email/imap', {
           method: 'POST',
