@@ -14,6 +14,7 @@ const PUBLIC_API_ROUTES = [
   '/api/email/webhook',
   '/api/email/track',
   '/api/productions/public',
+  '/api/content-briefs/public',
 ]
 
 function isPublicApiRoute(pathname: string): boolean {

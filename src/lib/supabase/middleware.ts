@@ -57,7 +57,7 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isAuthPage = pathname === '/login' || pathname === '/signup'
-  const isPublicPage = pathname.startsWith('/p/')
+  const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/b/')
 
   // If not logged in and not on an auth/public page, redirect to login
   if (!user && !isAuthPage && !isPublicPage) {
