@@ -32,7 +32,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { documentsApi } from '@/lib/supabase'
+import { workspaceClient } from '@/lib/workspace-client'
 
 // Helper to get icon info based on document type
 function getDocTypeIcon(type?: string): { icon: any; iconBg: string; iconColor: string } {
@@ -363,18 +363,47 @@ export default function DocumentsPage() {
   const [showUploadProgress, setShowUploadProgress] = useState(false)
   const [documents, setDocuments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const handleDeleteDoc = async (id: string, name: string) => {
+    if (!confirm(`Weet je zeker dat je "${name}" wilt verwijderen?`)) return
+    setDeletingId(id)
+    const { error } = await workspaceClient
+      .from('workspace_documents')
+      .delete()
+      .eq('id', id)
+    if (error) {
+      alert(`Kon niet verwijderen: ${error.message}`)
+    } else {
+      setDocuments((prev) => prev.filter((d) => d.id !== id))
+    }
+    setDeletingId(null)
+  }
 
   useEffect(() => {
     async function loadDocuments() {
-      try {
-        const data = await documentsApi.getAll()
-        setDocuments(data || [])
-      } catch (error) {
-        console.error('Error loading documents:', error)
+      // Laad rich text workspace_documents (Plate)
+      const { data, error } = await workspaceClient
+        .from<Array<{ id: string; title: string; updated_at: string; created_at: string }>>('workspace_documents')
+        .select('id, title, updated_at, created_at')
+        .order('updated_at', { ascending: false })
+        .limit(200)
+      if (error) {
+        console.warn('workspace_documents load:', error.message)
         setDocuments([])
-      } finally {
-        setLoading(false)
+      } else {
+        setDocuments(
+          (data ?? []).map((d) => ({
+            id: d.id,
+            name: d.title || 'Naamloos document',
+            type: 'doc',
+            updated_at: d.updated_at,
+            created_at: d.created_at,
+            href: `/documents/${d.id}`,
+          })),
+        )
       }
+      setLoading(false)
     }
     loadDocuments()
   }, [])
@@ -412,13 +441,21 @@ export default function DocumentsPage() {
             <Inbox className="h-10 w-10 text-gray-400" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Nog geen documenten</h2>
-          <p className="text-gray-500 mb-6">Upload je eerste document</p>
-          <Link href="/upload">
-            <Button className="rounded-xl h-11 px-6 shadow-lg shadow-gray-300">
-              <Upload className="h-4 w-4 mr-2" />
-              Document uploaden
-            </Button>
-          </Link>
+          <p className="text-gray-500 mb-6">Maak een nieuw document of upload een bestand</p>
+          <div className="flex gap-3">
+            <Link href="/documents/new">
+              <Button className="rounded-xl h-11 px-6 shadow-lg shadow-gray-300">
+                <FilePlus className="h-4 w-4 mr-2" />
+                Nieuw document
+              </Button>
+            </Link>
+            <Link href="/upload">
+              <Button variant="outline" className="rounded-xl h-11 px-6">
+                <Upload className="h-4 w-4 mr-2" />
+                Uploaden
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Modals */}
@@ -455,13 +492,12 @@ export default function DocumentsPage() {
             <FolderPlus className="h-4 w-4 mr-2" />
             New Folder
           </Button>
-          <Button
-            className="rounded-xl h-11 px-5 shadow-lg shadow-gray-300"
-            onClick={() => setShowCreateDocModal(true)}
-          >
-            <FilePlus className="h-4 w-4 mr-2" />
-            New Document
-          </Button>
+          <Link href="/documents/new">
+            <Button className="rounded-xl h-11 px-5 shadow-lg shadow-gray-300">
+              <FilePlus className="h-4 w-4 mr-2" />
+              Nieuw document
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -581,25 +617,40 @@ export default function DocumentsPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {documents.map((doc) => {
               const { icon: Icon, iconBg, iconColor } = getDocTypeIcon(doc.type)
-              return (
-                <div
-                  key={doc.id}
-                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
-                >
+              const card = (
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group h-full">
                   <div className="flex items-start justify-between mb-4">
                     <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}>
                       <Icon className={cn('h-6 w-6', iconColor)} />
                     </div>
-                    <button className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all">
-                      <MoreHorizontal className="h-5 w-5" />
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleDeleteDoc(doc.id, doc.name)
+                      }}
+                      disabled={deletingId === doc.id}
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg p-1.5 transition-all disabled:opacity-50"
+                      title="Verwijderen"
+                    >
+                      {deletingId === doc.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                   <p className="font-bold text-gray-900 text-sm truncate mb-1">{doc.name}</p>
                   <p className="text-xs text-gray-400">
                     {doc.partner?.company_name ? `${doc.partner.company_name} • ` : ''}
-                    {formatDate(doc.created_at)}
+                    {formatDate(doc.updated_at ?? doc.created_at)}
                   </p>
                 </div>
+              )
+              return doc.href ? (
+                <Link key={doc.id} href={doc.href}>{card}</Link>
+              ) : (
+                <div key={doc.id}>{card}</div>
               )
             })}
           </div>
@@ -617,8 +668,8 @@ export default function DocumentsPage() {
               <tbody>
                 {documents.map((doc) => {
                   const { icon: Icon, iconBg, iconColor } = getDocTypeIcon(doc.type)
-                  return (
-                    <tr key={doc.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  const row = (
+                    <>
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
                           <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', iconBg)}>
@@ -628,12 +679,38 @@ export default function DocumentsPage() {
                         </div>
                       </td>
                       <td className="py-4 px-5 text-sm text-gray-500">{doc.partner?.company_name || '-'}</td>
-                      <td className="py-4 px-5 text-sm text-gray-500">{formatDate(doc.created_at)}</td>
-                      <td className="py-4 px-5">
-                        <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                          <MoreHorizontal className="h-5 w-5" />
+                      <td className="py-4 px-5 text-sm text-gray-500">{formatDate(doc.updated_at ?? doc.created_at)}</td>
+                      <td className="py-4 px-5 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleDeleteDoc(doc.id, doc.name)
+                          }}
+                          disabled={deletingId === doc.id}
+                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg p-1.5 transition-colors disabled:opacity-50"
+                          title="Verwijderen"
+                        >
+                          {deletingId === doc.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </button>
                       </td>
+                    </>
+                  )
+                  return doc.href ? (
+                    <tr
+                      key={doc.id}
+                      onClick={() => { window.location.href = doc.href }}
+                      className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                    >
+                      {row}
+                    </tr>
+                  ) : (
+                    <tr key={doc.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      {row}
                     </tr>
                   )
                 })}
