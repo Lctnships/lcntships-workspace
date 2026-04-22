@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 :root {
   --background: #FAFBFC;
   --foreground: #1F2937;
@@ -13,6 +15,8 @@
   --text-primary: #1F2937;
   --text-secondary: #6B7280;
   --border: #E5E7EB;
+  --highlight: oklch(0.852 0.199 91.936);
+  --brand: oklch(0.623 0.214 259.815);
 }
 
 @theme inline {
@@ -23,6 +27,8 @@
   --color-secondary: var(--secondary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-brand: var(--brand);
+  --color-highlight: var(--highlight);
 }
 
 body {
@@ -94,4 +100,9 @@ body {
 
 .animate-slide-in-right {
   animation: slideInRight 0.3s ease-out;
+}
+
+.dark {
+  --highlight: oklch(0.852 0.199 91.936);
+  --brand: oklch(0.707 0.165 254.624);
 }
