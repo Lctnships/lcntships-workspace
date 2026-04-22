@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
+import { useRouter } from 'next/navigation'
 import {
   Calendar,
   Plus,
@@ -21,7 +22,29 @@ import {
   Lock,
   Unlock,
   Star,
+  Clapperboard,
+  ExternalLink,
+  CalendarDays,
+  List,
 } from 'lucide-react'
+import { workspaceClient } from '@/lib/workspace-client'
+import FullCalendar from '@fullcalendar/react'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import interactionPlugin from '@fullcalendar/interaction'
+import type { EventInput, EventClickArg } from '@fullcalendar/core'
+
+type SalesAgendaItem = {
+  id: string
+  title: string
+  description: string | null
+  type: 'meeting' | 'call' | 'follow_up' | 'demo' | 'other'
+  date: string
+  start_time: string | null
+  end_time: string | null
+  location: string | null
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show'
+  assigned_to: string | null
+}
 
 type Production = {
   id: string
@@ -61,13 +84,20 @@ export default function ProductieAgendaPage() {
   const [votes, setVotes] = useState<Vote[]>([])
   const [loadingVotes, setLoadingVotes] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [view, setView] = useState<'list' | 'calendar'>('calendar')
+  const [meetings, setMeetings] = useState<SalesAgendaItem[]>([])
 
   const loadProductions = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/productions')
-    if (res.ok) {
-      setProductions(await res.json())
-    }
+    const [prodRes, meetingsRes] = await Promise.all([
+      fetch('/api/productions'),
+      workspaceClient
+        .from<SalesAgendaItem[]>('sales_agenda')
+        .select('id, title, description, type, date, start_time, end_time, location, status, assigned_to')
+        .order('date', { ascending: true }),
+    ])
+    if (prodRes.ok) setProductions(await prodRes.json())
+    if (meetingsRes.data) setMeetings(meetingsRes.data as SalesAgendaItem[])
     setLoading(false)
   }, [])
 
@@ -128,6 +158,44 @@ export default function ProductieAgendaPage() {
     }
   }
 
+  const router = useRouter()
+  const createBriefFromProduction = async (p: Production) => {
+    // Check of er al een brief is voor deze productie
+    const existing = await workspaceClient
+      .from<Array<{ id: string }>>('content_briefs')
+      .select('id')
+      .eq('production_id', p.id)
+      .limit(1)
+    if (existing.data && existing.data.length > 0) {
+      router.push(`/content?brief=${existing.data[0].id}`)
+      return
+    }
+    const { data, error } = await workspaceClient
+      .from<Array<{ id: string }>>('content_briefs')
+      .insert({
+        production_id: p.id,
+        studio_name: p.location ?? p.title,
+        title: p.title,
+        description: p.description,
+        shoot_date: p.final_date ?? (p.proposed_dates[0] ?? null),
+        status: 'draft',
+        shotlist: [],
+        equipment: [],
+        share_link: crypto.randomUUID(),
+      })
+      .select()
+    if (error) {
+      alert(`Kon brief niet aanmaken: ${error.message}`)
+      return
+    }
+    const row = Array.isArray(data) ? data[0] : null
+    if (row) {
+      router.push(`/content?brief=${row.id}`)
+    } else {
+      router.push('/content')
+    }
+  }
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -137,10 +205,34 @@ export default function ProductieAgendaPage() {
             Plan productiedagen en laat het team stemmen op beschikbare datums.
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nieuwe productie
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setView('calendar')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
+                view === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
+              )}
+            >
+              <CalendarDays className="h-4 w-4" />
+              Kalender
+            </button>
+            <button
+              onClick={() => setView('list')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
+                view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
+              )}
+            >
+              <List className="h-4 w-4" />
+              Lijst
+            </button>
+          </div>
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nieuwe productie
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -152,6 +244,12 @@ export default function ProductieAgendaPage() {
           <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">Nog geen producties. Klik op "Nieuwe productie" om te beginnen.</p>
         </div>
+      ) : view === 'calendar' ? (
+        <ProductieKalender
+          productions={productions}
+          meetings={meetings}
+          onEventClick={(id) => loadDetail(id)}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {productions.map((p) => (
@@ -233,6 +331,7 @@ export default function ProductieAgendaPage() {
           onSetFinal={(d) => setFinalDate(selected, d)}
           onDelete={() => deleteProduction(selected.id)}
           onCopyLink={() => copyLink(selected.share_token, selected.id)}
+          onCreateBrief={() => createBriefFromProduction(selected)}
           copied={copiedId === selected.id}
         />
       )}
@@ -399,6 +498,7 @@ function DetailPanel({
   onSetFinal,
   onDelete,
   onCopyLink,
+  onCreateBrief,
   copied,
 }: {
   production: Production
@@ -409,6 +509,7 @@ function DetailPanel({
   onSetFinal: (d: string | null) => void
   onDelete: () => void
   onCopyLink: () => void
+  onCreateBrief: () => void
   copied: boolean
 }) {
   const tally = useMemo(() => {
@@ -470,6 +571,10 @@ function DetailPanel({
                   Heropenen
                 </>
               )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onCreateBrief}>
+              <Clapperboard className="h-3.5 w-3.5 mr-1.5" />
+              Maak content brief
             </Button>
             <Button variant="outline" size="sm" onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
@@ -565,6 +670,153 @@ function DetailPanel({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ProductieKalender({
+  productions,
+  meetings,
+  onEventClick,
+}: {
+  productions: Production[]
+  meetings: SalesAgendaItem[]
+  onEventClick: (id: string) => void
+}) {
+  const events: EventInput[] = useMemo(() => {
+    const out: EventInput[] = []
+    for (const p of productions) {
+      if (p.final_date) {
+        out.push({
+          id: p.id,
+          title: p.title,
+          start: p.final_date,
+          allDay: true,
+          backgroundColor: '#10b981',
+          borderColor: '#059669',
+          textColor: '#ffffff',
+          extendedProps: { kind: 'final', productionId: p.id, location: p.location },
+        })
+      } else if (p.status === 'open') {
+        for (const d of p.proposed_dates) {
+          out.push({
+            id: `${p.id}-${d}`,
+            title: `${p.title} (stem)`,
+            start: d,
+            allDay: true,
+            backgroundColor: '#dbeafe',
+            borderColor: '#3b82f6',
+            textColor: '#1e40af',
+            extendedProps: { kind: 'proposed', productionId: p.id, location: p.location },
+          })
+        }
+      }
+    }
+    // Meetings / sales agenda
+    for (const m of meetings) {
+      if (m.status === 'cancelled') continue
+      const typeColor: Record<string, { bg: string; border: string; text: string }> = {
+        meeting: { bg: '#ede9fe', border: '#7c3aed', text: '#5b21b6' },
+        call: { bg: '#ffedd5', border: '#ea580c', text: '#9a3412' },
+        follow_up: { bg: '#fef3c7', border: '#d97706', text: '#92400e' },
+        demo: { bg: '#fce7f3', border: '#db2777', text: '#9f1239' },
+        other: { bg: '#e5e7eb', border: '#6b7280', text: '#374151' },
+      }
+      const c = typeColor[m.type] ?? typeColor.other
+      const start = m.start_time ? `${m.date}T${m.start_time}` : m.date
+      out.push({
+        id: `meeting-${m.id}`,
+        title: m.title,
+        start,
+        allDay: !m.start_time,
+        backgroundColor: c.bg,
+        borderColor: c.border,
+        textColor: c.text,
+        extendedProps: { kind: 'meeting', location: m.location, meetingType: m.type },
+      })
+    }
+    return out
+  }, [productions, meetings])
+
+  const handleEventClick = (arg: EventClickArg) => {
+    const props = arg.event.extendedProps as { productionId?: string }
+    const id = props.productionId ?? arg.event.id
+    onEventClick(id)
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4 productie-kalender">
+      <style jsx global>{`
+        .productie-kalender .fc {
+          font-family: inherit;
+        }
+        .productie-kalender .fc-toolbar-title {
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: #111827;
+        }
+        .productie-kalender .fc-button {
+          background: #ffffff !important;
+          border: 1px solid #e5e7eb !important;
+          color: #374151 !important;
+          font-weight: 500 !important;
+          text-transform: capitalize !important;
+          box-shadow: none !important;
+        }
+        .productie-kalender .fc-button:hover {
+          background: #f9fafb !important;
+        }
+        .productie-kalender .fc-button-active,
+        .productie-kalender .fc-button-primary:not(:disabled).fc-button-active {
+          background: #111827 !important;
+          color: #ffffff !important;
+          border-color: #111827 !important;
+        }
+        .productie-kalender .fc-daygrid-day.fc-day-today {
+          background: #fef3c7 !important;
+        }
+        .productie-kalender .fc-event {
+          border-radius: 6px;
+          padding: 2px 6px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+        }
+        .productie-kalender .fc-col-header-cell {
+          background: #f9fafb;
+          padding: 8px 0;
+          font-weight: 600;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: #6b7280;
+        }
+      `}</style>
+      <FullCalendar
+        plugins={[dayGridPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        locale="nl"
+        firstDay={1}
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,dayGridWeek',
+        }}
+        buttonText={{ today: 'Vandaag', month: 'Maand', week: 'Week' }}
+        events={events}
+        eventClick={handleEventClick}
+        height="auto"
+        dayMaxEvents={3}
+        moreLinkText={(n) => `+${n} meer`}
+      />
+      <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 text-xs">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-[#10b981]" /> Finale datum
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm border border-blue-500 bg-blue-100" /> Voorgestelde datum (stemronde)
+        </span>
       </div>
     </div>
   )

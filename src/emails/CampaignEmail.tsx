@@ -39,7 +39,7 @@ export default function CampaignEmail({
   secondaryButtonUrl,
   attachments = [],
 }: CampaignEmailProps) {
-  const previewText = `${senderName} van lcntships wil graag contact met ${companyName}`
+  const previewText = `${senderName} van lctnships wil graag contact met ${companyName}`
   const logoUrl = 'https://lcntships-workspace.vercel.app/lcntships-logo.png'
 
   const personalizedMessage = message
@@ -92,7 +92,7 @@ export default function CampaignEmail({
                 src={logoUrl}
                 width="100"
                 height="100"
-                alt="lcntships"
+                alt="lctnships"
                 style={{ margin: '0 auto' }}
               />
             </Section>
@@ -112,7 +112,7 @@ export default function CampaignEmail({
                     Ik zag <strong style={{ color: '#1152d4', fontWeight: 'bold' }}>{companyName}</strong> online en jullie ruimte ziet er sterk uit.
                   </Text>
                   <Text className="body-text" style={{ fontSize: '16px', lineHeight: '1.6', color: '#475569', margin: '0 0 14px 0' }}>
-                    lcntships helpt creatieve ruimtes hun bereik te vergroten en boekingen te automatiseren zonder gedoe. We verbinden jouw studio direct met de juiste creators.
+                    lctnships helpt creatieve ruimtes hun bereik te vergroten en boekingen te automatiseren zonder gedoe. We verbinden jouw studio direct met de juiste creators.
                   </Text>
                 </>
               )}
@@ -187,17 +187,17 @@ export default function CampaignEmail({
                 src={logoUrl}
                 width="48"
                 height="48"
-                alt="lcntships"
+                alt="lctnships"
                 style={{ margin: '0 auto 10px auto' }}
               />
               <Text style={{ fontWeight: 'bold', color: '#0f172a', margin: '0 0 4px 0', fontSize: '13px' }}>
-                {senderName} — Oprichter lcntships
+                {senderName} — Oprichter lctnships
               </Text>
               <Link
-                href="https://lctnships.com"
+                href="https://www.lctnships.com"
                 style={{ fontSize: '13px', color: '#1152d4', textDecoration: 'none' }}
               >
-                lcntships.com
+                lctnships.com
               </Link>
 
               <Hr style={{ borderColor: '#e2e8f0', margin: '24px 0' }} />

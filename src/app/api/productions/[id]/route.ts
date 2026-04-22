@@ -75,6 +75,12 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     before?.final_date !== parsed.data.final_date
   ) {
     notifyFinalDate(id).catch((e) => console.error('notify final date', e))
+
+    // Sync final_date → gekoppelde content_briefs.shoot_date
+    await workspaceDb
+      .from('content_briefs')
+      .update({ shoot_date: parsed.data.final_date })
+      .eq('production_id', id)
   }
 
   return NextResponse.json(data)

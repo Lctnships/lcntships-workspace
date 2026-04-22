@@ -7,10 +7,11 @@ import { sendViaOutbox } from '@/lib/email-outbox'
 const RECIPIENTS = {
   rivaldo: 'rivaldomacandrew@lctnships.com',
   uriel: 'uriel@lctnships.com',
+  gmail: 'mac.valdo1997@gmail.com',
 } as const
 
 const Body = z.object({
-  recipient: z.enum(['rivaldo', 'uriel']),
+  recipient: z.enum(['rivaldo', 'uriel', 'gmail']),
   from: z.string().max(200).optional(),
 })
 

@@ -32,6 +32,7 @@ import {
   ChevronUp,
   Copy,
   Settings2,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -82,6 +83,7 @@ interface ContentBrief {
   end_time: string | null
   contact_person: string | null
   contact_phone: string | null
+  production_id: string | null
   created_at: string
   updated_at: string
 }
@@ -212,6 +214,11 @@ export default function ContentPage() {
   const [editingBrief, setEditingBrief] = useState<ContentBrief | null>(null)
   const [selectedBrief, setSelectedBrief] = useState<ContentBrief | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
+  const [showSendModal, setShowSendModal] = useState(false)
+  const [crewEmails, setCrewEmails] = useState('')
+  const [crewNote, setCrewNote] = useState('')
+  const [sendingBrief, setSendingBrief] = useState(false)
+  const [sendResult, setSendResult] = useState<{ sent: number; failed: number; briefUrl?: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<'studios' | 'briefs' | 'templates'>('studios')
 
@@ -279,6 +286,18 @@ export default function ContentPage() {
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
+
+  // Auto-open brief from ?brief=<id> query param (used when navigating from
+  // Productie Agenda "Maak content brief" knop)
+  useEffect(() => {
+    if (briefs.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const briefId = params.get('brief')
+    if (briefId) {
+      const match = briefs.find((b) => b.id === briefId)
+      if (match) setSelectedBrief(match)
+    }
+  }, [briefs])
 
   // ─── Helpers ───
   const filteredStudios = studios.filter(s =>
@@ -391,9 +410,45 @@ export default function ContentPage() {
   }
 
   const copyShareLink = (brief: ContentBrief) => {
-    navigator.clipboard.writeText(`${window.location.origin}/content/brief/${brief.share_link}`)
+    navigator.clipboard.writeText(`${window.location.origin}/b/${brief.share_link}`)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2000)
+  }
+
+  const sendBriefToCrew = async () => {
+    if (!selectedBrief) return
+    const emails = crewEmails
+      .split(/[,;\n]/)
+      .map((e) => e.trim())
+      .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+    if (emails.length === 0) {
+      alert('Voer minimaal één geldig e-mailadres in')
+      return
+    }
+    setSendingBrief(true)
+    setSendResult(null)
+    try {
+      const res = await fetch(`/api/content-briefs/${selectedBrief.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipients: emails,
+          customMessage: crewNote.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error ?? 'Versturen mislukt')
+        return
+      }
+      const sent = (data.results as Array<{ ok: boolean }>).filter((r) => r.ok).length
+      const failed = (data.results as Array<{ ok: boolean }>).length - sent
+      setSendResult({ sent, failed, briefUrl: data.briefUrl })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Fout')
+    } finally {
+      setSendingBrief(false)
+    }
   }
 
   const downloadBrief = (brief: ContentBrief) => {
@@ -800,6 +855,13 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
                   </div>
                 )}
                 <div className="flex gap-2"><span className="text-gray-500 w-20">Studio</span><span className="text-gray-900">{selectedBrief.studio_name}</span></div>
+                {selectedBrief.production_id && (
+                  <div className="flex gap-2"><span className="text-gray-500 w-20">Productie</span>
+                    <a href="/marketing/agenda" className="text-indigo-600 hover:underline inline-flex items-center gap-1">
+                      Open agenda <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
                 {selectedBrief.shoot_date && <div className="flex gap-2"><span className="text-gray-500 w-20">Shoot</span>
                   <span className="text-gray-900">{format(new Date(selectedBrief.shoot_date + 'T12:00:00'), 'EEEE d MMMM yyyy', { locale: nl })}</span></div>}
                 {selectedBrief.call_time && <div className="flex gap-2"><span className="text-gray-500 w-20">Call Time</span><span className="text-gray-900">{selectedBrief.call_time}</span></div>}
@@ -873,7 +935,20 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-3 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                <Button
+                  size="sm"
+                  className="flex-1 min-w-[140px] rounded-lg"
+                  onClick={() => {
+                    setCrewEmails('')
+                    setCrewNote('')
+                    setSendResult(null)
+                    setShowSendModal(true)
+                  }}
+                >
+                  <Mail className="h-3.5 w-3.5 mr-1.5" />
+                  Stuur naar crew
+                </Button>
                 <Button variant="outline" size="sm" className="flex-1 rounded-lg" onClick={() => downloadBrief(selectedBrief)}>
                   <FileText className="h-3.5 w-3.5 mr-1.5" />
                   Download PDF
@@ -891,6 +966,78 @@ ${brief.notes ? `<div class="section"><div class="section-title">Notes</div><div
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Send To Crew Modal ── */}
+      {showSendModal && selectedBrief && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !sendingBrief && setShowSendModal(false)}>
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Stuur naar crew</h2>
+              <button onClick={() => !sendingBrief && setShowSendModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {!sendResult && (
+              <>
+                <p className="text-sm text-gray-600 mb-4">
+                  Ze krijgen een email met de volledige briefing en een link om online te bekijken.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Ontvangers</label>
+                    <textarea
+                      value={crewEmails}
+                      onChange={(e) => setCrewEmails(e.target.value)}
+                      placeholder="foto@studio.nl, video@studio.nl"
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Komma-gescheiden, of één per regel</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Extra notitie (optioneel)</label>
+                    <textarea
+                      value={crewNote}
+                      onChange={(e) => setCrewNote(e.target.value)}
+                      placeholder="Specifieke boodschap voor deze crew..."
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button variant="outline" onClick={() => setShowSendModal(false)} disabled={sendingBrief}>
+                    Annuleren
+                  </Button>
+                  <Button onClick={sendBriefToCrew} disabled={sendingBrief || !crewEmails.trim()}>
+                    {sendingBrief ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Versturen...</> : <><Mail className="h-4 w-4 mr-2" />Verstuur</>}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {sendResult && (
+              <div className="space-y-4">
+                <div className={cn('p-4 rounded-xl', sendResult.failed === 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800')}>
+                  <p className="font-semibold">
+                    {sendResult.sent} verstuurd{sendResult.failed > 0 ? `, ${sendResult.failed} gefaald` : ''}
+                  </p>
+                  {sendResult.briefUrl && (
+                    <a href={sendResult.briefUrl} target="_blank" rel="noreferrer" className="text-sm underline mt-2 inline-block">
+                      Bekijk publieke link
+                    </a>
+                  )}
+                </div>
+                <Button onClick={() => setShowSendModal(false)} className="w-full">
+                  Sluiten
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
