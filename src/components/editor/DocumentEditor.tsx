@@ -6,6 +6,7 @@ import { Plate, usePlateEditor } from 'platejs/react'
 import type { Value } from 'platejs'
 
 import { NotionKit } from './plugins/notion-kit'
+import { SelectionToolbar } from './SelectionToolbar'
 import { Editor, EditorContainer } from '@/components/ui/editor'
 import { MarkToolbarButton } from '@/components/ui/mark-toolbar-button'
 import { Toolbar } from '@/components/ui/toolbar'
@@ -299,6 +300,7 @@ export function DocumentEditor({
                 placeholder="Begin met typen, of gebruik / voor commands..."
                 className="!px-0 !pb-40"
               />
+              <SelectionToolbar />
             </EditorContainer>
           </Plate>
         </div>
