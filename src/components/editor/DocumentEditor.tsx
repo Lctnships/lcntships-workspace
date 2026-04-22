@@ -21,6 +21,7 @@ import {
   Trash2,
   Image as ImageIcon,
   Smile,
+  Loader2,
 } from 'lucide-react'
 import { workspaceClient } from '@/lib/workspace-client'
 import { cn } from '@/lib/utils'
@@ -142,14 +143,22 @@ export function DocumentEditor({
     router.push('/documents')
   }
 
+  const [uploadingCover, setUploadingCover] = useState(false)
+
   const uploadCover = async (file: File) => {
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-    setCoverUrl(dataUrl)
+    setUploadingCover(true)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const res = await fetch('/api/documents/upload', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Upload mislukt')
+      setCoverUrl(data.url)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Upload mislukt')
+    } finally {
+      setUploadingCover(false)
+    }
   }
 
   const onCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,10 +277,14 @@ export function DocumentEditor({
             <div className="mb-4 flex gap-3">
               <button
                 onClick={() => coverInputRef.current?.click()}
-                className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm"
+                disabled={uploadingCover}
+                className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm disabled:opacity-50"
               >
-                <ImageIcon className="h-4 w-4" />
-                Cover toevoegen
+                {uploadingCover ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Uploaden...</>
+                ) : (
+                  <><ImageIcon className="h-4 w-4" /> Cover toevoegen</>
+                )}
               </button>
               <input
                 ref={coverInputRef}
