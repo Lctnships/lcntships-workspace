@@ -10,12 +10,16 @@ import {
   ChevronRightIcon,
   Code2,
   Columns3Icon,
+  FileIcon,
+  FilmIcon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
+  ImageIcon,
   LightbulbIcon,
   ListIcon,
   ListOrdered,
+  MusicIcon,
   PenToolIcon,
   PilcrowIcon,
   Quote,
@@ -27,11 +31,23 @@ import {
 } from 'lucide-react';
 import { type TComboboxInputElement, KEYS } from 'platejs';
 import { PlateElement } from 'platejs/react';
+import { PlaceholderPlugin } from '@platejs/media/react';
 
 import {
   insertBlock,
   insertInlineElement,
 } from '@/components/editor/transforms';
+
+function openFilePickerAndUpload(editor: PlateEditor, accept: string) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = accept
+  input.onchange = () => {
+    if (!input.files || input.files.length === 0) return
+    editor.getTransforms(PlaceholderPlugin).insert.media(input.files)
+  }
+  input.click()
+}
 
 import {
   InlineCombobox,
@@ -149,6 +165,48 @@ const groups: Group[] = [
       ...item,
       onSelect: (editor, value) => {
         insertBlock(editor, value, { upsert: true });
+      },
+    })),
+  },
+  {
+    group: 'Media',
+    items: [
+      {
+        icon: <ImageIcon />,
+        keywords: ['img', 'picture', 'photo', 'afbeelding'],
+        label: 'Afbeelding',
+        value: KEYS.img,
+        accept: 'image/*',
+        mediaType: 'image' as const,
+      },
+      {
+        icon: <FilmIcon />,
+        keywords: ['movie', 'film'],
+        label: 'Video',
+        value: KEYS.video,
+        accept: 'video/*',
+        mediaType: 'video' as const,
+      },
+      {
+        icon: <MusicIcon />,
+        keywords: ['sound', 'mp3'],
+        label: 'Audio',
+        value: KEYS.audio,
+        accept: 'audio/*',
+        mediaType: 'audio' as const,
+      },
+      {
+        icon: <FileIcon />,
+        keywords: ['attachment', 'upload', 'bijlage'],
+        label: 'Bestand',
+        value: KEYS.file,
+        accept: '*',
+        mediaType: 'file' as const,
+      },
+    ].map(({ accept, mediaType: _mediaType, ...item }) => ({
+      ...item,
+      onSelect: (editor: PlateEditor) => {
+        openFilePickerAndUpload(editor, accept);
       },
     })),
   },

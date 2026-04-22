@@ -118,9 +118,17 @@ export const insertBlock = (
     }
 
     if (!isSameBlockType) {
-      editor.getApi(SuggestionPlugin).suggestion.withoutSuggestions(() => {
+      // SuggestionPlugin is optioneel — val terug op directe removeNodes als niet actief
+      const suggestionApi = editor.getApi(SuggestionPlugin) as
+        | { suggestion?: { withoutSuggestions: (fn: () => void) => void } }
+        | undefined;
+      if (suggestionApi?.suggestion?.withoutSuggestions) {
+        suggestionApi.suggestion.withoutSuggestions(() => {
+          editor.tf.removeNodes({ previousEmptyBlock: true });
+        });
+      } else {
         editor.tf.removeNodes({ previousEmptyBlock: true });
-      });
+      }
     }
   });
 };
