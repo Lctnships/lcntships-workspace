@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { ChevronRight, Plus, FileText, Loader2, Download } from 'lucide-react'
+import { ChevronRight, Plus, FileText, Loader2, Download, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { workspaceClient } from '@/lib/workspace-client'
 
@@ -14,6 +14,18 @@ type DocNode = {
   parent_id: string | null
   updated_at: string
   children: DocNode[]
+}
+
+function getAllIds(nodes: DocNode[]): string[] {
+  const ids: string[] = []
+  const walk = (ns: DocNode[]) => {
+    for (const n of ns) {
+      ids.push(n.id)
+      if (n.children.length > 0) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return ids
 }
 
 function buildTree(flat: Omit<DocNode, 'children'>[]): DocNode[] {
@@ -57,6 +69,7 @@ export function DocumentTree({ scopeToRootOfId }: { scopeToRootOfId?: string } =
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [creating, setCreating] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -131,6 +144,23 @@ export function DocumentTree({ scopeToRootOfId }: { scopeToRootOfId?: string } =
     router.push(`/documents/${created.id}`)
   }
 
+  const q = query.trim().toLowerCase()
+  const filterTree = (nodes: DocNode[]): DocNode[] => {
+    if (!q) return nodes
+    const result: DocNode[] = []
+    for (const n of nodes) {
+      const childMatches = filterTree(n.children)
+      const selfMatches = (n.title || '').toLowerCase().includes(q) ||
+        (n.icon || '').toLowerCase().includes(q)
+      if (selfMatches || childMatches.length > 0) {
+        result.push({ ...n, children: childMatches })
+      }
+    }
+    return result
+  }
+  const visibleTree = filterTree(tree)
+  const searchExpanded = q ? new Set(getAllIds(visibleTree)) : expanded
+
   return (
     <aside className="w-60 shrink-0 border-r border-gray-100 bg-gray-50/50 flex flex-col h-[calc(100vh-64px)] sticky top-0">
       <div className="flex items-center justify-between px-3 py-3 border-b border-gray-100">
@@ -145,22 +175,46 @@ export function DocumentTree({ scopeToRootOfId }: { scopeToRootOfId?: string } =
         </button>
       </div>
 
+      <div className="px-3 py-2 border-b border-gray-100">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Zoek documenten..."
+            className="w-full pl-7 pr-7 py-1.5 text-xs rounded-md bg-white border border-gray-200 focus:outline-none focus:border-gray-400"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              title="Wis"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto px-1 py-2">
         {loading ? (
           <div className="flex justify-center py-4">
             <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
           </div>
-        ) : tree.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-4 px-3">Nog geen documenten</p>
+        ) : visibleTree.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-4 px-3">
+            {q ? `Geen resultaten voor "${query}"` : 'Nog geen documenten'}
+          </p>
         ) : (
           <div className="space-y-0.5">
-            {tree.map((node) => (
+            {visibleTree.map((node) => (
               <TreeNode
                 key={node.id}
                 node={node}
                 depth={0}
                 activeId={activeId}
-                expanded={expanded}
+                expanded={searchExpanded}
                 onToggle={toggle}
                 onAddChild={addChild}
                 creating={creating}
