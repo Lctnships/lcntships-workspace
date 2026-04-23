@@ -66,10 +66,13 @@ export function DocumentTree({ scopeToRootOfId }: { scopeToRootOfId?: string } =
   const activeId = pathname?.match(/^\/documents\/([^/]+)/)?.[1]
 
   const [tree, setTree] = useState<DocNode[]>([])
+  const [flatDocs, setFlatDocs] = useState<Array<Omit<DocNode, 'children'>>>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [creating, setCreating] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | 'inside' | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,6 +82,7 @@ export function DocumentTree({ scopeToRootOfId }: { scopeToRootOfId?: string } =
       .order('sort_order', { ascending: true })
       .order('updated_at', { ascending: false })
     if (!error && data) {
+      setFlatDocs(data)
       const fullTree = buildTree(data)
       if (scopeToRootOfId) {
         const rootId = findRootAncestor(scopeToRootOfId, data)
@@ -122,6 +126,70 @@ export function DocumentTree({ scopeToRootOfId }: { scopeToRootOfId?: string } =
     if (next.has(id)) next.delete(id)
     else next.add(id)
     setExpanded(next)
+  }
+
+  // 022a: drag-drop reorder
+  const isDescendantOf = (ancestorId: string, candidateId: string): boolean => {
+    const byId = new Map(flatDocs.map((d) => [d.id, d]))
+    let cur: string | null = candidateId
+    const seen = new Set<string>()
+    while (cur && byId.has(cur) && !seen.has(cur)) {
+      if (cur === ancestorId) return true
+      seen.add(cur)
+      cur = byId.get(cur)!.parent_id
+    }
+    return false
+  }
+
+  const handleDrop = async (
+    draggedId: string,
+    targetId: string,
+    position: 'before' | 'after' | 'inside',
+  ) => {
+    if (draggedId === targetId) return
+    // Voorkom dat je een node in z'n eigen subtree gooit
+    if (isDescendantOf(draggedId, targetId)) return
+
+    const target = flatDocs.find((d) => d.id === targetId)
+    if (!target) return
+
+    let newParentId: string | null
+    let siblings: Array<Omit<DocNode, 'children'>>
+
+    if (position === 'inside') {
+      newParentId = targetId
+      siblings = flatDocs.filter((d) => d.parent_id === targetId && d.id !== draggedId)
+      // dragged komt aan het einde
+      siblings.push({ ...flatDocs.find((d) => d.id === draggedId)! })
+    } else {
+      newParentId = target.parent_id
+      siblings = flatDocs.filter((d) => d.parent_id === target.parent_id && d.id !== draggedId)
+      const targetIndex = siblings.findIndex((d) => d.id === targetId)
+      const dragged = flatDocs.find((d) => d.id === draggedId)!
+      const insertAt = position === 'before' ? targetIndex : targetIndex + 1
+      siblings.splice(insertAt, 0, dragged)
+    }
+
+    // Optimistic update
+    const updates = siblings.map((s, idx) => ({ id: s.id, sort_order: idx * 10 }))
+    const { error: parentErr } = await workspaceClient
+      .from('workspace_documents')
+      .update({ parent_id: newParentId })
+      .eq('id', draggedId)
+    if (parentErr) {
+      alert(`Kon niet verplaatsen: ${parentErr.message}`)
+      return
+    }
+    // Sort_orders per sibling
+    await Promise.all(
+      updates.map((u) =>
+        workspaceClient
+          .from('workspace_documents')
+          .update({ sort_order: u.sort_order })
+          .eq('id', u.id),
+      ),
+    )
+    await load()
   }
 
   const addChild = async (parentId: string | null) => {
@@ -218,6 +286,10 @@ export function DocumentTree({ scopeToRootOfId }: { scopeToRootOfId?: string } =
                 onToggle={toggle}
                 onAddChild={addChild}
                 creating={creating}
+                onDrop={handleDrop}
+                dragOverId={dragOverId}
+                dragOverPosition={dragOverPosition}
+                setDragOver={(id, pos) => { setDragOverId(id); setDragOverPosition(pos) }}
               />
             ))}
           </div>
@@ -235,6 +307,10 @@ function TreeNode({
   onToggle,
   onAddChild,
   creating,
+  onDrop,
+  dragOverId,
+  dragOverPosition,
+  setDragOver,
 }: {
   node: DocNode
   depth: number
@@ -243,12 +319,17 @@ function TreeNode({
   onToggle: (id: string) => void
   onAddChild: (parentId: string) => void
   creating: string | null
+  onDrop: (draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void
+  dragOverId: string | null
+  dragOverPosition: 'before' | 'after' | 'inside' | null
+  setDragOver: (id: string | null, pos: 'before' | 'after' | 'inside' | null) => void
 }) {
   const hasChildren = node.children.length > 0
   const isExpanded = expanded.has(node.id)
   const isActive = node.id === activeId
   const [exportOpen, setExportOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
+  const isDragOver = dragOverId === node.id
 
   useEffect(() => {
     if (!exportOpen) return
@@ -279,9 +360,46 @@ function TreeNode({
   return (
     <div>
       <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/x-doc-id', node.id)
+          e.dataTransfer.effectAllowed = 'move'
+        }}
+        onDragOver={(e) => {
+          const draggedId = e.dataTransfer.types.includes('text/x-doc-id') ? null : null
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+          const y = e.clientY - rect.top
+          const third = rect.height / 3
+          let pos: 'before' | 'after' | 'inside'
+          if (y < third) pos = 'before'
+          else if (y > rect.height - third) pos = 'after'
+          else pos = 'inside'
+          if (dragOverId !== node.id || dragOverPosition !== pos) {
+            setDragOver(node.id, pos)
+          }
+          void draggedId
+        }}
+        onDragLeave={() => {
+          if (dragOverId === node.id) setDragOver(null, null)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const draggedId = e.dataTransfer.getData('text/x-doc-id')
+          const pos = dragOverPosition ?? 'after'
+          setDragOver(null, null)
+          if (draggedId && draggedId !== node.id) {
+            onDrop(draggedId, node.id, pos)
+          }
+        }}
         className={cn(
           'group flex items-center gap-0.5 rounded-md px-1 py-1 transition hover:bg-gray-100 relative',
           isActive && 'bg-gray-200 hover:bg-gray-200',
+          isDragOver && dragOverPosition === 'inside' && 'ring-2 ring-blue-400 bg-blue-50',
+          isDragOver && dragOverPosition === 'before' && 'border-t-2 border-blue-500',
+          isDragOver && dragOverPosition === 'after' && 'border-b-2 border-blue-500',
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
@@ -383,6 +501,10 @@ function TreeNode({
               onToggle={onToggle}
               onAddChild={onAddChild}
               creating={creating}
+              onDrop={onDrop}
+              dragOverId={dragOverId}
+              dragOverPosition={dragOverPosition}
+              setDragOver={setDragOver}
             />
           ))}
         </div>
