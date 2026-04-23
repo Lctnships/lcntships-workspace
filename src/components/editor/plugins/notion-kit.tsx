@@ -12,6 +12,7 @@ import { CalloutKit } from './callout-kit'
 import { DndKit } from './dnd-kit'
 import { BlockMenuKit } from './block-menu-kit'
 import { BlockSelectionKit } from './block-selection-kit'
+import { TocKit } from './toc-kit'
 
 // Master kit voor de Notion-achtige document editor
 export const NotionKit = [
@@ -23,6 +24,7 @@ export const NotionKit = [
   ...LinkKit,
   ...MediaKit,
   ...CalloutKit,
+  ...TocKit,
   ...DndKit,
   ...BlockMenuKit,
   ...BlockSelectionKit,
