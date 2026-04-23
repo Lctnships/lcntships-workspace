@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { Loader2 } from 'lucide-react'
+import { DocumentTree } from '@/components/editor/DocumentTree'
 
 const DocumentEditor = dynamic(
   () => import('@/components/editor/DocumentEditor').then((m) => m.DocumentEditor),
@@ -16,5 +17,12 @@ const DocumentEditor = dynamic(
 )
 
 export default function NewDocumentPage() {
-  return <DocumentEditor />
+  return (
+    <div className="flex">
+      <DocumentTree />
+      <div className="flex-1 min-w-0">
+        <DocumentEditor />
+      </div>
+    </div>
+  )
 }
