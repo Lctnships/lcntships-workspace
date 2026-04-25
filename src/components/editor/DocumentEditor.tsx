@@ -173,6 +173,7 @@ export function DocumentEditor({
       : 'Nog niet opgeslagen'
 
   return (
+    <Plate editor={editor}>
     <div className="flex flex-col min-h-[calc(100vh-64px)] bg-white">
       {/* === Fixed toolbar bovenin === */}
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-gray-100">
@@ -182,9 +183,7 @@ export function DocumentEditor({
             Terug
           </Button>
           <div className="h-5 w-px bg-gray-200" />
-          <Plate editor={editor}>
-            <InlineToolbar />
-          </Plate>
+          <InlineToolbar />
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-gray-400 whitespace-nowrap">
               {saving ? 'Opslaan...' : savedLabel}
@@ -306,19 +305,18 @@ export function DocumentEditor({
           />
 
           {/* Plate editor */}
-          <Plate editor={editor}>
-            <EditorContainer>
-              <Editor
-                variant="default"
-                placeholder="Begin met typen, of gebruik / voor commands..."
-                className="!px-0 !pb-40"
-              />
-              <SelectionToolbar />
-            </EditorContainer>
-          </Plate>
+          <EditorContainer>
+            <Editor
+              variant="default"
+              placeholder="Begin met typen, of gebruik / voor commands..."
+              className="!px-0 !pb-40"
+            />
+            <SelectionToolbar />
+          </EditorContainer>
         </div>
       </div>
     </div>
+    </Plate>
   )
 }
 
