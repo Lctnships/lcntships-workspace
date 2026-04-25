@@ -30,8 +30,10 @@ import {
 import { workspaceClient } from '@/lib/workspace-client'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import type { EventInput, EventClickArg } from '@fullcalendar/core'
+import nlLocale from '@fullcalendar/core/locales/nl'
 
 type SalesAgendaItem = {
   id: string
@@ -86,6 +88,7 @@ export default function ProductieAgendaPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [view, setView] = useState<'list' | 'calendar'>('calendar')
   const [meetings, setMeetings] = useState<SalesAgendaItem[]>([])
+  const [showSalesMeetings, setShowSalesMeetings] = useState(true)
 
   const loadProductions = useCallback(async () => {
     setLoading(true)
@@ -228,6 +231,15 @@ export default function ProductieAgendaPage() {
               Lijst
             </button>
           </div>
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showSalesMeetings}
+              onChange={(e) => setShowSalesMeetings(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Sales meetings tonen
+          </label>
           <Button onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nieuwe productie
@@ -239,7 +251,7 @@ export default function ProductieAgendaPage() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         </div>
-      ) : productions.length === 0 ? (
+      ) : view === 'list' && productions.length === 0 ? (
         <div className="border border-dashed border-gray-200 rounded-xl py-16 text-center">
           <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">Nog geen producties. Klik op "Nieuwe productie" om te beginnen.</p>
@@ -247,7 +259,7 @@ export default function ProductieAgendaPage() {
       ) : view === 'calendar' ? (
         <ProductieKalender
           productions={productions}
-          meetings={meetings}
+          meetings={showSalesMeetings ? meetings : []}
           onEventClick={(id) => loadDetail(id)}
         />
       ) : (
@@ -725,9 +737,17 @@ function ProductieKalender({
       }
       const c = typeColor[m.type] ?? typeColor.other
       const start = m.start_time ? `${m.date}T${m.start_time}` : m.date
+      const typeLabel: Record<string, string> = {
+        meeting: 'Sales meeting',
+        call: 'Belafspraak',
+        follow_up: 'Follow-up',
+        demo: 'Demo',
+        other: 'Sales',
+      }
+      const prefix = typeLabel[m.type] ?? 'Sales'
       out.push({
         id: `meeting-${m.id}`,
-        title: m.title,
+        title: `${prefix}: ${m.title}`,
         start,
         allDay: !m.start_time,
         backgroundColor: c.bg,
@@ -746,26 +766,44 @@ function ProductieKalender({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 productie-kalender">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 productie-kalender">
       <style jsx global>{`
         .productie-kalender .fc {
           font-family: inherit;
+          --fc-border-color: #f3f4f6;
+          --fc-page-bg-color: #ffffff;
+          --fc-neutral-bg-color: #fafafa;
+          --fc-today-bg-color: #fafafa;
+          --fc-now-indicator-color: #111827;
+        }
+        .productie-kalender .fc-toolbar.fc-header-toolbar {
+          margin-bottom: 1.25rem;
         }
         .productie-kalender .fc-toolbar-title {
-          font-size: 1.125rem;
-          font-weight: 600;
+          font-size: 1.25rem;
+          font-weight: 700;
           color: #111827;
+          letter-spacing: -0.01em;
         }
         .productie-kalender .fc-button {
           background: #ffffff !important;
           border: 1px solid #e5e7eb !important;
-          color: #374151 !important;
+          color: #4b5563 !important;
           font-weight: 500 !important;
           text-transform: capitalize !important;
           box-shadow: none !important;
+          padding: 0.4rem 0.85rem !important;
+          font-size: 0.8125rem !important;
+          border-radius: 0.625rem !important;
         }
         .productie-kalender .fc-button:hover {
           background: #f9fafb !important;
+          border-color: #d1d5db !important;
+          color: #111827 !important;
+        }
+        .productie-kalender .fc-button:focus {
+          outline: none !important;
+          box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08) !important;
         }
         .productie-kalender .fc-button-active,
         .productie-kalender .fc-button-primary:not(:disabled).fc-button-active {
@@ -773,42 +811,103 @@ function ProductieKalender({
           color: #ffffff !important;
           border-color: #111827 !important;
         }
-        .productie-kalender .fc-daygrid-day.fc-day-today {
-          background: #fef3c7 !important;
+        .productie-kalender .fc-button-group {
+          gap: 2px;
+        }
+        .productie-kalender .fc-daygrid-day.fc-day-today,
+        .productie-kalender .fc-timegrid-col.fc-day-today {
+          background: #fafafa !important;
+        }
+        .productie-kalender .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+          color: #ffffff;
+          background: #111827;
+          border-radius: 999px;
+          width: 1.5rem;
+          height: 1.5rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+        }
+        .productie-kalender .fc-daygrid-day-number {
+          padding: 0.5rem;
+          color: #4b5563;
+          font-size: 0.8125rem;
+          font-weight: 500;
         }
         .productie-kalender .fc-event {
           border-radius: 6px;
-          padding: 2px 6px;
+          padding: 3px 8px;
           font-size: 12px;
           font-weight: 500;
           cursor: pointer;
+          margin: 1px 4px;
+        }
+        .productie-kalender .fc-event:hover {
+          opacity: 0.9;
         }
         .productie-kalender .fc-col-header-cell {
-          background: #f9fafb;
-          padding: 8px 0;
+          background: transparent;
+          padding: 12px 0 8px;
           font-weight: 600;
-          font-size: 12px;
+          font-size: 11px;
           text-transform: uppercase;
-          letter-spacing: 0.04em;
-          color: #6b7280;
+          letter-spacing: 0.06em;
+          color: #9ca3af;
+          border-bottom: 1px solid #f3f4f6;
+        }
+        .productie-kalender .fc-col-header-cell-cushion {
+          color: inherit !important;
+          padding: 0 !important;
+          text-decoration: none !important;
+        }
+        .productie-kalender .fc-scrollgrid {
+          border: none !important;
+        }
+        .productie-kalender .fc-scrollgrid td,
+        .productie-kalender .fc-scrollgrid th {
+          border-color: #f3f4f6 !important;
+        }
+        .productie-kalender .fc-timegrid-slot {
+          height: 2.5rem !important;
+          border-color: #f3f4f6 !important;
+        }
+        .productie-kalender .fc-timegrid-slot-label {
+          color: #9ca3af;
+          font-size: 0.75rem;
+          font-weight: 500;
+          padding-right: 0.75rem !important;
+        }
+        .productie-kalender .fc-list-event:hover td {
+          background: #f9fafb !important;
+        }
+        .productie-kalender .fc-more-link {
+          color: #6b7280 !important;
+          font-size: 0.75rem;
+          font-weight: 500;
+          padding: 2px 6px;
         }
       `}</style>
       <FullCalendar
-        plugins={[dayGridPlugin, interactionPlugin]}
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
-        locale="nl"
+        locale={nlLocale}
         firstDay={1}
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
-          right: 'dayGridMonth,dayGridWeek',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay',
         }}
-        buttonText={{ today: 'Vandaag', month: 'Maand', week: 'Week' }}
+        buttonText={{ today: 'Vandaag', month: 'Maand', week: 'Week', day: 'Dag' }}
         events={events}
         eventClick={handleEventClick}
         height="auto"
         dayMaxEvents={3}
         moreLinkText={(n) => `+${n} meer`}
+        slotMinTime="07:00:00"
+        slotMaxTime="22:00:00"
+        nowIndicator
+        allDayText="Hele dag"
       />
       <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 text-xs">
         <span className="flex items-center gap-1.5">
