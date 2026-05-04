@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { workspaceDb } from '@/lib/supabase/workspace'
 import { requireAuth } from '@/lib/api-auth'
-import { notifyFinalDate } from '@/lib/production-notify'
 
 const updateSchema = z.object({
   status: z.enum(['open', 'closed']).optional(),
@@ -133,14 +132,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       .then(() => {})
   }
 
-  // Fire-and-forget notify when final_date is newly set or changed
+  // Sync final_date → gekoppelde content_briefs.shoot_date.
+  // GEEN auto-mail meer: notificatie gaat via aparte /notify endpoint
+  // met handmatige preview + ontvanger-selectie.
   if (
     parsed.data.final_date &&
     before?.final_date !== parsed.data.final_date
   ) {
-    notifyFinalDate(id).catch((e) => console.error('notify final date', e))
-
-    // Sync final_date → gekoppelde content_briefs.shoot_date
     await workspaceDb
       .from('content_briefs')
       .update({ shoot_date: parsed.data.final_date })

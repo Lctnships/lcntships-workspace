@@ -28,6 +28,8 @@ import {
   History,
   ExternalLink,
   Clapperboard,
+  Mail,
+  Send,
 } from 'lucide-react'
 import { workspaceClient } from '@/lib/workspace-client'
 
@@ -154,6 +156,7 @@ export default function ProductionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
   const [openBriefId, setOpenBriefId] = useState<string | null>(null)
+  const [showNotifyModal, setShowNotifyModal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -296,6 +299,9 @@ export default function ProductionDetailPage() {
             <Button variant="outline" size="sm" onClick={copyLink}>
               {copied ? <><Check className="h-3.5 w-3.5 mr-1.5" />Gekopieerd</> : <><Copy className="h-3.5 w-3.5 mr-1.5" />Deel-link</>}
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowNotifyModal(true)}>
+              <Mail className="h-3.5 w-3.5 mr-1.5" />Mail crew
+            </Button>
             <Button variant="outline" size="sm" onClick={toggleStatus}>
               {production.status === 'open' ? <><Lock className="h-3.5 w-3.5 mr-1.5" />Sluiten</> : <><Unlock className="h-3.5 w-3.5 mr-1.5" />Heropenen</>}
             </Button>
@@ -368,13 +374,16 @@ export default function ProductionDetailPage() {
                         <Button
                           size="sm"
                           className="bg-amber-500 hover:bg-amber-600 text-white"
-                          onClick={() => setFinal(d)}
+                          onClick={async () => {
+                            await setFinal(d)
+                            setShowNotifyModal(true)
+                          }}
                         >
                           <Star className="h-3.5 w-3.5 mr-1.5 fill-current" />
                           Plan deze datum & mail crew
                         </Button>
                         <p className="text-xs text-amber-700 mt-1.5">
-                          Zet finale datum en stuurt notificatie naar alle crew + voters met email.
+                          Zet finale datum en opent een preview waar je de mail kunt nakijken vóór je verstuurt.
                         </p>
                       </div>
                     )}
@@ -455,6 +464,14 @@ export default function ProductionDetailPage() {
           briefId={openBriefId}
           onClose={() => setOpenBriefId(null)}
           onSaved={load}
+        />
+      )}
+
+      {showNotifyModal && (
+        <NotifyModal
+          productionId={id}
+          onClose={() => setShowNotifyModal(false)}
+          onSent={load}
         />
       )}
     </div>
@@ -1164,6 +1181,236 @@ function BriefModal({
             Opslaan
           </Button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+type NotifyRecipient = {
+  email: string
+  name: string | null
+  source: 'crew' | 'voter' | 'creator'
+  role?: string | null
+}
+
+type NotifyPreview = {
+  subject: string
+  body_html: string
+  body_text: string
+  recipients: NotifyRecipient[]
+}
+
+function NotifyModal({
+  productionId,
+  onClose,
+  onSent,
+}: {
+  productionId: string
+  onClose: () => void
+  onSent: () => void
+}) {
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [preview, setPreview] = useState<NotifyPreview | null>(null)
+  const [subject, setSubject] = useState('')
+  const [bodyHtml, setBodyHtml] = useState('')
+  const [bodyText, setBodyText] = useState('')
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [showHtmlSource, setShowHtmlSource] = useState(false)
+  const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const res = await fetch(`/api/productions/${productionId}/notify`)
+      if (cancelled) return
+      if (!res.ok) {
+        setLoading(false)
+        return
+      }
+      const data: NotifyPreview = await res.json()
+      setPreview(data)
+      setSubject(data.subject)
+      setBodyHtml(data.body_html)
+      setBodyText(data.body_text)
+      const initSel: Record<string, boolean> = {}
+      data.recipients.forEach((r) => { initSel[r.email] = true })
+      setSelected(initSel)
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [productionId])
+
+  const send = async () => {
+    if (!preview) return
+    const recipients = preview.recipients.filter((r) => selected[r.email]).map((r) => r.email)
+    if (recipients.length === 0) {
+      alert('Selecteer minstens één ontvanger.')
+      return
+    }
+    setSending(true)
+    const res = await fetch(`/api/productions/${productionId}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, body_html: bodyHtml, body_text: bodyText, recipients }),
+    })
+    setSending(false)
+    if (!res.ok) {
+      alert('Verzenden mislukt')
+      return
+    }
+    const data = await res.json()
+    setResult(data)
+    onSent()
+  }
+
+  const sourceLabel = (s: NotifyRecipient['source']) =>
+    s === 'crew' ? 'Crew' : s === 'voter' ? 'Voter' : 'Creator'
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-gray-400" />
+            <h2 className="font-semibold text-gray-900">Mail naar crew & voters</h2>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="p-12 flex justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+          </div>
+        ) : !preview ? (
+          <div className="p-12 text-center text-sm text-gray-500">Kon preview niet laden.</div>
+        ) : result ? (
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-4">
+              <Check className="h-6 w-6 text-green-600" />
+            </div>
+            <p className="text-lg font-semibold text-gray-900 mb-1">Verzonden</p>
+            <p className="text-sm text-gray-600">
+              {result.sent} van {result.total} verstuurd
+              {result.failed > 0 && <span className="text-red-600"> · {result.failed} mislukt</span>}
+            </p>
+            <Button className="mt-6" onClick={onClose}>Sluiten</Button>
+          </div>
+        ) : (
+          <div className="p-6 space-y-5">
+            {/* Onderwerp */}
+            <div>
+              <label className="text-xs font-medium text-gray-700">Onderwerp</label>
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="mt-1" />
+            </div>
+
+            {/* Ontvangers */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-700">
+                  Ontvangers ({preview.recipients.filter((r) => selected[r.email]).length}/{preview.recipients.length})
+                </label>
+                <div className="flex gap-1.5 text-xs">
+                  <button
+                    onClick={() => {
+                      const all: Record<string, boolean> = {}
+                      preview.recipients.forEach((r) => { all[r.email] = true })
+                      setSelected(all)
+                    }}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Alle
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    onClick={() => setSelected({})}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Geen
+                  </button>
+                </div>
+              </div>
+              {preview.recipients.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  Geen ontvangers met email gevonden. Voeg crew met email toe om te kunnen mailen.
+                </p>
+              ) : (
+                <div className="space-y-1 border border-gray-100 rounded-lg p-2 max-h-40 overflow-y-auto">
+                  {preview.recipients.map((r) => (
+                    <label
+                      key={r.email}
+                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!selected[r.email]}
+                        onChange={(e) => setSelected({ ...selected, [r.email]: e.target.checked })}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-gray-900 truncate">
+                            {r.name ?? r.email}
+                          </span>
+                          <Badge variant="outline" className="text-xs capitalize">{sourceLabel(r.source)}</Badge>
+                          {r.role && <span className="text-xs text-gray-500">— {r.role}</span>}
+                        </div>
+                        {r.name && <p className="text-xs text-gray-500 truncate">{r.email}</p>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Body */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-700">Bericht</label>
+                <button
+                  onClick={() => setShowHtmlSource(!showHtmlSource)}
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  {showHtmlSource ? 'Toon preview' : 'Bewerk HTML'}
+                </button>
+              </div>
+              {showHtmlSource ? (
+                <Textarea
+                  value={bodyHtml}
+                  onChange={(e) => setBodyHtml(e.target.value)}
+                  rows={16}
+                  className="font-mono text-xs"
+                />
+              ) : (
+                <div
+                  className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto bg-gray-50"
+                  dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {!loading && preview && !result && (
+          <div className="px-6 py-4 border-t border-gray-100 flex justify-between gap-2 sticky bottom-0 bg-white">
+            <p className="text-xs text-gray-500 self-center">
+              Tip: vul eerst briefing, shotlist en gear in zodat de mail compleet is.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={onClose}>Annuleer</Button>
+              <Button onClick={send} disabled={sending}>
+                {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                Verstuur
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
