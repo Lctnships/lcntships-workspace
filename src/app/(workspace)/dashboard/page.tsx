@@ -18,9 +18,17 @@ import {
   FileText,
   Plus,
   Inbox,
+  ListChecks,
+  X,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { dashboardApi, profilesApi } from '@/lib/supabase'
+import { workspaceClient } from '@/lib/workspace-client'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { format, parseISO, isPast, isToday } from 'date-fns'
+import { nl } from 'date-fns/locale'
 import Link from 'next/link'
 
 interface DashboardStats {
@@ -162,25 +170,26 @@ function RevenueChart({ revenue, payouts }: { revenue: number; payouts: number }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [studios, setStudios] = useState<{ id: string; title: string; status: string | null }[]>([])
   const [recentBookings, setRecentBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState<string>('')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const [dashStats, studioList, bookings, profile] = await Promise.all([
+        const [dashStats, bookings, profile] = await Promise.all([
           dashboardApi.getStats(),
-          dashboardApi.getStudios(),
           dashboardApi.getRecentBookings(4),
           profilesApi.getCurrent(),
         ])
         setStats(dashStats)
-        setStudios(studioList)
         setRecentBookings(bookings)
         if (profile?.full_name) {
           setUserName(profile.full_name.split(' ')[0])
+        }
+        if (profile && 'email' in profile && typeof profile.email === 'string') {
+          setUserEmail(profile.email)
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err, JSON.stringify(err, Object.getOwnPropertyNames(err as object)))
@@ -456,69 +465,7 @@ export default function DashboardPage() {
 
       {/* Bottom Grid */}
       <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
-        {/* Studio Overview */}
-        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Studio Overzicht</h2>
-              <p className="text-sm text-gray-500 mt-1">Alle studio&apos;s op het platform</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-gray-400" />
-              <span className="text-sm font-semibold text-gray-600">
-                {loading ? '...' : `${studios.length} Studio${studios.length !== 1 ? "'s" : ''}`}
-              </span>
-            </div>
-          </div>
-          {loading ? (
-            <div className="space-y-4 animate-pulse">
-              {[1, 2, 3].map((i) => (
-                <div key={i}>
-                  <div className="w-48 h-4 rounded bg-gray-200 mb-2" />
-                  <div className="h-2.5 bg-gray-200 rounded-full" />
-                </div>
-              ))}
-            </div>
-          ) : studios.length > 0 ? (
-            <div className="space-y-5">
-              {studios.map((studio, index) => {
-                const colors = ['bg-gray-900', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500']
-                const isActive = studio.status === 'active'
-                return (
-                  <div key={studio.id}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">{studio.title}</span>
-                      <span
-                        className={cn(
-                          'text-xs font-semibold px-2 py-0.5 rounded-full',
-                          isActive
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-gray-100 text-gray-600'
-                        )}
-                      >
-                        {studio.status || 'draft'}
-                      </span>
-                    </div>
-                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={cn('h-full rounded-full transition-all duration-500', colors[index % colors.length])}
-                        style={{ width: isActive ? '100%' : '30%' }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <EmptyState
-              icon={Building2}
-              title="Nog geen studio's toegevoegd"
-              description="Voeg je eerste studio toe om boekingen te ontvangen."
-              actionLabel="Studio toevoegen"
-              actionHref="/studios"
-            />
-          )}
-        </div>
+        <TodoWidget userEmail={userEmail} />
 
         {/* Pending Tasks */}
         <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
@@ -618,6 +565,260 @@ export default function DashboardPage() {
           Executive Dashboard - Live data
         </span>
       </div>
+    </div>
+  )
+}
+
+type Todo = {
+  id: string
+  title: string
+  assigned_to_email: string | null
+  assigned_to_name: string | null
+  assigned_by_email: string | null
+  due_date: string | null
+  done: boolean
+  completed_at: string | null
+  created_at: string
+}
+
+type TeamMember = {
+  id: string
+  full_name: string | null
+  email: string | null
+}
+
+function TodoWidget({ userEmail }: { userEmail: string | null }) {
+  const [todos, setTodos] = useState<Todo[]>([])
+  const [team, setTeam] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newAssignee, setNewAssignee] = useState('')
+  const [newDue, setNewDue] = useState('')
+  const [filter, setFilter] = useState<'mine' | 'all' | 'open' | 'done'>('open')
+  const [saving, setSaving] = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    const [todoRes, teamRes] = await Promise.all([
+      workspaceClient
+        .from<Todo[]>('workspace_todos')
+        .select('id, title, assigned_to_email, assigned_to_name, assigned_by_email, due_date, done, completed_at, created_at')
+        .order('done', { ascending: true })
+        .order('due_date', { ascending: true })
+        .order('created_at', { ascending: false }),
+      workspaceClient
+        .from<TeamMember[]>('team_members')
+        .select('id, full_name, email')
+        .order('full_name', { ascending: true }),
+    ])
+    if (todoRes.data) setTodos(todoRes.data as Todo[])
+    if (teamRes.data) setTeam(teamRes.data as TeamMember[])
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [])
+
+  const submit = async () => {
+    if (!newTitle.trim()) return
+    setSaving(true)
+    const assignee = team.find((t) => t.email === newAssignee)
+    await workspaceClient.from('workspace_todos').insert({
+      title: newTitle.trim(),
+      assigned_to_email: newAssignee || null,
+      assigned_to_name: assignee?.full_name ?? null,
+      assigned_by_email: userEmail,
+      due_date: newDue || null,
+    })
+    setNewTitle(''); setNewAssignee(''); setNewDue('')
+    setAdding(false)
+    setSaving(false)
+    await load()
+  }
+
+  const toggle = async (t: Todo) => {
+    await workspaceClient
+      .from('workspace_todos')
+      .update({
+        done: !t.done,
+        completed_at: !t.done ? new Date().toISOString() : null,
+      })
+      .eq('id', t.id)
+    await load()
+  }
+
+  const remove = async (id: string) => {
+    await workspaceClient.from('workspace_todos').delete().eq('id', id)
+    await load()
+  }
+
+  const filtered = todos.filter((t) => {
+    if (filter === 'mine') return userEmail && t.assigned_to_email === userEmail
+    if (filter === 'open') return !t.done
+    if (filter === 'done') return t.done
+    return true
+  })
+
+  const overdue = (t: Todo) => {
+    if (t.done || !t.due_date) return false
+    try {
+      const d = parseISO(t.due_date)
+      return isPast(d) && !isToday(d)
+    } catch { return false }
+  }
+  const dueToday = (t: Todo) => {
+    if (t.done || !t.due_date) return false
+    try { return isToday(parseISO(t.due_date)) } catch { return false }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">To-do</h2>
+          <p className="text-sm text-gray-500 mt-1">Workspace taken — toewijsbaar aan iedereen</p>
+        </div>
+        <ListChecks className="h-5 w-5 text-gray-400" />
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs">
+          {(['mine', 'open', 'all', 'done'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                'px-2.5 py-1 rounded-md font-medium transition',
+                filter === f ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
+              )}
+            >
+              {f === 'mine' ? 'Mijn' : f === 'open' ? 'Open' : f === 'all' ? 'Alles' : 'Afgerond'}
+            </button>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto h-7"
+          onClick={() => setAdding(!adding)}
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />Nieuwe taak
+        </Button>
+      </div>
+
+      {adding && (
+        <div className="space-y-2 mb-4 p-3 border border-gray-100 rounded-lg bg-gray-50">
+          <Input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Wat moet er gedaan worden?"
+            className="h-8 text-sm bg-white"
+            autoFocus
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={newAssignee}
+              onChange={(e) => setNewAssignee(e.target.value)}
+              className="h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
+            >
+              <option value="">— Niemand toegewezen —</option>
+              {team.map((t) => (
+                <option key={t.id} value={t.email ?? ''}>
+                  {t.full_name ?? t.email ?? '?'}
+                </option>
+              ))}
+            </select>
+            <Input
+              type="date"
+              value={newDue}
+              onChange={(e) => setNewDue(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="flex justify-end gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Annuleer</Button>
+            <Button size="sm" onClick={submit} disabled={saving || !newTitle.trim()}>
+              {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Toevoegen
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-2 animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-12 bg-gray-100 rounded-lg" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-gray-500 text-center py-8">
+          {filter === 'mine' ? 'Geen taken toegewezen aan jou.' :
+           filter === 'open' ? 'Geen openstaande taken — top!' :
+           filter === 'done' ? 'Nog niets afgerond.' : 'Nog geen taken.'}
+        </p>
+      ) : (
+        <div className="space-y-1.5 max-h-96 overflow-y-auto">
+          {filtered.map((t) => {
+            const isOverdue = overdue(t)
+            const isToday_ = dueToday(t)
+            return (
+              <div
+                key={t.id}
+                className={cn(
+                  'flex items-start gap-2 p-2.5 rounded-lg border group transition',
+                  t.done ? 'border-gray-100 bg-gray-50/50' :
+                  isOverdue ? 'border-rose-200 bg-rose-50/40' :
+                  isToday_ ? 'border-amber-200 bg-amber-50/40' :
+                  'border-gray-100 hover:bg-gray-50',
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={t.done}
+                  onChange={() => toggle(t)}
+                  className="rounded border-gray-300 mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm', t.done ? 'text-gray-400 line-through' : 'text-gray-900')}>
+                    {t.title}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs flex-wrap">
+                    {t.assigned_to_name && (
+                      <span className="inline-flex items-center gap-1 text-gray-500">
+                        <Users className="h-3 w-3" />
+                        {t.assigned_to_name}
+                      </span>
+                    )}
+                    {t.due_date && (
+                      <span className={cn(
+                        'inline-flex items-center gap-1',
+                        t.done ? 'text-gray-400' :
+                        isOverdue ? 'text-rose-600 font-medium' :
+                        isToday_ ? 'text-amber-700 font-medium' :
+                        'text-gray-500',
+                      )}>
+                        <Clock className="h-3 w-3" />
+                        {(() => {
+                          try { return format(parseISO(t.due_date), 'd MMM', { locale: nl }) }
+                          catch { return t.due_date }
+                        })()}
+                        {isOverdue && ' (te laat)'}
+                        {isToday_ && ' (vandaag)'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => remove(t.id)}
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 mt-0.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

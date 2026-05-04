@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact } from '@/lib/supabase'
+import { workspaceClient } from '@/lib/workspace-client'
 import { UserPlus, Users, ArrowUpDown, Crosshair, ThumbsUp, ThumbsDown, Search as SearchIcon2 } from 'lucide-react'
 import { SalesMode, getApproval } from '@/components/sales/SalesMode'
 import { SalesModeResults } from '@/components/sales/SalesModeResults'
@@ -149,6 +150,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
   })
 
   const [contacts, setContacts] = useState<ContactFormData[]>([{ ...emptyContact, is_primary: true }])
+  const [studioSpaces, setStudioSpaces] = useState<Array<{ id?: string; name: string; notes: string }>>([])
 
   useEffect(() => {
     if (editLead) {
@@ -164,6 +166,17 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
         status: editLead.status || 'cold',
         notes: editLead.notes || '',
       })
+      // Load studio spaces
+      workspaceClient
+        .from<Array<{ id: string; name: string; notes: string | null }>>('studio_spaces')
+        .select('id, name, notes')
+        .eq('lead_id', editLead.id)
+        .order('sort_order', { ascending: true })
+        .then(({ data }) => {
+          setStudioSpaces(
+            (data ?? []).map((s) => ({ id: s.id, name: s.name, notes: s.notes ?? '' })),
+          )
+        })
       // Load existing contacts
       if (existingContacts && existingContacts.length > 0) {
         setContacts(existingContacts.map(c => ({
@@ -196,6 +209,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
         notes: '',
       })
       setContacts([{ ...emptyContact, is_primary: true }])
+      setStudioSpaces([])
     }
   }, [editLead, existingContacts, isOpen])
 
@@ -266,6 +280,22 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
             phone: c.phone || undefined,
             is_primary: c.is_primary,
           }))
+        )
+      }
+
+      // Save studio spaces — wis bestaande, herinsert
+      if (editLead) {
+        await workspaceClient.from('studio_spaces').delete().eq('lead_id', leadId)
+      }
+      const validSpaces = studioSpaces.filter((s) => s.name.trim())
+      if (validSpaces.length > 0) {
+        await workspaceClient.from('studio_spaces').insert(
+          validSpaces.map((s, i) => ({
+            lead_id: leadId,
+            name: s.name.trim(),
+            notes: s.notes.trim() || null,
+            sort_order: i,
+          })),
         )
       }
 
@@ -472,6 +502,65 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Studio-ruimtes (optioneel) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Studio-ruimtes <span className="text-xs font-normal text-gray-400">(optioneel)</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setStudioSpaces([...studioSpaces, { name: '', notes: '' }])}
+                className="text-xs text-indigo-600 hover:underline"
+              >
+                + Ruimte toevoegen
+              </button>
+            </div>
+            {studioSpaces.length === 0 ? (
+              <p className="text-xs text-gray-500">
+                Vul in als dit bedrijf meerdere studio-ruimtes heeft (bv. Studio 1 — cyclorama).
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {studioSpaces.map((s, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={s.name}
+                        onChange={(e) => {
+                          const next = [...studioSpaces]
+                          next[i] = { ...next[i], name: e.target.value }
+                          setStudioSpaces(next)
+                        }}
+                        placeholder="Ruimte naam *"
+                        className="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      />
+                      <input
+                        type="text"
+                        value={s.notes}
+                        onChange={(e) => {
+                          const next = [...studioSpaces]
+                          next[i] = { ...next[i], notes: e.target.value }
+                          setStudioSpaces(next)
+                        }}
+                        placeholder="Notities (m², etc)"
+                        className="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStudioSpaces(studioSpaces.filter((_, idx) => idx !== i))}
+                      className="px-2 py-2 text-gray-400 hover:text-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

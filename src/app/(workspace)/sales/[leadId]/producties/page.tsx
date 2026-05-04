@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import { ArrowLeft, Loader2, Plus, Calendar, Mail, Phone, MapPin } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Calendar, Mail, Phone, MapPin, Home, X } from 'lucide-react'
 import { workspaceClient } from '@/lib/workspace-client'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 type Studio = {
@@ -33,6 +34,14 @@ type Production = {
   updated_at: string
 }
 
+type StudioSpace = {
+  id: string
+  lead_id: string
+  name: string
+  notes: string | null
+  sort_order: number
+}
+
 function fmtDate(d: string | null) {
   if (!d) return '—'
   try { return format(parseISO(d), 'd MMM yyyy', { locale: nl }) } catch { return d }
@@ -44,11 +53,12 @@ export default function StudioProductionsPage() {
 
   const [studio, setStudio] = useState<Studio | null>(null)
   const [productions, setProductions] = useState<Production[]>([])
+  const [spaces, setSpaces] = useState<StudioSpace[]>([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [studioRes, prodsRes] = await Promise.all([
+    const [studioRes, prodsRes, spacesRes] = await Promise.all([
       workspaceClient
         .from<Studio[]>('sales_leads')
         .select('id, company_name, contact_name, city, email, phone, status, notes')
@@ -59,9 +69,15 @@ export default function StudioProductionsPage() {
         .select('id, title, proposed_dates, status, final_date, deadline, created_at, updated_at')
         .eq('lead_id', leadId)
         .order('created_at', { ascending: false }),
+      workspaceClient
+        .from<StudioSpace[]>('studio_spaces')
+        .select('id, lead_id, name, notes, sort_order')
+        .eq('lead_id', leadId)
+        .order('sort_order', { ascending: true }),
     ])
     if (studioRes.data) setStudio(studioRes.data as unknown as Studio)
     if (prodsRes.data) setProductions(prodsRes.data as Production[])
+    if (spacesRes.data) setSpaces(spacesRes.data as StudioSpace[])
     setLoading(false)
   }, [leadId])
 
@@ -125,6 +141,9 @@ export default function StudioProductionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Studio-ruimtes */}
+      <StudioSpacesCard leadId={leadId} spaces={spaces} onChange={load} />
 
       {/* Geplande producties */}
       <Section
@@ -227,5 +246,105 @@ function ProductionRow({ p, accent }: { p: Production; accent: 'green' | 'amber'
         </Badge>
       </div>
     </Link>
+  )
+}
+
+function StudioSpacesCard({
+  leadId,
+  spaces,
+  onChange,
+}: {
+  leadId: string
+  spaces: StudioSpace[]
+  onChange: () => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const submit = async () => {
+    if (!name.trim()) return
+    setSaving(true)
+    const nextOrder = spaces.length > 0 ? Math.max(...spaces.map((s) => s.sort_order)) + 1 : 0
+    await workspaceClient.from('studio_spaces').insert({
+      lead_id: leadId,
+      name: name.trim(),
+      notes: notes.trim() || null,
+      sort_order: nextOrder,
+    })
+    setName(''); setNotes('')
+    setAdding(false)
+    setSaving(false)
+    onChange()
+  }
+  const remove = async (id: string) => {
+    await workspaceClient.from('studio_spaces').delete().eq('id', id)
+    onChange()
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white mb-6">
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Home className="h-4 w-4 text-gray-400" />
+          <h2 className="text-sm font-semibold text-gray-900">Studio-ruimtes</h2>
+          {spaces.length > 0 && (
+            <span className="text-xs text-gray-400">{spaces.length}</span>
+          )}
+        </div>
+        <Button size="sm" variant="outline" className="h-7" onClick={() => setAdding(!adding)}>
+          <Plus className="h-3.5 w-3.5 mr-1" />Ruimte
+        </Button>
+      </div>
+      <div className="p-5">
+        {spaces.length === 0 && !adding ? (
+          <p className="text-sm text-gray-500">
+            Geen studio-ruimtes ingevuld. Voeg ze toe als dit bedrijf meerdere ruimtes heeft (helpt met productie planning).
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {spaces.map((s) => (
+              <div key={s.id} className="flex items-start gap-2 border border-gray-100 rounded-lg p-2.5 group">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900">{s.name}</p>
+                  {s.notes && <p className="text-xs text-gray-500 mt-0.5">{s.notes}</p>}
+                </div>
+                <button
+                  onClick={() => remove(s.id)}
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {adding && (
+          <div className="space-y-2 mt-3 pt-3 border-t border-gray-100">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Bv. Studio 1 — cyclorama"
+              className="h-8 text-sm"
+              autoFocus
+            />
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notities (m², capaciteit, etc — optioneel)"
+              className="h-8 text-sm"
+            />
+            <div className="flex justify-end gap-1.5">
+              <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Annuleer</Button>
+              <Button size="sm" onClick={submit} disabled={saving || !name.trim()}>
+                {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                Toevoegen
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
