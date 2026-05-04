@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import { ArrowLeft, Loader2, Plus, ExternalLink, Calendar, Mail, Phone, MapPin } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Calendar, Mail, Phone, MapPin } from 'lucide-react'
 import { workspaceClient } from '@/lib/workspace-client'
 import { cn } from '@/lib/utils'
 
@@ -123,11 +123,6 @@ export default function StudioProductionsPage() {
               )}
             </div>
           </div>
-          <Link href={`/sales?lead=${studio.id}`}>
-            <Button variant="outline" size="sm">
-              <ExternalLink className="h-3.5 w-3.5 mr-1.5" />Open in pipeline
-            </Button>
-          </Link>
         </div>
       </div>
 

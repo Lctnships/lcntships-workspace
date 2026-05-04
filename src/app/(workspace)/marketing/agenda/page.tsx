@@ -664,11 +664,11 @@ function DetailPanel({
             {production.location && <p className="text-sm text-gray-500 mt-0.5">{production.location}</p>}
             {linkedStudio && (
               <a
-                href={`/sales?lead=${linkedStudio.id}`}
+                href={`/sales/${linkedStudio.id}/producties`}
                 className="inline-flex items-center gap-1.5 mt-2 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
               >
                 <ExternalLink className="h-3 w-3" />
-                Gekoppelde studio: {linkedStudio.company_name}
+                Studio: {linkedStudio.company_name}
                 {linkedStudio.contact_name ? ` — ${linkedStudio.contact_name}` : ''}
               </a>
             )}
