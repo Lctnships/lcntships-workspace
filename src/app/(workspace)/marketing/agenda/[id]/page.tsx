@@ -65,10 +65,19 @@ type Note = {
 type CrewMember = {
   id: string
   team_member_id: string | null
+  crew_member_id: string | null
   email: string | null
   name: string
   role: string | null
   confirmed: boolean
+}
+
+type CrewRegistryMember = {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  default_role: string | null
 }
 
 type GearItem = {
@@ -109,18 +118,15 @@ type LinkedStudio = {
   phone: string | null
 }
 
+type BriefShot = { shot: string; description: string; done: boolean }
 type ContentBrief = {
   id: string
   title: string | null
   status: string | null
   shoot_date: string | null
+  shotlist: BriefShot[] | null
 }
 
-type TeamMember = {
-  id: string
-  full_name: string | null
-  email: string | null
-}
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
@@ -141,11 +147,10 @@ export default function ProductionDetailPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [crew, setCrew] = useState<CrewMember[]>([])
   const [gear, setGear] = useState<GearItem[]>([])
-  const [shotlist, setShotlist] = useState<ShotlistItem[]>([])
   const [activities, setActivities] = useState<ProductionActivity[]>([])
   const [studio, setStudio] = useState<LinkedStudio | null>(null)
   const [briefs, setBriefs] = useState<ContentBrief[]>([])
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [crewRegistry, setCrewRegistry] = useState<CrewRegistryMember[]>([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
@@ -162,11 +167,10 @@ export default function ProductionDetailPage() {
     setNotes(data.notes ?? [])
     setCrew(data.crew ?? [])
     setGear(data.gear ?? [])
-    setShotlist(data.shotlist ?? [])
     setActivities(data.activities ?? [])
 
-    // Studio + briefs + team members in parallel
-    const [studioRes, briefsRes, tmRes] = await Promise.all([
+    // Studio + briefs + crew registry in parallel
+    const [studioRes, briefsRes, crewRes] = await Promise.all([
       data.production.lead_id
         ? workspaceClient
             .from<LinkedStudio[]>('sales_leads')
@@ -176,15 +180,16 @@ export default function ProductionDetailPage() {
         : Promise.resolve({ data: null }),
       workspaceClient
         .from<ContentBrief[]>('content_briefs')
-        .select('id, title, status, shoot_date')
+        .select('id, title, status, shoot_date, shotlist')
         .eq('production_id', id),
       workspaceClient
-        .from<TeamMember[]>('team_members')
-        .select('id, full_name, email'),
+        .from<CrewRegistryMember[]>('crew_members')
+        .select('id, name, email, phone, default_role')
+        .order('name', { ascending: true }),
     ])
     if (studioRes.data) setStudio(studioRes.data as unknown as LinkedStudio)
     if (briefsRes.data) setBriefs(briefsRes.data as ContentBrief[])
-    if (tmRes.data) setTeamMembers(tmRes.data as TeamMember[])
+    if (crewRes.data) setCrewRegistry(crewRes.data as CrewRegistryMember[])
     setLoading(false)
   }, [id])
 
@@ -310,18 +315,33 @@ export default function ProductionDetailPage() {
                 const names = tally.get(d) ?? []
                 const isFinal = production.final_date === d
                 const isBest = names.length === bestCount && bestCount > 0
+                const isUnanimous = isBest && votes.length > 0 && names.length === votes.length
                 return (
                   <div
                     key={d}
                     className={cn(
-                      'border rounded-lg p-3',
-                      isFinal ? 'border-green-300 bg-green-50' : isBest ? 'border-gray-900' : 'border-gray-100',
+                      'rounded-lg p-3 border-2 transition',
+                      isFinal
+                        ? 'border-green-400 bg-green-50'
+                        : isUnanimous
+                          ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200'
+                          : isBest
+                            ? 'border-amber-300 bg-amber-50/40'
+                            : 'border-gray-100',
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-gray-900">{fmtDate(d)}</span>
                         {isFinal && <Badge className="bg-green-600 hover:bg-green-600">Finale datum</Badge>}
+                        {!isFinal && isUnanimous && (
+                          <Badge className="bg-amber-500 hover:bg-amber-500 text-white">★ Iedereen kan</Badge>
+                        )}
+                        {!isFinal && !isUnanimous && isBest && (
+                          <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50">
+                            Topkandidaat
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-gray-700">{names.length} / {votes.length}</span>
@@ -357,7 +377,7 @@ export default function ProductionDetailPage() {
           </Card>
 
           {/* Shotlist */}
-          <ShotlistCard productionId={id} items={shotlist} onChange={load} />
+          <BriefShotlistCard briefs={briefs} />
 
           {/* Gear */}
           <GearCard productionId={id} items={gear} onChange={load} />
@@ -369,7 +389,19 @@ export default function ProductionDetailPage() {
         {/* Right column */}
         <div className="space-y-6">
           {/* Crew */}
-          <CrewCard productionId={id} crew={crew} teamMembers={teamMembers} onChange={load} />
+          <CrewCard
+            productionId={id}
+            crew={crew}
+            registry={crewRegistry}
+            onChange={load}
+            onRegistryChange={async () => {
+              const r = await workspaceClient
+                .from<CrewRegistryMember[]>('crew_members')
+                .select('id, name, email, phone, default_role')
+                .order('name', { ascending: true })
+              if (r.data) setCrewRegistry(r.data as CrewRegistryMember[])
+            }}
+          />
 
           {/* Content briefs */}
           <Card title="Content briefs" icon={<Clapperboard className="h-4 w-4" />}>
@@ -484,47 +516,68 @@ function NotesCard({ productionId, notes, onChange }: { productionId: string; no
 function CrewCard({
   productionId,
   crew,
-  teamMembers,
+  registry,
   onChange,
+  onRegistryChange,
 }: {
   productionId: string
   crew: CrewMember[]
-  teamMembers: TeamMember[]
+  registry: CrewRegistryMember[]
   onChange: () => void
+  onRegistryChange: () => Promise<void> | void
 }) {
   const [adding, setAdding] = useState(false)
-  const [pickedTm, setPickedTm] = useState<string>('')
+  const [pickedRegId, setPickedRegId] = useState<string>('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [role, setRole] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Crew leden die nog niet in deze productie zitten
+  const usedRegIds = new Set(crew.map((c) => c.crew_member_id).filter(Boolean) as string[])
+  const availableRegistry = registry.filter((r) => !usedRegIds.has(r.id))
 
   const submit = async () => {
     setSaving(true)
     let payload: Record<string, unknown> = {}
-    if (pickedTm) {
-      const tm = teamMembers.find((t) => t.id === pickedTm)
-      if (!tm) { setSaving(false); return }
+    if (pickedRegId) {
+      const reg = registry.find((r) => r.id === pickedRegId)
+      if (!reg) { setSaving(false); return }
       payload = {
-        team_member_id: tm.id,
-        name: tm.full_name ?? tm.email ?? 'Onbekend',
-        email: tm.email,
-        role: role.trim() || null,
+        crew_member_id: reg.id,
+        name: reg.name,
+        email: reg.email,
+        role: role.trim() || reg.default_role || null,
       }
     } else {
       if (!name.trim()) { setSaving(false); return }
+      // Eerst toevoegen aan registry
+      const regRes = await workspaceClient
+        .from<Array<CrewRegistryMember>>('crew_members')
+        .insert({
+          name: name.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          default_role: role.trim() || null,
+        })
+        .select()
+      const regRow = Array.isArray(regRes.data) ? regRes.data[0] : null
+      if (!regRow) { setSaving(false); return }
       payload = {
-        name: name.trim(),
-        email: email.trim() || null,
+        crew_member_id: regRow.id,
+        name: regRow.name,
+        email: regRow.email,
         role: role.trim() || null,
       }
+      await onRegistryChange()
     }
     await fetch(`/api/productions/${productionId}/crew`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    setPickedTm(''); setName(''); setEmail(''); setRole('')
+    setPickedRegId(''); setName(''); setEmail(''); setPhone(''); setRole('')
     setAdding(false)
     setSaving(false)
     onChange()
@@ -577,22 +630,25 @@ function CrewCard({
       {adding ? (
         <div className="space-y-2 border-t border-gray-100 pt-3">
           <select
-            value={pickedTm}
-            onChange={(e) => { setPickedTm(e.target.value); if (e.target.value) { setName(''); setEmail('') } }}
+            value={pickedRegId}
+            onChange={(e) => { setPickedRegId(e.target.value); if (e.target.value) { setName(''); setEmail(''); setPhone('') } }}
             className="w-full h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
           >
-            <option value="">— Externe / handmatig —</option>
-            {teamMembers.map((t) => (
-              <option key={t.id} value={t.id}>{t.full_name ?? t.email ?? t.id}</option>
+            <option value="">— Nieuwe crew aanmaken —</option>
+            {availableRegistry.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}{r.default_role ? ` · ${r.default_role}` : ''}
+              </option>
             ))}
           </select>
-          {!pickedTm && (
+          {!pickedRegId && (
             <>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Naam" className="h-8 text-sm" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Naam *" className="h-8 text-sm" />
               <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optioneel)" type="email" className="h-8 text-sm" />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefoon (optioneel)" className="h-8 text-sm" />
             </>
           )}
-          <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Rol (bv. fotograaf)" className="h-8 text-sm" />
+          <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Rol op deze productie (bv. fotograaf)" className="h-8 text-sm" />
           <div className="flex justify-end gap-1.5">
             <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Annuleer</Button>
             <Button size="sm" onClick={submit} disabled={saving}>
@@ -755,96 +811,60 @@ function GearCard({ productionId, items, onChange }: { productionId: string; ite
   )
 }
 
-function ShotlistCard({ productionId, items, onChange }: { productionId: string; items: ShotlistItem[]; onChange: () => void }) {
-  const [adding, setAdding] = useState(false)
-  const [description, setDescription] = useState('')
-  const [location, setLocation] = useState('')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const submit = async () => {
-    if (!description.trim()) return
-    setSaving(true)
-    await fetch(`/api/productions/${productionId}/shotlist`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        description: description.trim(),
-        location: location.trim() || null,
-        notes: notes.trim() || null,
-      }),
-    })
-    setDescription(''); setLocation(''); setNotes('')
-    setAdding(false)
-    setSaving(false)
-    onChange()
-  }
-  const toggleDone = async (s: ShotlistItem) => {
-    await fetch(`/api/productions/${productionId}/shotlist?shotId=${s.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ done: !s.done }),
-    })
-    onChange()
-  }
-  const remove = async (shotId: string) => {
-    await fetch(`/api/productions/${productionId}/shotlist?shotId=${shotId}`, { method: 'DELETE' })
-    onChange()
-  }
-  const done = items.filter((s) => s.done).length
+function BriefShotlistCard({ briefs }: { briefs: ContentBrief[] }) {
+  const briefWithShots = briefs.find((b) => Array.isArray(b.shotlist) && b.shotlist.length > 0) ?? briefs[0] ?? null
+  const shots = (briefWithShots?.shotlist ?? []) as BriefShot[]
+  const done = shots.filter((s) => s.done).length
 
   return (
-    <Card title="Shotlist" icon={<Camera className="h-4 w-4" />}>
-      {items.length > 0 && (
-        <p className="text-xs text-gray-500 mb-3">{done}/{items.length} afgevinkt</p>
-      )}
-      {items.length === 0 ? (
-        <p className="text-sm text-gray-500 mb-3">Nog geen shots.</p>
-      ) : (
-        <div className="space-y-1.5 mb-3">
-          {items.map((s, i) => (
-            <div key={s.id} className="flex items-start gap-2 border border-gray-100 rounded-lg p-2.5 group">
-              <input
-                type="checkbox"
-                checked={s.done}
-                onChange={() => toggleDone(s)}
-                className="rounded border-gray-300 mt-0.5"
-              />
-              <div className="min-w-0 flex-1">
-                <p className={cn('text-sm', s.done ? 'text-gray-400 line-through' : 'text-gray-900')}>
-                  <span className="text-xs text-gray-400 mr-2">#{i + 1}</span>
-                  {s.description}
-                </p>
-                {(s.location || s.notes) && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {[s.location, s.notes].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-              </div>
-              <button onClick={() => remove(s.id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 mt-0.5">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+    <Card title="Shotlist (uit briefing)" icon={<Camera className="h-4 w-4" />}>
+      {!briefWithShots ? (
+        <p className="text-sm text-gray-500">
+          Nog geen content brief gekoppeld. Maak er een aan rechts om de shotlist te beheren.
+        </p>
+      ) : shots.length === 0 ? (
+        <div>
+          <p className="text-sm text-gray-500 mb-2">Brief heeft nog geen shots.</p>
+          <Link
+            href={`/content?brief=${briefWithShots.id}`}
+            className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
+          >
+            Bewerk in briefing →
+          </Link>
         </div>
-      )}
-      {adding ? (
-        <div className="space-y-2 border-t border-gray-100 pt-3">
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Wat schiet je?" className="h-8 text-sm" />
-          <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Locatie (optioneel)" className="h-8 text-sm" />
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notities (optioneel)" className="h-8 text-sm" />
-          <div className="flex justify-end gap-1.5">
-            <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Annuleer</Button>
-            <Button size="sm" onClick={submit} disabled={saving}>
-              {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-              Toevoegen
-            </Button>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-500">{done}/{shots.length} afgevinkt</p>
+            <Link
+              href={`/content?brief=${briefWithShots.id}`}
+              className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
+            >
+              Bewerk in briefing →
+            </Link>
           </div>
-        </div>
-      ) : (
-        <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />Shot toevoegen
-        </Button>
+          <div className="space-y-1.5">
+            {shots.map((s, i) => (
+              <div key={i} className="flex items-start gap-2 border border-gray-100 rounded-lg p-2.5">
+                <input
+                  type="checkbox"
+                  checked={s.done}
+                  readOnly
+                  className="rounded border-gray-300 mt-0.5 cursor-not-allowed"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className={cn('text-sm', s.done ? 'text-gray-400 line-through' : 'text-gray-900')}>
+                    <span className="text-xs text-gray-400 mr-2">#{i + 1}</span>
+                    {s.shot}
+                  </p>
+                  {s.description && (
+                    <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </Card>
   )

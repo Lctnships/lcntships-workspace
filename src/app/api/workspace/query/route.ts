@@ -48,6 +48,8 @@ const ALLOWED_TABLES = new Set([
   'content_briefs', 'content_templates',
   'portfolio_items',
   'marketing_posts',
+  // batch 4 (productions detail)
+  'crew_members',
 ])
 
 type Filter = { col: string; op: string; val: unknown }
