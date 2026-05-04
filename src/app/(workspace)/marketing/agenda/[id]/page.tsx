@@ -153,6 +153,7 @@ export default function ProductionDetailPage() {
   const [crewRegistry, setCrewRegistry] = useState<CrewRegistryMember[]>([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [openBriefId, setOpenBriefId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -362,6 +363,21 @@ export default function ProductionDetailPage() {
                         ))}
                       </div>
                     )}
+                    {!isFinal && isUnanimous && (
+                      <div className="mt-3 pt-3 border-t border-amber-200">
+                        <Button
+                          size="sm"
+                          className="bg-amber-500 hover:bg-amber-600 text-white"
+                          onClick={() => setFinal(d)}
+                        >
+                          <Star className="h-3.5 w-3.5 mr-1.5 fill-current" />
+                          Plan deze datum & mail crew
+                        </Button>
+                        <p className="text-xs text-amber-700 mt-1.5">
+                          Zet finale datum en stuurt notificatie naar alle crew + voters met email.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -377,7 +393,7 @@ export default function ProductionDetailPage() {
           </Card>
 
           {/* Shotlist */}
-          <BriefShotlistCard briefs={briefs} />
+          <BriefShotlistCard briefs={briefs} onOpenBrief={setOpenBriefId} />
 
           {/* Gear */}
           <GearCard productionId={id} items={gear} onChange={load} />
@@ -410,10 +426,10 @@ export default function ProductionDetailPage() {
             ) : (
               <div className="space-y-1.5 mb-3">
                 {briefs.map((b) => (
-                  <Link
+                  <button
                     key={b.id}
-                    href={`/content?brief=${b.id}`}
-                    className="block border border-gray-100 rounded-lg p-2.5 hover:bg-gray-50 transition"
+                    onClick={() => setOpenBriefId(b.id)}
+                    className="w-full text-left block border border-gray-100 rounded-lg p-2.5 hover:bg-gray-50 transition"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm text-gray-900 truncate">{b.title ?? 'Brief'}</span>
@@ -422,17 +438,25 @@ export default function ProductionDetailPage() {
                     {b.shoot_date && (
                       <p className="text-xs text-gray-500 mt-0.5">{fmtDate(b.shoot_date)}</p>
                     )}
-                  </Link>
+                  </button>
                 ))}
               </div>
             )}
-            <CreateBriefButton production={production} onCreated={load} />
+            <CreateBriefButton production={production} onCreated={(briefId) => { load(); setOpenBriefId(briefId) }} />
           </Card>
 
           {/* Activity */}
           <ActivityCard activities={activities} />
         </div>
       </div>
+
+      {openBriefId && (
+        <BriefModal
+          briefId={openBriefId}
+          onClose={() => setOpenBriefId(null)}
+          onSaved={load}
+        />
+      )}
     </div>
   )
 }
@@ -811,7 +835,7 @@ function GearCard({ productionId, items, onChange }: { productionId: string; ite
   )
 }
 
-function BriefShotlistCard({ briefs }: { briefs: ContentBrief[] }) {
+function BriefShotlistCard({ briefs, onOpenBrief }: { briefs: ContentBrief[]; onOpenBrief: (briefId: string) => void }) {
   const briefWithShots = briefs.find((b) => Array.isArray(b.shotlist) && b.shotlist.length > 0) ?? briefs[0] ?? null
   const shots = (briefWithShots?.shotlist ?? []) as BriefShot[]
   const done = shots.filter((s) => s.done).length
@@ -825,23 +849,23 @@ function BriefShotlistCard({ briefs }: { briefs: ContentBrief[] }) {
       ) : shots.length === 0 ? (
         <div>
           <p className="text-sm text-gray-500 mb-2">Brief heeft nog geen shots.</p>
-          <Link
-            href={`/content?brief=${briefWithShots.id}`}
-            className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
+          <button
+            onClick={() => onOpenBrief(briefWithShots.id)}
+            className="text-xs text-indigo-600 hover:underline"
           >
-            Bewerk in briefing →
-          </Link>
+            Open briefing →
+          </button>
         </div>
       ) : (
         <>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-gray-500">{done}/{shots.length} afgevinkt</p>
-            <Link
-              href={`/content?brief=${briefWithShots.id}`}
-              className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
+            <button
+              onClick={() => onOpenBrief(briefWithShots.id)}
+              className="text-xs text-indigo-600 hover:underline"
             >
-              Bewerk in briefing →
-            </Link>
+              Open briefing →
+            </button>
           </div>
           <div className="space-y-1.5">
             {shots.map((s, i) => (
@@ -919,8 +943,7 @@ function ActivityCard({ activities }: { activities: ProductionActivity[] }) {
   )
 }
 
-function CreateBriefButton({ production, onCreated }: { production: Production; onCreated: () => void }) {
-  const router = useRouter()
+function CreateBriefButton({ production, onCreated }: { production: Production; onCreated: (briefId: string) => void }) {
   const [creating, setCreating] = useState(false)
   const create = async () => {
     setCreating(true)
@@ -944,13 +967,204 @@ function CreateBriefButton({ production, onCreated }: { production: Production; 
       return
     }
     const row = Array.isArray(data) ? data[0] : null
-    onCreated()
-    if (row) router.push(`/content?brief=${row.id}`)
+    if (row) onCreated(row.id)
   }
   return (
     <Button size="sm" variant="outline" onClick={create} disabled={creating}>
       {creating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
       Nieuwe brief
     </Button>
+  )
+}
+
+type FullBrief = {
+  id: string
+  title: string | null
+  description: string | null
+  studio_name: string | null
+  shoot_date: string | null
+  status: string | null
+  shotlist: BriefShot[] | null
+  equipment: Array<{ name: string; description?: string }> | null
+}
+
+function BriefModal({
+  briefId,
+  onClose,
+  onSaved,
+}: {
+  briefId: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [brief, setBrief] = useState<FullBrief | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [shootDate, setShootDate] = useState('')
+  const [status, setStatus] = useState('')
+  const [shots, setShots] = useState<BriefShot[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const res = await workspaceClient
+        .from<FullBrief[]>('content_briefs')
+        .select('id, title, description, studio_name, shoot_date, status, shotlist, equipment')
+        .eq('id', briefId)
+        .single()
+      if (cancelled) return
+      const b = res.data as unknown as FullBrief | null
+      if (b) {
+        setBrief(b)
+        setTitle(b.title ?? '')
+        setDescription(b.description ?? '')
+        setShootDate(b.shoot_date ?? '')
+        setStatus(b.status ?? 'draft')
+        setShots(Array.isArray(b.shotlist) ? b.shotlist : [])
+      }
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [briefId])
+
+  const save = async () => {
+    setSaving(true)
+    await workspaceClient
+      .from('content_briefs')
+      .update({
+        title: title.trim() || null,
+        description: description.trim() || null,
+        shoot_date: shootDate || null,
+        status: status || null,
+        shotlist: shots,
+      })
+      .eq('id', briefId)
+    setSaving(false)
+    onSaved()
+    onClose()
+  }
+
+  const addShot = () => setShots([...shots, { shot: '', description: '', done: false }])
+  const updateShot = (i: number, patch: Partial<BriefShot>) => {
+    setShots(shots.map((s, idx) => (idx === i ? { ...s, ...patch } : s)))
+  }
+  const removeShot = (i: number) => setShots(shots.filter((_, idx) => idx !== i))
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-2">
+            <Clapperboard className="h-4 w-4 text-gray-400" />
+            <h2 className="font-semibold text-gray-900">Briefing</h2>
+            {brief?.studio_name && <span className="text-sm text-gray-500">— {brief.studio_name}</span>}
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="p-12 flex justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+          </div>
+        ) : !brief ? (
+          <div className="p-12 text-center text-sm text-gray-500">Brief niet gevonden.</div>
+        ) : (
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="text-xs font-medium text-gray-700">Titel</label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-700">Shoot datum</label>
+                <Input type="date" value={shootDate} onChange={(e) => setShootDate(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="mt-1 w-full h-9 border border-gray-200 rounded-md px-2 bg-white text-sm"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="ready">Ready</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-700">Beschrijving</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-700">Shotlist ({shots.length})</label>
+                <Button size="sm" variant="outline" onClick={addShot}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />Shot
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {shots.map((s, i) => (
+                  <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2 group">
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={s.done}
+                        onChange={(e) => updateShot(i, { done: e.target.checked })}
+                        className="rounded border-gray-300 mt-2"
+                      />
+                      <div className="flex-1 space-y-1.5">
+                        <Input
+                          value={s.shot}
+                          onChange={(e) => updateShot(i, { shot: e.target.value })}
+                          placeholder={`Shot ${i + 1}`}
+                          className="h-8 text-sm"
+                        />
+                        <Input
+                          value={s.description}
+                          onChange={(e) => updateShot(i, { description: e.target.value })}
+                          placeholder="Beschrijving / locatie / notities"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <button
+                        onClick={() => removeShot(i)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 mt-2"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {shots.length === 0 && (
+                  <p className="text-sm text-gray-400 italic">Nog geen shots. Voeg toe met de + knop.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2 sticky bottom-0 bg-white">
+          <Button variant="ghost" onClick={onClose}>Sluiten</Button>
+          <Button onClick={save} disabled={saving || loading}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Opslaan
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }

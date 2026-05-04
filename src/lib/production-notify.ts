@@ -55,6 +55,15 @@ export async function notifyFinalDate(productionId: string): Promise<void> {
     if (v.voter_email) recipients.add(v.voter_email)
   }
 
+  // Crew members who have an email
+  const { data: crew } = await workspaceDb
+    .from('production_crew')
+    .select('email, name')
+    .eq('production_id', productionId)
+  for (const c of crew ?? []) {
+    if (c.email) recipients.add(c.email)
+  }
+
   if (recipients.size === 0) return
 
   await Promise.all(
