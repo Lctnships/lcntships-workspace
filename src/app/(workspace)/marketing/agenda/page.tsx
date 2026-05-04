@@ -449,10 +449,10 @@ export default function ProductieAgendaPage() {
         <CreateDialog
           prefillLead={prefillLead}
           onClose={() => { setCreating(false); setPrefillLead(null) }}
-          onCreated={async () => {
+          onCreated={(productionId) => {
             setCreating(false)
             setPrefillLead(null)
-            await loadProductions()
+            router.push(`/marketing/agenda/${productionId}`)
           }}
         />
       )}
@@ -466,7 +466,7 @@ function CreateDialog({
   prefillLead,
 }: {
   onClose: () => void
-  onCreated: () => void
+  onCreated: (productionId: string) => void
   prefillLead: ClosedStudio | null
 }) {
   const [title, setTitle] = useState(prefillLead?.company_name ?? '')
@@ -509,7 +509,12 @@ function CreateDialog({
       setError('Kon niet aanmaken')
       return
     }
-    onCreated()
+    const created = await res.json().catch(() => null)
+    if (!created?.id) {
+      setError('Geen productie-id ontvangen')
+      return
+    }
+    onCreated(created.id)
   }
 
   return (
