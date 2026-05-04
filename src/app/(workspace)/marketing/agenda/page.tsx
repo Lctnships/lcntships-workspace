@@ -58,8 +58,18 @@ type Production = {
   status: 'open' | 'closed'
   final_date: string | null
   deadline: string | null
+  lead_id: string | null
   created_at: string
   updated_at: string
+}
+
+type ClosedStudio = {
+  id: string
+  company_name: string
+  contact_name: string | null
+  city: string | null
+  email: string | null
+  phone: string | null
 }
 
 type Vote = {
@@ -89,18 +99,26 @@ export default function ProductieAgendaPage() {
   const [view, setView] = useState<'list' | 'calendar'>('calendar')
   const [meetings, setMeetings] = useState<SalesAgendaItem[]>([])
   const [showSalesMeetings, setShowSalesMeetings] = useState(true)
+  const [closedStudios, setClosedStudios] = useState<ClosedStudio[]>([])
+  const [prefillLead, setPrefillLead] = useState<ClosedStudio | null>(null)
 
   const loadProductions = useCallback(async () => {
     setLoading(true)
-    const [prodRes, meetingsRes] = await Promise.all([
+    const [prodRes, meetingsRes, studiosRes] = await Promise.all([
       fetch('/api/productions'),
       workspaceClient
         .from<SalesAgendaItem[]>('sales_agenda')
         .select('id, title, description, type, date, start_time, end_time, location, status, assigned_to')
         .order('date', { ascending: true }),
+      workspaceClient
+        .from<ClosedStudio[]>('sales_leads')
+        .select('id, company_name, contact_name, city, email, phone')
+        .eq('status', 'closed')
+        .order('updated_at', { ascending: false }),
     ])
     if (prodRes.ok) setProductions(await prodRes.json())
     if (meetingsRes.data) setMeetings(meetingsRes.data as SalesAgendaItem[])
+    if (studiosRes.data) setClosedStudios(studiosRes.data as ClosedStudio[])
     setLoading(false)
   }, [])
 
@@ -199,6 +217,24 @@ export default function ProductieAgendaPage() {
     }
   }
 
+  // Studios die wel "closed" zijn maar nog geen productie hebben gepland
+  const plannedLeadIds = new Set(
+    productions.map((p) => p.lead_id).filter((id): id is string => !!id),
+  )
+  const unplannedStudios = closedStudios.filter((s) => !plannedLeadIds.has(s.id))
+
+  // Producties deze week (ma-zo van vandaag)
+  const now = new Date()
+  const dayOfWeek = (now.getDay() + 6) % 7 // 0 = maandag
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek)
+  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const productionsThisWeek = productions.filter((p) => {
+    if (!p.final_date) return false
+    const d = new Date(p.final_date + 'T12:00:00')
+    return d >= weekStart && d < weekEnd
+  })
+  const weekCount = productionsThisWeek.length
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -240,12 +276,83 @@ export default function ProductieAgendaPage() {
             />
             Sales meetings tonen
           </label>
-          <Button onClick={() => setCreating(true)}>
+          <Button onClick={() => { setPrefillLead(null); setCreating(true) }}>
             <Plus className="h-4 w-4 mr-2" />
             Nieuwe productie
           </Button>
         </div>
       </div>
+
+      {/* Week indicator */}
+      {!loading && (
+        <div
+          className={cn(
+            'mb-6 rounded-xl border px-5 py-4 flex items-center justify-between',
+            weekCount >= 2
+              ? 'bg-emerald-50 border-emerald-200'
+              : 'bg-red-50 border-red-200',
+          )}
+        >
+          <div>
+            <p className={cn('text-sm font-semibold', weekCount >= 2 ? 'text-emerald-900' : 'text-red-900')}>
+              {weekCount >= 2
+                ? `${weekCount} producties deze week — minimum gehaald`
+                : `Deze week ${weekCount}/2 producties gepland`}
+            </p>
+            <p className={cn('text-xs mt-0.5', weekCount >= 2 ? 'text-emerald-700' : 'text-red-700')}>
+              {weekCount >= 2
+                ? 'Goed bezig.'
+                : `Je hebt ${2 - weekCount} extra productie${2 - weekCount === 1 ? '' : 's'} nodig om je weekdoel te halen.`}
+            </p>
+          </div>
+          {productionsThisWeek.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 max-w-md justify-end">
+              {productionsThisWeek.map((p) => (
+                <span
+                  key={p.id}
+                  className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md text-gray-700"
+                >
+                  {p.title}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Geklosde studio's nog te plannen */}
+      {!loading && unplannedStudios.length > 0 && (
+        <div className="mb-6 rounded-xl border border-gray-100 bg-white">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Geklosde studio's nog te plannen</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {unplannedStudios.length} studio{unplannedStudios.length === 1 ? '' : 's'} wacht op een productie
+              </p>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {unplannedStudios.map((s) => (
+              <div key={s.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50/50">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{s.company_name}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {[s.contact_name, s.city].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setPrefillLead(s); setCreating(true) }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Plan productie
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
@@ -345,14 +452,17 @@ export default function ProductieAgendaPage() {
           onCopyLink={() => copyLink(selected.share_token, selected.id)}
           onCreateBrief={() => createBriefFromProduction(selected)}
           copied={copiedId === selected.id}
+          linkedStudio={closedStudios.find((s) => s.id === selected.lead_id) ?? null}
         />
       )}
 
       {creating && (
         <CreateDialog
-          onClose={() => setCreating(false)}
+          prefillLead={prefillLead}
+          onClose={() => { setCreating(false); setPrefillLead(null) }}
           onCreated={async () => {
             setCreating(false)
+            setPrefillLead(null)
             await loadProductions()
           }}
         />
@@ -361,10 +471,18 @@ export default function ProductieAgendaPage() {
   )
 }
 
-function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [title, setTitle] = useState('')
+function CreateDialog({
+  onClose,
+  onCreated,
+  prefillLead,
+}: {
+  onClose: () => void
+  onCreated: () => void
+  prefillLead: ClosedStudio | null
+}) {
+  const [title, setTitle] = useState(prefillLead?.company_name ?? '')
   const [description, setDescription] = useState('')
-  const [location, setLocation] = useState('')
+  const [location, setLocation] = useState(prefillLead?.city ?? '')
   const [dates, setDates] = useState<string[]>([''])
   const [deadline, setDeadline] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -394,6 +512,7 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
         location: location.trim() || null,
         proposed_dates: Array.from(new Set(validDates)),
         deadline: deadlineIso,
+        lead_id: prefillLead?.id ?? null,
       }),
     })
     setSubmitting(false)
@@ -512,6 +631,7 @@ function DetailPanel({
   onCopyLink,
   onCreateBrief,
   copied,
+  linkedStudio,
 }: {
   production: Production
   votes: Vote[]
@@ -523,6 +643,7 @@ function DetailPanel({
   onCopyLink: () => void
   onCreateBrief: () => void
   copied: boolean
+  linkedStudio: ClosedStudio | null
 }) {
   const tally = useMemo(() => {
     const m = new Map<string, string[]>()
@@ -547,6 +668,16 @@ function DetailPanel({
           <div className="min-w-0">
             <h2 className="text-xl font-semibold text-gray-900">{production.title}</h2>
             {production.location && <p className="text-sm text-gray-500 mt-0.5">{production.location}</p>}
+            {linkedStudio && (
+              <a
+                href={`/sales?lead=${linkedStudio.id}`}
+                className="inline-flex items-center gap-1.5 mt-2 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Gekoppelde studio: {linkedStudio.company_name}
+                {linkedStudio.contact_name ? ` — ${linkedStudio.contact_name}` : ''}
+              </a>
+            )}
             {production.description && (
               <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{production.description}</p>
             )}
