@@ -335,7 +335,7 @@ export default function ProductieAgendaPage() {
         <ProductionsTable
           productions={productions.filter((p) => !p.final_date)}
           unplannedStudios={unplannedStudios}
-          onOpenProduction={(id) => loadDetail(id)}
+          onOpenProduction={(id) => router.push(`/marketing/agenda/${id}`)}
           onCopyLink={copyLink}
           copiedId={copiedId}
           onPlanForStudio={(s) => { setPrefillLead(s); setCreating(true) }}
@@ -355,7 +355,7 @@ export default function ProductieAgendaPage() {
         <ProductieKalender
           productions={productions}
           meetings={showSalesMeetings ? meetings : []}
-          onEventClick={(id) => loadDetail(id)}
+          onEventClick={(id) => router.push(`/marketing/agenda/${id}`)}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
