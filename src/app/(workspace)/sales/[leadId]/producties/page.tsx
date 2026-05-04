@@ -78,7 +78,7 @@ export default function StudioProductionsPage() {
     return (
       <div className="p-8">
         <p className="text-gray-500">Studio niet gevonden.</p>
-        <Link href="/sales" className="text-indigo-600 text-sm mt-2 inline-block">← Terug naar sales</Link>
+        <Link href="/marketing/agenda" className="text-indigo-600 text-sm mt-2 inline-block">← Terug naar productie agenda</Link>
       </div>
     )
   }
@@ -89,11 +89,11 @@ export default function StudioProductionsPage() {
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
       <Link
-        href="/sales"
+        href="/marketing/agenda"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 mb-3"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Terug naar sales
+        Terug naar productie agenda
       </Link>
 
       {/* Studio header */}
