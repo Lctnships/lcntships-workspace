@@ -26,6 +26,10 @@ import {
   ExternalLink,
   CalendarDays,
   List,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { workspaceClient } from '@/lib/workspace-client'
 import FullCalendar from '@fullcalendar/react'
@@ -138,7 +142,13 @@ export default function ProductieAgendaPage() {
   }, [])
 
   const copyLink = async (token: string, id: string) => {
-    const url = `${window.location.origin}/p/${token}`
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
+        ? process.env.NEXT_PUBLIC_APP_URL
+        : typeof window !== 'undefined' && !window.location.origin.includes('localhost')
+          ? window.location.origin
+          : 'https://workspace.lctnships.com'
+    const url = `${base.replace(/\/$/, '')}/p/${token}`
     await navigator.clipboard.writeText(url)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 1500)
@@ -320,38 +330,16 @@ export default function ProductieAgendaPage() {
         </div>
       )}
 
-      {/* Geklosde studio's nog te plannen */}
-      {!loading && unplannedStudios.length > 0 && (
-        <div className="mb-6 rounded-xl border border-gray-100 bg-white">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Geklosde studio's nog te plannen</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {unplannedStudios.length} studio{unplannedStudios.length === 1 ? '' : 's'} wacht op een productie
-              </p>
-            </div>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {unplannedStudios.map((s) => (
-              <div key={s.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50/50">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{s.company_name}</p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {[s.contact_name, s.city].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { setPrefillLead(s); setCreating(true) }}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Plan productie
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Producties nog in te plannen — tabel */}
+      {!loading && (
+        <ProductionsTable
+          productions={productions.filter((p) => !p.final_date)}
+          unplannedStudios={unplannedStudios}
+          onOpenProduction={(id) => loadDetail(id)}
+          onCopyLink={copyLink}
+          copiedId={copiedId}
+          onPlanForStudio={(s) => { setPrefillLead(s); setCreating(true) }}
+        />
       )}
 
       {loading ? (
@@ -818,6 +806,340 @@ function DetailPanel({
   )
 }
 
+type TableRow =
+  | {
+      kind: 'production'
+      id: string
+      title: string
+      city: string
+      contact: string
+      proposedStart: string | null
+      proposedEnd: string | null
+      proposedDates: string[]
+      voteCount: number
+      deadline: string | null
+      status: 'open' | 'closed'
+      production: Production
+    }
+  | {
+      kind: 'studio'
+      id: string
+      title: string
+      city: string
+      contact: string
+      proposedStart: null
+      proposedEnd: null
+      proposedDates: []
+      voteCount: 0
+      deadline: null
+      status: 'no_production'
+      studio: ClosedStudio
+    }
+
+type SortKey = 'title' | 'city' | 'status' | 'proposedStart' | 'proposedEnd' | 'votes' | 'deadline'
+
+function ProductionsTable({
+  productions,
+  unplannedStudios,
+  onOpenProduction,
+  onCopyLink,
+  copiedId,
+  onPlanForStudio,
+}: {
+  productions: Production[]
+  unplannedStudios: ClosedStudio[]
+  onOpenProduction: (id: string) => void
+  onCopyLink: (token: string, id: string) => void
+  copiedId: string | null
+  onPlanForStudio: (s: ClosedStudio) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [cityFilter, setCityFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closed' | 'no_production'>('all')
+  const [startFrom, setStartFrom] = useState('')
+  const [endTo, setEndTo] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('proposedStart')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  const rows: TableRow[] = useMemo(() => {
+    const out: TableRow[] = []
+    for (const p of productions) {
+      const sorted = [...p.proposed_dates].sort()
+      out.push({
+        kind: 'production',
+        id: p.id,
+        title: p.title,
+        city: p.location ?? '',
+        contact: '',
+        proposedStart: sorted[0] ?? null,
+        proposedEnd: sorted[sorted.length - 1] ?? null,
+        proposedDates: sorted,
+        voteCount: 0,
+        deadline: p.deadline,
+        status: p.status,
+        production: p,
+      })
+    }
+    for (const s of unplannedStudios) {
+      out.push({
+        kind: 'studio',
+        id: s.id,
+        title: s.company_name,
+        city: s.city ?? '',
+        contact: s.contact_name ?? '',
+        proposedStart: null,
+        proposedEnd: null,
+        proposedDates: [],
+        voteCount: 0,
+        deadline: null,
+        status: 'no_production',
+        studio: s,
+      })
+    }
+    return out
+  }, [productions, unplannedStudios])
+
+  const cities = useMemo(() => {
+    const set = new Set<string>()
+    rows.forEach((r) => { if (r.city) set.add(r.city) })
+    return Array.from(set).sort()
+  }, [rows])
+
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (search && !`${r.title} ${r.city} ${r.contact}`.toLowerCase().includes(search.toLowerCase())) return false
+      if (cityFilter !== 'all' && r.city !== cityFilter) return false
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false
+      if (startFrom && r.proposedStart && r.proposedStart < startFrom) return false
+      if (endTo && r.proposedEnd && r.proposedEnd > endTo) return false
+      if ((startFrom || endTo) && r.kind === 'studio') return false
+      return true
+    })
+  }, [rows, search, cityFilter, statusFilter, startFrom, endTo])
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered]
+    arr.sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1
+      const get = (r: TableRow): string | number => {
+        switch (sortKey) {
+          case 'title': return r.title.toLowerCase()
+          case 'city': return r.city.toLowerCase()
+          case 'status': return r.status
+          case 'proposedStart': return r.proposedStart ?? '9999'
+          case 'proposedEnd': return r.proposedEnd ?? '9999'
+          case 'votes': return r.voteCount
+          case 'deadline': return r.deadline ?? '9999'
+        }
+      }
+      const av = get(a)
+      const bv = get(b)
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+      return 0
+    })
+    return arr
+  }, [filtered, sortKey, sortDir])
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown className="h-3 w-3 text-gray-300" />
+    return sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-700" /> : <ArrowDown className="h-3 w-3 text-gray-700" />
+  }
+
+  const statusLabel = (s: TableRow['status']) => {
+    if (s === 'open') return { text: 'Stemronde open', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+    if (s === 'closed') return { text: 'Wacht op finale', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
+    return { text: 'Geen productie', cls: 'bg-gray-50 text-gray-600 border-gray-200' }
+  }
+
+  const hasFilters = search || cityFilter !== 'all' || statusFilter !== 'all' || startFrom || endTo
+
+  return (
+    <div className="mb-6 rounded-xl border border-gray-100 bg-white">
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Producties nog in te plannen</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {sorted.length} {sorted.length === 1 ? 'regel' : 'regels'}
+            {hasFilters && rows.length !== sorted.length ? ` (van ${rows.length})` : ''}
+            {' — geen officiële datum'}
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-1 md:grid-cols-5 gap-2">
+        <div className="md:col-span-2 relative">
+          <Search className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Zoek studio, contact, stad..."
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <select
+          value={cityFilter}
+          onChange={(e) => setCityFilter(e.target.value)}
+          className="h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
+        >
+          <option value="all">Alle steden</option>
+          {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
+        >
+          <option value="all">Alle statussen</option>
+          <option value="open">Stemronde open</option>
+          <option value="closed">Wacht op finale</option>
+          <option value="no_production">Geen productie</option>
+        </select>
+        <div className="flex gap-1">
+          <Input
+            type="date"
+            value={startFrom}
+            onChange={(e) => setStartFrom(e.target.value)}
+            className="h-8 text-sm"
+            title="Vanaf"
+          />
+          <Input
+            type="date"
+            value={endTo}
+            onChange={(e) => setEndTo(e.target.value)}
+            className="h-8 text-sm"
+            title="Tot en met"
+          />
+        </div>
+      </div>
+
+      {sorted.length === 0 ? (
+        <div className="px-5 py-12 text-center text-sm text-gray-500">
+          {hasFilters ? 'Geen resultaten met deze filters.' : 'Alles is ingepland — top!'}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
+                <th className="text-left font-semibold px-5 py-2.5">
+                  <button onClick={() => toggleSort('title')} className="flex items-center gap-1 hover:text-gray-900">
+                    Studio / titel <SortIcon k="title" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('city')} className="flex items-center gap-1 hover:text-gray-900">
+                    Stad <SortIcon k="city" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-gray-900">
+                    Status <SortIcon k="status" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('proposedStart')} className="flex items-center gap-1 hover:text-gray-900">
+                    Start <SortIcon k="proposedStart" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('proposedEnd')} className="flex items-center gap-1 hover:text-gray-900">
+                    Eind <SortIcon k="proposedEnd" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('deadline')} className="flex items-center gap-1 hover:text-gray-900">
+                    Deadline <SortIcon k="deadline" />
+                  </button>
+                </th>
+                <th className="text-right font-semibold px-5 py-2.5">Actie</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => {
+                const lbl = statusLabel(r.status)
+                return (
+                  <tr
+                    key={`${r.kind}-${r.id}`}
+                    className="border-b border-gray-50 hover:bg-gray-50/50 transition cursor-pointer"
+                    onClick={() => r.kind === 'production' && onOpenProduction(r.id)}
+                  >
+                    <td className="px-5 py-3">
+                      <div className="font-medium text-gray-900">{r.title}</div>
+                      {r.contact && <div className="text-xs text-gray-500">{r.contact}</div>}
+                    </td>
+                    <td className="px-3 py-3 text-gray-700">{r.city || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-3 py-3">
+                      <span className={cn('inline-flex text-xs px-2 py-0.5 rounded-md border', lbl.cls)}>
+                        {lbl.text}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-gray-700">
+                      {r.proposedStart ? formatDate(r.proposedStart) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-gray-700">
+                      {r.proposedEnd && r.proposedEnd !== r.proposedStart
+                        ? formatDate(r.proposedEnd)
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-gray-600 text-xs">
+                      {r.deadline
+                        ? format(parseISO(r.deadline), 'd MMM HH:mm', { locale: nl })
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      {r.kind === 'production' ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2"
+                            onClick={() => onCopyLink(r.production.share_token, r.id)}
+                          >
+                            {copiedId === r.id ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs"
+                            onClick={() => onOpenProduction(r.id)}
+                          >
+                            Open
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 text-xs"
+                          onClick={() => onPlanForStudio(r.studio)}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Plan
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ProductieKalender({
   productions,
   meetings,
@@ -830,31 +1152,17 @@ function ProductieKalender({
   const events: EventInput[] = useMemo(() => {
     const out: EventInput[] = []
     for (const p of productions) {
-      if (p.final_date) {
-        out.push({
-          id: p.id,
-          title: p.title,
-          start: p.final_date,
-          allDay: true,
-          backgroundColor: '#10b981',
-          borderColor: '#059669',
-          textColor: '#ffffff',
-          extendedProps: { kind: 'final', productionId: p.id, location: p.location },
-        })
-      } else if (p.status === 'open') {
-        for (const d of p.proposed_dates) {
-          out.push({
-            id: `${p.id}-${d}`,
-            title: `${p.title} (stem)`,
-            start: d,
-            allDay: true,
-            backgroundColor: '#dbeafe',
-            borderColor: '#3b82f6',
-            textColor: '#1e40af',
-            extendedProps: { kind: 'proposed', productionId: p.id, location: p.location },
-          })
-        }
-      }
+      if (!p.final_date) continue
+      out.push({
+        id: p.id,
+        title: p.title,
+        start: p.final_date,
+        allDay: true,
+        backgroundColor: '#10b981',
+        borderColor: '#059669',
+        textColor: '#ffffff',
+        extendedProps: { kind: 'final', productionId: p.id, location: p.location },
+      })
     }
     // Meetings / sales agenda
     for (const m of meetings) {
@@ -1042,10 +1350,10 @@ function ProductieKalender({
       />
       <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 text-xs">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#10b981]" /> Finale datum
+          <span className="w-3 h-3 rounded-sm bg-[#10b981]" /> Finale productiedatum
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm border border-blue-500 bg-blue-100" /> Voorgestelde datum (stemronde)
+          <span className="w-3 h-3 rounded-sm bg-[#ede9fe] border border-[#7c3aed]" /> Sales meeting
         </span>
       </div>
     </div>
