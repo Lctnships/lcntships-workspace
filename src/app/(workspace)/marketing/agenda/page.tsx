@@ -973,7 +973,7 @@ function ProductionsTable({
       </div>
 
       {/* Filters */}
-      <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-1 md:grid-cols-5 gap-2">
+      <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-1 md:grid-cols-6 gap-2">
         <div className="md:col-span-2 relative">
           <Search className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <Input
@@ -1001,22 +1001,20 @@ function ProductionsTable({
           <option value="closed">Wacht op finale</option>
           <option value="no_production">Geen productie</option>
         </select>
-        <div className="flex gap-1">
-          <Input
-            type="date"
-            value={startFrom}
-            onChange={(e) => setStartFrom(e.target.value)}
-            className="h-8 text-sm"
-            title="Vanaf"
-          />
-          <Input
-            type="date"
-            value={endTo}
-            onChange={(e) => setEndTo(e.target.value)}
-            className="h-8 text-sm"
-            title="Tot en met"
-          />
-        </div>
+        <Input
+          type="date"
+          value={startFrom}
+          onChange={(e) => setStartFrom(e.target.value)}
+          className="h-8 text-sm"
+          title="Vanaf"
+        />
+        <Input
+          type="date"
+          value={endTo}
+          onChange={(e) => setEndTo(e.target.value)}
+          className="h-8 text-sm"
+          title="Tot en met"
+        />
       </div>
 
       {sorted.length === 0 ? (
@@ -1024,8 +1022,8 @@ function ProductionsTable({
           {hasFilters ? 'Geen resultaten met deze filters.' : 'Alles is ingepland — top!'}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-b-xl">
+          <table className="w-full text-sm table-auto">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
                 <th className="text-left font-semibold px-5 py-2.5">
@@ -1058,7 +1056,7 @@ function ProductionsTable({
                     Deadline <SortIcon k="deadline" />
                   </button>
                 </th>
-                <th className="text-right font-semibold px-5 py-2.5">Actie</th>
+                <th className="text-right font-semibold px-5 py-2.5 whitespace-nowrap w-[1%]">Actie</th>
               </tr>
             </thead>
             <tbody>
@@ -1093,7 +1091,7 @@ function ProductionsTable({
                         ? format(parseISO(r.deadline), 'd MMM HH:mm', { locale: nl })
                         : <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-5 py-3 text-right whitespace-nowrap w-[1%]" onClick={(e) => e.stopPropagation()}>
                       {r.kind === 'production' ? (
                         <div className="flex items-center justify-end gap-1.5">
                           <Button
