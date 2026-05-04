@@ -53,6 +53,7 @@ import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact } from
 import { UserPlus, Users, ArrowUpDown, Crosshair, ThumbsUp, ThumbsDown, Search as SearchIcon2 } from 'lucide-react'
 import { SalesMode, getApproval } from '@/components/sales/SalesMode'
 import { SalesModeResults } from '@/components/sales/SalesModeResults'
+import { CityOverview } from '@/components/sales/CityOverview'
 
 const sourceColorMap: Record<string, string> = {
   'Apollo': 'bg-purple-100 text-purple-700',
@@ -1297,6 +1298,7 @@ export default function SalesPage() {
   const [cityFilter, setCityFilter] = useState<string | null>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
   const [normalizingCities, setNormalizingCities] = useState(false)
+  const [salesView, setSalesView] = useState<'pipeline' | 'cities'>('pipeline')
 
   // Sales Mode
   const [salesModeActive, setSalesModeActive] = useState(false)
@@ -1654,6 +1656,38 @@ export default function SalesPage() {
         </div>
       </div>
 
+      {/* View toggle */}
+      <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
+        <button
+          onClick={() => setSalesView('pipeline')}
+          className={cn(
+            'px-3 py-1.5 rounded-md text-sm font-medium transition',
+            salesView === 'pipeline' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
+          )}
+        >
+          Pipeline
+        </button>
+        <button
+          onClick={() => setSalesView('cities')}
+          className={cn(
+            'px-3 py-1.5 rounded-md text-sm font-medium transition',
+            salesView === 'cities' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
+          )}
+        >
+          Per stad
+        </button>
+      </div>
+
+      {salesView === 'cities' ? (
+        <CityOverview
+          leads={leads}
+          onCityClick={(c) => {
+            setCityFilter(c)
+            setSalesView('pipeline')
+          }}
+        />
+      ) : (
+        <>
       {/* Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -1935,6 +1969,8 @@ export default function SalesPage() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Modals */}
       <AddLeadModal
