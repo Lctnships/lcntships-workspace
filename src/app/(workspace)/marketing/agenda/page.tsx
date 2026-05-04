@@ -336,6 +336,7 @@ export default function ProductieAgendaPage() {
           productions={productions.filter((p) => !p.final_date)}
           unplannedStudios={unplannedStudios}
           onOpenProduction={(id) => router.push(`/marketing/agenda/${id}`)}
+          onOpenStudio={(leadId) => router.push(`/sales/${leadId}/producties`)}
           onCopyLink={copyLink}
           copiedId={copiedId}
           onPlanForStudio={(s) => { setPrefillLead(s); setCreating(true) }}
@@ -842,6 +843,7 @@ function ProductionsTable({
   productions,
   unplannedStudios,
   onOpenProduction,
+  onOpenStudio,
   onCopyLink,
   copiedId,
   onPlanForStudio,
@@ -849,6 +851,7 @@ function ProductionsTable({
   productions: Production[]
   unplannedStudios: ClosedStudio[]
   onOpenProduction: (id: string) => void
+  onOpenStudio: (leadId: string) => void
   onCopyLink: (token: string, id: string) => void
   copiedId: string | null
   onPlanForStudio: (s: ClosedStudio) => void
@@ -1066,7 +1069,7 @@ function ProductionsTable({
                   <tr
                     key={`${r.kind}-${r.id}`}
                     className="border-b border-gray-50 hover:bg-gray-50/50 transition cursor-pointer"
-                    onClick={() => r.kind === 'production' && onOpenProduction(r.id)}
+                    onClick={() => r.kind === 'production' ? onOpenProduction(r.id) : onOpenStudio(r.id)}
                   >
                     <td className="px-5 py-3">
                       <div className="font-medium text-gray-900">{r.title}</div>
