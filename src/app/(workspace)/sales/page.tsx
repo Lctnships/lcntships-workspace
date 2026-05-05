@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { salesLeadsApi, leadContactsApi, type SalesLead, type LeadContact } from '@/lib/supabase'
+import { workspaceClient } from '@/lib/workspace-client'
 import { UserPlus, Users, ArrowUpDown, Crosshair, ThumbsUp, ThumbsDown, Search as SearchIcon2 } from 'lucide-react'
 import { SalesMode, getApproval } from '@/components/sales/SalesMode'
 import { SalesModeResults } from '@/components/sales/SalesModeResults'
@@ -149,6 +150,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
   })
 
   const [contacts, setContacts] = useState<ContactFormData[]>([{ ...emptyContact, is_primary: true }])
+  const [studioSpaces, setStudioSpaces] = useState<Array<{ id?: string; name: string; notes: string }>>([])
 
   useEffect(() => {
     if (editLead) {
@@ -164,6 +166,17 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
         status: editLead.status || 'cold',
         notes: editLead.notes || '',
       })
+      // Load studio spaces
+      workspaceClient
+        .from<Array<{ id: string; name: string; notes: string | null }>>('studio_spaces')
+        .select('id, name, notes')
+        .eq('lead_id', editLead.id)
+        .order('sort_order', { ascending: true })
+        .then(({ data }) => {
+          setStudioSpaces(
+            (data ?? []).map((s) => ({ id: s.id, name: s.name, notes: s.notes ?? '' })),
+          )
+        })
       // Load existing contacts
       if (existingContacts && existingContacts.length > 0) {
         setContacts(existingContacts.map(c => ({
@@ -196,6 +209,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
         notes: '',
       })
       setContacts([{ ...emptyContact, is_primary: true }])
+      setStudioSpaces([])
     }
   }, [editLead, existingContacts, isOpen])
 
@@ -269,6 +283,22 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
         )
       }
 
+      // Save studio spaces — wis bestaande, herinsert
+      if (editLead) {
+        await workspaceClient.from('studio_spaces').delete().eq('lead_id', leadId)
+      }
+      const validSpaces = studioSpaces.filter((s) => s.name.trim())
+      if (validSpaces.length > 0) {
+        await workspaceClient.from('studio_spaces').insert(
+          validSpaces.map((s, i) => ({
+            lead_id: leadId,
+            name: s.name.trim(),
+            notes: s.notes.trim() || null,
+            sort_order: i,
+          })),
+        )
+      }
+
       onSuccess()
       onClose()
     } catch (error) {
@@ -283,9 +313,9 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto m-4">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto m-2 sm:m-4">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">
             {editLead ? 'Lead Bewerken' : 'Nieuwe Lead Toevoegen'}
           </h2>
           <button
@@ -296,7 +326,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           {/* Company Info */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -312,7 +342,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Stad
@@ -339,7 +369,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Website
@@ -354,7 +384,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Bron
@@ -472,6 +502,65 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Studio-ruimtes (optioneel) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Studio-ruimtes <span className="text-xs font-normal text-gray-400">(optioneel)</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setStudioSpaces([...studioSpaces, { name: '', notes: '' }])}
+                className="text-xs text-indigo-600 hover:underline"
+              >
+                + Ruimte toevoegen
+              </button>
+            </div>
+            {studioSpaces.length === 0 ? (
+              <p className="text-xs text-gray-500">
+                Vul in als dit bedrijf meerdere studio-ruimtes heeft (bv. Studio 1 — cyclorama).
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {studioSpaces.map((s, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={s.name}
+                        onChange={(e) => {
+                          const next = [...studioSpaces]
+                          next[i] = { ...next[i], name: e.target.value }
+                          setStudioSpaces(next)
+                        }}
+                        placeholder="Ruimte naam *"
+                        className="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      />
+                      <input
+                        type="text"
+                        value={s.notes}
+                        onChange={(e) => {
+                          const next = [...studioSpaces]
+                          next[i] = { ...next[i], notes: e.target.value }
+                          setStudioSpaces(next)
+                        }}
+                        placeholder="Notities (m², etc)"
+                        className="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStudioSpaces(studioSpaces.filter((_, idx) => idx !== i))}
+                      className="px-2 py-2 text-gray-400 hover:text-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
@@ -990,9 +1079,9 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Main Info */}
-        <div className="col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
           {/* Company Card */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <div className="flex items-start justify-between mb-4">
@@ -1072,7 +1161,7 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
               </div>
             ) : (
               /* Fallback to legacy single contact */
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {lead.contact_name && (
                   <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                     <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -1635,22 +1724,22 @@ export default function SalesPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/20">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-white/20">
             <div className="text-center">
-              <div className="text-2xl font-bold">{leads.filter(l => l.status !== 'closed' && l.status !== 'lost').length}</div>
-              <div className="text-gray-300 text-sm">Active Leads</div>
+              <div className="text-xl sm:text-2xl font-bold">{leads.filter(l => l.status !== 'closed' && l.status !== 'lost').length}</div>
+              <div className="text-gray-300 text-xs sm:text-sm">Active Leads</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{closedLeads.length}</div>
-              <div className="text-gray-300 text-sm">Closed</div>
+              <div className="text-xl sm:text-2xl font-bold">{closedLeads.length}</div>
+              <div className="text-gray-300 text-xs sm:text-sm">Closed</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{conversionRate}%</div>
-              <div className="text-gray-300 text-sm">Conversion Rate</div>
+              <div className="text-xl sm:text-2xl font-bold">{conversionRate}%</div>
+              <div className="text-gray-300 text-xs sm:text-sm">Conversion</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{totalLeads}</div>
-              <div className="text-gray-300 text-sm">Total Leads</div>
+              <div className="text-xl sm:text-2xl font-bold">{totalLeads}</div>
+              <div className="text-gray-300 text-xs sm:text-sm">Total</div>
             </div>
           </div>
         </div>
@@ -1887,8 +1976,8 @@ export default function SalesPage() {
         </div>
       </div>
 
-      {/* Leads Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-x-auto">
+      {/* Leads Table (desktop) */}
+      <div className="hidden lg:block bg-white rounded-2xl border border-gray-100 overflow-x-auto">
         <table className="w-full min-w-[700px]">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
@@ -1967,6 +2056,59 @@ export default function SalesPage() {
           <div className="p-12 text-center">
             <p className="text-gray-500">Geen leads gevonden</p>
           </div>
+        )}
+      </div>
+
+      {/* Leads Cards (mobile/tablet) */}
+      <div className="lg:hidden space-y-2">
+        {filteredLeads.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+            <p className="text-gray-500">Geen leads gevonden</p>
+          </div>
+        ) : (
+          filteredLeads.map((lead) => {
+            const statusColors = getStatusColor(lead.status)
+            const approval = getApproval(lead)
+            return (
+              <button
+                key={lead.id}
+                onClick={() => selectLead(lead)}
+                className="w-full bg-white rounded-xl border border-gray-100 p-4 text-left hover:shadow-sm transition"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-gray-900 truncate">{lead.company_name}</h3>
+                      {approval === 'approved' && <ThumbsUp className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                      {approval === 'rejected' && <ThumbsDown className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
+                    </div>
+                    {lead.contact_name && (
+                      <p className="text-sm text-gray-600 truncate mt-0.5">{lead.contact_name}</p>
+                    )}
+                  </div>
+                  <Badge className={cn(statusColors.bg, statusColors.text, 'capitalize flex-shrink-0 text-xs')}>
+                    <span className={cn('w-1.5 h-1.5 rounded-full mr-1', statusColors.dot)} />
+                    {lead.status}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                  {lead.city && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-gray-400" />
+                      {lead.city}
+                    </span>
+                  )}
+                  {lead.email && (
+                    <span className="truncate max-w-[180px]">{lead.email}</span>
+                  )}
+                  <Badge className={cn(getSourceColor(lead.source), 'text-[10px] px-1.5 py-0')}>
+                    {lead.source || 'Unknown'}
+                  </Badge>
+                  <span className="ml-auto text-gray-400">{formatDate(lead.created_at)}</span>
+                </div>
+              </button>
+            )
+          })
         )}
       </div>
         </>

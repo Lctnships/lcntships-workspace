@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Bell, Search, Plus, LogOut, User, Users, CreditCard, Settings } from 'lucide-react'
+import { Bell, Search, Plus, LogOut, User, Settings, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { createClient } from '@/lib/supabase/client'
+import { useSidebar } from '@/lib/sidebar-context'
 
 interface UserProfile {
   email: string
@@ -25,7 +26,9 @@ interface UserProfile {
 
 export function Header() {
   const router = useRouter()
+  const { setMobileOpen } = useSidebar()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -58,31 +61,46 @@ export function Header() {
   const initials = profile?.initials || '...'
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-6">
-      {/* Left: spacer for mobile hamburger */}
-      <div className="flex items-center gap-4">
-        <div className="w-10 lg:hidden" />
-      </div>
+    <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-6 gap-2">
+      {/* Left: hamburger (mobile/tablet) + search */}
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="lg:hidden flex items-center justify-center h-10 w-10 rounded-xl text-gray-600 hover:bg-gray-100"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
 
-      {/* Center: Search */}
-      <div className="flex-1 max-w-md mx-2 sm:mx-8">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search studios, bookings, partners..."
-            className="pl-10 bg-gray-50 border-gray-200 focus:bg-white"
-          />
+        {/* Search: visible on sm+, icon-only on mobile */}
+        <div className="hidden sm:block flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Zoek studio's, bookings, partners..."
+              className="pl-10 bg-gray-50 border-gray-200 focus:bg-white"
+            />
+          </div>
         </div>
+
+        {/* Mobile search icon */}
+        <button
+          onClick={() => setSearchOpen((v) => !v)}
+          className="sm:hidden flex items-center justify-center h-10 w-10 rounded-xl text-gray-600 hover:bg-gray-100"
+          aria-label="Zoeken"
+        >
+          <Search className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         {/* Quick Add */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2 h-9 px-2 sm:px-3">
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Quick Add</span>
+              <span className="hidden md:inline">Quick Add</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
@@ -95,7 +113,7 @@ export function Header() {
         </DropdownMenu>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 hidden sm:inline-flex">
           <Bell className="h-5 w-5 text-gray-500" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </Button>
@@ -103,13 +121,13 @@ export function Header() {
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 pl-2">
+            <Button variant="ghost" className="gap-2 pl-1 sm:pl-2 h-9">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-gray-900 text-white text-sm font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:inline text-sm font-medium text-gray-700">{displayName}</span>
+              <span className="hidden lg:inline text-sm font-medium text-gray-700">{displayName}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -143,6 +161,20 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Mobile search row (toggle) */}
+      {searchOpen && (
+        <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-100 px-3 py-2 sm:hidden">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              autoFocus
+              placeholder="Zoek studio's, bookings..."
+              className="pl-10 bg-gray-50 border-gray-200"
+            />
+          </div>
+        </div>
+      )}
     </header>
   )
 }

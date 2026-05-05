@@ -396,7 +396,8 @@ function BookingCalendar({
 function BookingsTable({ bookings }: { bookings: any[] }) {
   return (
     <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
-      <table className="w-full text-left">
+      <div className="overflow-x-auto">
+      <table className="w-full text-left min-w-[640px]">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
             <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">
@@ -493,6 +494,7 @@ function BookingsTable({ bookings }: { bookings: any[] }) {
           })}
         </tbody>
       </table>
+      </div>
       <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
         <button className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors">
           Load More Bookings

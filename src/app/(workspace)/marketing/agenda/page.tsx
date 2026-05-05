@@ -26,6 +26,10 @@ import {
   ExternalLink,
   CalendarDays,
   List,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { workspaceClient } from '@/lib/workspace-client'
 import FullCalendar from '@fullcalendar/react'
@@ -138,7 +142,13 @@ export default function ProductieAgendaPage() {
   }, [])
 
   const copyLink = async (token: string, id: string) => {
-    const url = `${window.location.origin}/p/${token}`
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
+        ? process.env.NEXT_PUBLIC_APP_URL
+        : typeof window !== 'undefined' && !window.location.origin.includes('localhost')
+          ? window.location.origin
+          : 'https://workspace.lctnships.com'
+    const url = `${base.replace(/\/$/, '')}/p/${token}`
     await navigator.clipboard.writeText(url)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 1500)
@@ -236,38 +246,38 @@ export default function ProductieAgendaPage() {
   const weekCount = productionsThisWeek.length
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Productie Agenda</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Productie Agenda</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
             Plan productiedagen en laat het team stemmen op beschikbare datums.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => setView('calendar')}
               className={cn(
-                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
+                'px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
                 view === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
               )}
             >
               <CalendarDays className="h-4 w-4" />
-              Kalender
+              <span className="hidden sm:inline">Kalender</span>
             </button>
             <button
               onClick={() => setView('list')}
               className={cn(
-                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
+                'px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
                 view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
               )}
             >
               <List className="h-4 w-4" />
-              Lijst
+              <span className="hidden sm:inline">Lijst</span>
             </button>
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <label className="hidden sm:flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showSalesMeetings}
@@ -277,8 +287,8 @@ export default function ProductieAgendaPage() {
             Sales meetings tonen
           </label>
           <Button onClick={() => { setPrefillLead(null); setCreating(true) }}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nieuwe productie
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nieuwe productie</span>
           </Button>
         </div>
       </div>
@@ -287,7 +297,7 @@ export default function ProductieAgendaPage() {
       {!loading && (
         <div
           className={cn(
-            'mb-6 rounded-xl border px-5 py-4 flex items-center justify-between',
+            'mb-6 rounded-xl border px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3',
             weekCount >= 2
               ? 'bg-emerald-50 border-emerald-200'
               : 'bg-red-50 border-red-200',
@@ -320,38 +330,17 @@ export default function ProductieAgendaPage() {
         </div>
       )}
 
-      {/* Geklosde studio's nog te plannen */}
-      {!loading && unplannedStudios.length > 0 && (
-        <div className="mb-6 rounded-xl border border-gray-100 bg-white">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Geklosde studio's nog te plannen</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {unplannedStudios.length} studio{unplannedStudios.length === 1 ? '' : 's'} wacht op een productie
-              </p>
-            </div>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {unplannedStudios.map((s) => (
-              <div key={s.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50/50">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{s.company_name}</p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {[s.contact_name, s.city].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { setPrefillLead(s); setCreating(true) }}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Plan productie
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Producties nog in te plannen — tabel */}
+      {!loading && (
+        <ProductionsTable
+          productions={productions.filter((p) => !p.final_date)}
+          unplannedStudios={unplannedStudios}
+          onOpenProduction={(id) => router.push(`/marketing/agenda/${id}`)}
+          onOpenStudio={(leadId) => router.push(`/sales/${leadId}/producties`)}
+          onCopyLink={copyLink}
+          copiedId={copiedId}
+          onPlanForStudio={(s) => { setPrefillLead(s); setCreating(true) }}
+        />
       )}
 
       {loading ? (
@@ -367,7 +356,7 @@ export default function ProductieAgendaPage() {
         <ProductieKalender
           productions={productions}
           meetings={showSalesMeetings ? meetings : []}
-          onEventClick={(id) => loadDetail(id)}
+          onEventClick={(id) => router.push(`/marketing/agenda/${id}`)}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -460,10 +449,10 @@ export default function ProductieAgendaPage() {
         <CreateDialog
           prefillLead={prefillLead}
           onClose={() => { setCreating(false); setPrefillLead(null) }}
-          onCreated={async () => {
+          onCreated={(productionId) => {
             setCreating(false)
             setPrefillLead(null)
-            await loadProductions()
+            router.push(`/marketing/agenda/${productionId}`)
           }}
         />
       )}
@@ -477,7 +466,7 @@ function CreateDialog({
   prefillLead,
 }: {
   onClose: () => void
-  onCreated: () => void
+  onCreated: (productionId: string) => void
   prefillLead: ClosedStudio | null
 }) {
   const [title, setTitle] = useState(prefillLead?.company_name ?? '')
@@ -520,7 +509,12 @@ function CreateDialog({
       setError('Kon niet aanmaken')
       return
     }
-    onCreated()
+    const created = await res.json().catch(() => null)
+    if (!created?.id) {
+      setError('Geen productie-id ontvangen')
+      return
+    }
+    onCreated(created.id)
   }
 
   return (
@@ -670,11 +664,11 @@ function DetailPanel({
             {production.location && <p className="text-sm text-gray-500 mt-0.5">{production.location}</p>}
             {linkedStudio && (
               <a
-                href={`/sales?lead=${linkedStudio.id}`}
+                href={`/sales/${linkedStudio.id}/producties`}
                 className="inline-flex items-center gap-1.5 mt-2 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
               >
                 <ExternalLink className="h-3 w-3" />
-                Gekoppelde studio: {linkedStudio.company_name}
+                Studio: {linkedStudio.company_name}
                 {linkedStudio.contact_name ? ` — ${linkedStudio.contact_name}` : ''}
               </a>
             )}
@@ -818,6 +812,394 @@ function DetailPanel({
   )
 }
 
+type TableRow =
+  | {
+      kind: 'production'
+      id: string
+      title: string
+      city: string
+      contact: string
+      proposedStart: string | null
+      proposedEnd: string | null
+      proposedDates: string[]
+      voteCount: number
+      deadline: string | null
+      status: 'open' | 'closed'
+      production: Production
+    }
+  | {
+      kind: 'studio'
+      id: string
+      title: string
+      city: string
+      contact: string
+      proposedStart: null
+      proposedEnd: null
+      proposedDates: []
+      voteCount: 0
+      deadline: null
+      status: 'no_production'
+      studio: ClosedStudio
+    }
+
+type SortKey = 'title' | 'city' | 'status' | 'proposedStart' | 'proposedEnd' | 'votes' | 'deadline'
+
+function ProductionsTable({
+  productions,
+  unplannedStudios,
+  onOpenProduction,
+  onOpenStudio,
+  onCopyLink,
+  copiedId,
+  onPlanForStudio,
+}: {
+  productions: Production[]
+  unplannedStudios: ClosedStudio[]
+  onOpenProduction: (id: string) => void
+  onOpenStudio: (leadId: string) => void
+  onCopyLink: (token: string, id: string) => void
+  copiedId: string | null
+  onPlanForStudio: (s: ClosedStudio) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [cityFilter, setCityFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closed' | 'no_production'>('all')
+  const [startFrom, setStartFrom] = useState('')
+  const [endTo, setEndTo] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('proposedStart')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  const rows: TableRow[] = useMemo(() => {
+    const out: TableRow[] = []
+    for (const p of productions) {
+      const sorted = [...p.proposed_dates].sort()
+      out.push({
+        kind: 'production',
+        id: p.id,
+        title: p.title,
+        city: p.location ?? '',
+        contact: '',
+        proposedStart: sorted[0] ?? null,
+        proposedEnd: sorted[sorted.length - 1] ?? null,
+        proposedDates: sorted,
+        voteCount: 0,
+        deadline: p.deadline,
+        status: p.status,
+        production: p,
+      })
+    }
+    for (const s of unplannedStudios) {
+      out.push({
+        kind: 'studio',
+        id: s.id,
+        title: s.company_name,
+        city: s.city ?? '',
+        contact: s.contact_name ?? '',
+        proposedStart: null,
+        proposedEnd: null,
+        proposedDates: [],
+        voteCount: 0,
+        deadline: null,
+        status: 'no_production',
+        studio: s,
+      })
+    }
+    return out
+  }, [productions, unplannedStudios])
+
+  const cities = useMemo(() => {
+    const set = new Set<string>()
+    rows.forEach((r) => { if (r.city) set.add(r.city) })
+    return Array.from(set).sort()
+  }, [rows])
+
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (search && !`${r.title} ${r.city} ${r.contact}`.toLowerCase().includes(search.toLowerCase())) return false
+      if (cityFilter !== 'all' && r.city !== cityFilter) return false
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false
+      if (startFrom && r.proposedStart && r.proposedStart < startFrom) return false
+      if (endTo && r.proposedEnd && r.proposedEnd > endTo) return false
+      if ((startFrom || endTo) && r.kind === 'studio') return false
+      return true
+    })
+  }, [rows, search, cityFilter, statusFilter, startFrom, endTo])
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered]
+    arr.sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1
+      const get = (r: TableRow): string | number => {
+        switch (sortKey) {
+          case 'title': return r.title.toLowerCase()
+          case 'city': return r.city.toLowerCase()
+          case 'status': return r.status
+          case 'proposedStart': return r.proposedStart ?? '9999'
+          case 'proposedEnd': return r.proposedEnd ?? '9999'
+          case 'votes': return r.voteCount
+          case 'deadline': return r.deadline ?? '9999'
+        }
+      }
+      const av = get(a)
+      const bv = get(b)
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+      return 0
+    })
+    return arr
+  }, [filtered, sortKey, sortDir])
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown className="h-3 w-3 text-gray-300" />
+    return sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-700" /> : <ArrowDown className="h-3 w-3 text-gray-700" />
+  }
+
+  const statusLabel = (s: TableRow['status']) => {
+    if (s === 'open') return { text: 'Stemronde open', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+    if (s === 'closed') return { text: 'Wacht op finale', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
+    return { text: 'Geen productie', cls: 'bg-gray-50 text-gray-600 border-gray-200' }
+  }
+
+  const hasFilters = search || cityFilter !== 'all' || statusFilter !== 'all' || startFrom || endTo
+
+  return (
+    <div className="mb-6 rounded-xl border border-gray-100 bg-white">
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Producties nog in te plannen</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {sorted.length} {sorted.length === 1 ? 'regel' : 'regels'}
+            {hasFilters && rows.length !== sorted.length ? ` (van ${rows.length})` : ''}
+            {' — geen officiële datum'}
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="px-3 sm:px-5 py-3 border-b border-gray-100 grid grid-cols-2 md:grid-cols-6 gap-2">
+        <div className="col-span-2 md:col-span-2 relative">
+          <Search className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Zoek studio, contact, stad..."
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <select
+          value={cityFilter}
+          onChange={(e) => setCityFilter(e.target.value)}
+          className="h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
+        >
+          <option value="all">Alle steden</option>
+          {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
+        >
+          <option value="all">Alle statussen</option>
+          <option value="open">Stemronde open</option>
+          <option value="closed">Wacht op finale</option>
+          <option value="no_production">Geen productie</option>
+        </select>
+        <Input
+          type="date"
+          value={startFrom}
+          onChange={(e) => setStartFrom(e.target.value)}
+          className="h-8 text-sm"
+          title="Vanaf"
+        />
+        <Input
+          type="date"
+          value={endTo}
+          onChange={(e) => setEndTo(e.target.value)}
+          className="h-8 text-sm"
+          title="Tot en met"
+        />
+      </div>
+
+      {sorted.length === 0 ? (
+        <div className="px-5 py-12 text-center text-sm text-gray-500">
+          {hasFilters ? 'Geen resultaten met deze filters.' : 'Alles is ingepland — top!'}
+        </div>
+      ) : (
+        <>
+        {/* Mobile/tablet: cards */}
+        <div className="lg:hidden p-3 space-y-2">
+          {sorted.map((r) => {
+            const lbl = statusLabel(r.status)
+            return (
+              <button
+                key={`m-${r.kind}-${r.id}`}
+                onClick={() => r.kind === 'production' ? onOpenProduction(r.id) : onOpenStudio(r.id)}
+                className="w-full text-left bg-white border border-gray-100 rounded-xl p-3 hover:bg-gray-50/50 transition"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-gray-900 truncate">{r.title}</div>
+                    {r.contact && <div className="text-xs text-gray-500 truncate">{r.contact}</div>}
+                  </div>
+                  <span className={cn('inline-flex text-[10px] px-1.5 py-0.5 rounded-md border flex-shrink-0', lbl.cls)}>
+                    {lbl.text}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                  {r.city && <span>{r.city}</span>}
+                  {r.proposedStart && (
+                    <span>
+                      {formatDate(r.proposedStart)}
+                      {r.proposedEnd && r.proposedEnd !== r.proposedStart && ` — ${formatDate(r.proposedEnd)}`}
+                    </span>
+                  )}
+                  {r.deadline && (
+                    <span>Deadline {format(parseISO(r.deadline), 'd MMM', { locale: nl })}</span>
+                  )}
+                </div>
+                <div className="flex justify-end gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
+                  {r.kind === 'production' ? (
+                    <>
+                      <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => onCopyLink(r.production.share_token, r.id)}>
+                        {copiedId === r.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={() => onOpenProduction(r.id)}>
+                        Open
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={() => onPlanForStudio(r.studio)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />Plan
+                    </Button>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        {/* Desktop: table */}
+        <div className="hidden lg:block overflow-x-auto rounded-b-xl">
+          <table className="w-full text-sm table-auto">
+            <thead>
+              <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
+                <th className="text-left font-semibold px-5 py-2.5">
+                  <button onClick={() => toggleSort('title')} className="flex items-center gap-1 hover:text-gray-900">
+                    Studio / titel <SortIcon k="title" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('city')} className="flex items-center gap-1 hover:text-gray-900">
+                    Stad <SortIcon k="city" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-gray-900">
+                    Status <SortIcon k="status" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('proposedStart')} className="flex items-center gap-1 hover:text-gray-900">
+                    Start <SortIcon k="proposedStart" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('proposedEnd')} className="flex items-center gap-1 hover:text-gray-900">
+                    Eind <SortIcon k="proposedEnd" />
+                  </button>
+                </th>
+                <th className="text-left font-semibold px-3 py-2.5">
+                  <button onClick={() => toggleSort('deadline')} className="flex items-center gap-1 hover:text-gray-900">
+                    Deadline <SortIcon k="deadline" />
+                  </button>
+                </th>
+                <th className="text-right font-semibold px-5 py-2.5 whitespace-nowrap w-[1%]">Actie</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => {
+                const lbl = statusLabel(r.status)
+                return (
+                  <tr
+                    key={`${r.kind}-${r.id}`}
+                    className="border-b border-gray-50 hover:bg-gray-50/50 transition cursor-pointer"
+                    onClick={() => r.kind === 'production' ? onOpenProduction(r.id) : onOpenStudio(r.id)}
+                  >
+                    <td className="px-5 py-3">
+                      <div className="font-medium text-gray-900">{r.title}</div>
+                      {r.contact && <div className="text-xs text-gray-500">{r.contact}</div>}
+                    </td>
+                    <td className="px-3 py-3 text-gray-700">{r.city || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-3 py-3">
+                      <span className={cn('inline-flex text-xs px-2 py-0.5 rounded-md border', lbl.cls)}>
+                        {lbl.text}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-gray-700">
+                      {r.proposedStart ? formatDate(r.proposedStart) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-gray-700">
+                      {r.proposedEnd && r.proposedEnd !== r.proposedStart
+                        ? formatDate(r.proposedEnd)
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-gray-600 text-xs">
+                      {r.deadline
+                        ? format(parseISO(r.deadline), 'd MMM HH:mm', { locale: nl })
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right whitespace-nowrap w-[1%]" onClick={(e) => e.stopPropagation()}>
+                      {r.kind === 'production' ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2"
+                            onClick={() => onCopyLink(r.production.share_token, r.id)}
+                          >
+                            {copiedId === r.id ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs"
+                            onClick={() => onOpenProduction(r.id)}
+                          >
+                            Open
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 text-xs"
+                          onClick={() => onPlanForStudio(r.studio)}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Plan
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function ProductieKalender({
   productions,
   meetings,
@@ -830,31 +1212,17 @@ function ProductieKalender({
   const events: EventInput[] = useMemo(() => {
     const out: EventInput[] = []
     for (const p of productions) {
-      if (p.final_date) {
-        out.push({
-          id: p.id,
-          title: p.title,
-          start: p.final_date,
-          allDay: true,
-          backgroundColor: '#10b981',
-          borderColor: '#059669',
-          textColor: '#ffffff',
-          extendedProps: { kind: 'final', productionId: p.id, location: p.location },
-        })
-      } else if (p.status === 'open') {
-        for (const d of p.proposed_dates) {
-          out.push({
-            id: `${p.id}-${d}`,
-            title: `${p.title} (stem)`,
-            start: d,
-            allDay: true,
-            backgroundColor: '#dbeafe',
-            borderColor: '#3b82f6',
-            textColor: '#1e40af',
-            extendedProps: { kind: 'proposed', productionId: p.id, location: p.location },
-          })
-        }
-      }
+      if (!p.final_date) continue
+      out.push({
+        id: p.id,
+        title: p.title,
+        start: p.final_date,
+        allDay: true,
+        backgroundColor: '#10b981',
+        borderColor: '#059669',
+        textColor: '#ffffff',
+        extendedProps: { kind: 'final', productionId: p.id, location: p.location },
+      })
     }
     // Meetings / sales agenda
     for (const m of meetings) {
@@ -897,7 +1265,7 @@ function ProductieKalender({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 productie-kalender">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-6 productie-kalender">
       <style jsx global>{`
         .productie-kalender .fc {
           font-family: inherit;
@@ -909,6 +1277,30 @@ function ProductieKalender({
         }
         .productie-kalender .fc-toolbar.fc-header-toolbar {
           margin-bottom: 1.25rem;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        @media (max-width: 640px) {
+          .productie-kalender .fc-toolbar.fc-header-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .productie-kalender .fc-toolbar-chunk {
+            display: flex;
+            justify-content: center;
+          }
+          .productie-kalender .fc-toolbar-title {
+            font-size: 1rem !important;
+            text-align: center;
+          }
+          .productie-kalender .fc-button {
+            padding: 0.3rem 0.6rem !important;
+            font-size: 0.75rem !important;
+          }
+          .productie-kalender .fc-event {
+            padding: 1px 4px !important;
+            font-size: 10px !important;
+          }
         }
         .productie-kalender .fc-toolbar-title {
           font-size: 1.25rem;
@@ -1042,10 +1434,10 @@ function ProductieKalender({
       />
       <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 text-xs">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#10b981]" /> Finale datum
+          <span className="w-3 h-3 rounded-sm bg-[#10b981]" /> Finale productiedatum
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm border border-blue-500 bg-blue-100" /> Voorgestelde datum (stemronde)
+          <span className="w-3 h-3 rounded-sm bg-[#ede9fe] border border-[#7c3aed]" /> Sales meeting
         </span>
       </div>
     </div>
