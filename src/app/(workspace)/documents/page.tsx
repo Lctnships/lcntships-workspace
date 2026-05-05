@@ -656,7 +656,8 @@ export default function DocumentsPage() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">Name</th>
@@ -716,6 +717,7 @@ export default function DocumentsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </section>

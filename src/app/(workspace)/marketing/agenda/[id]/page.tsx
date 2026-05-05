@@ -263,7 +263,7 @@ export default function ProductionDetailPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <Link
@@ -276,7 +276,7 @@ export default function ProductionDetailPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-gray-900">{production.title}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{production.title}</h1>
               <Badge variant={production.status === 'open' ? 'default' : 'secondary'}>
                 {production.status === 'open' ? 'Stemronde open' : production.final_date ? 'Gepland' : 'Wacht op finale'}
               </Badge>
@@ -312,9 +312,9 @@ export default function ProductionDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Left column */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
           {/* Datums + stemmen */}
           <Card title="Voorgestelde datums" icon={<Camera className="h-4 w-4" />}>
             <div className="space-y-2">
@@ -1099,7 +1099,7 @@ function BriefModal({
               <label className="text-xs font-medium text-gray-700">Titel</label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-gray-700">Shoot datum</label>
                 <Input type="date" value={shootDate} onChange={(e) => setShootDate(e.target.value)} className="mt-1" />
