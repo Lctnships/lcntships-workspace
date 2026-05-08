@@ -72,6 +72,7 @@ type ClosedStudio = {
   company_name: string
   contact_name: string | null
   city: string | null
+  address: string | null
   email: string | null
   phone: string | null
 }
@@ -116,7 +117,7 @@ export default function ProductieAgendaPage() {
         .order('date', { ascending: true }),
       workspaceClient
         .from<ClosedStudio[]>('sales_leads')
-        .select('id, company_name, contact_name, city, email, phone')
+        .select('id, company_name, contact_name, city, address, email, phone')
         .eq('status', 'closed')
         .order('updated_at', { ascending: false }),
     ])
@@ -663,14 +664,19 @@ function DetailPanel({
             <h2 className="text-xl font-semibold text-gray-900">{production.title}</h2>
             {production.location && <p className="text-sm text-gray-500 mt-0.5">{production.location}</p>}
             {linkedStudio && (
-              <a
-                href={`/sales/${linkedStudio.id}/producties`}
-                className="inline-flex items-center gap-1.5 mt-2 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                Studio: {linkedStudio.company_name}
-                {linkedStudio.contact_name ? ` — ${linkedStudio.contact_name}` : ''}
-              </a>
+              <div className="mt-2">
+                <a
+                  href={`/sales/${linkedStudio.id}/producties`}
+                  className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Studio: {linkedStudio.company_name}
+                  {linkedStudio.contact_name ? ` — ${linkedStudio.contact_name}` : ''}
+                </a>
+                {linkedStudio.address && (
+                  <p className="text-xs text-gray-500 mt-0.5">{linkedStudio.address}{linkedStudio.city ? `, ${linkedStudio.city}` : ''}</p>
+                )}
+              </div>
             )}
             {production.description && (
               <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{production.description}</p>
@@ -1079,6 +1085,9 @@ function ProductionsTable({
                     <td className="px-5 py-3">
                       <div className="font-medium text-gray-900">{r.title}</div>
                       {r.contact && <div className="text-xs text-gray-500">{r.contact}</div>}
+                      {r.kind === 'studio' && r.studio.address && (
+                        <div className="text-xs text-gray-400">{r.studio.address}</div>
+                      )}
                     </td>
                     <td className="px-3 py-3 text-gray-700">{r.city || <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-3">
