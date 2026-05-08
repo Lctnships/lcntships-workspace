@@ -407,16 +407,14 @@ export default function DashboardPage() {
 
         {/* Recent Activity */}
         <div className="lg:col-span-4 bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
-          <div className="flex items-center justify-between mb-6 gap-2">
-            <h2 className="text-base sm:text-xl font-bold text-gray-900">Recente Activiteit</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900">Recente Activiteit</h2>
             {recentActivity.length > 0 && (
               <Link
                 href="/bookings"
-                className="text-xs sm:text-sm text-gray-900 font-semibold hover:text-black flex items-center gap-1 flex-shrink-0"
+                className="text-sm text-gray-900 font-semibold hover:text-black flex items-center gap-1"
               >
-                <span className="hidden sm:inline">Bekijk alles</span>
-                <span className="sm:hidden">Alles</span>
-                <ArrowUpRight className="h-4 w-4" />
+                Bekijk alles <ArrowUpRight className="h-4 w-4" />
               </Link>
             )}
           </div>
@@ -471,10 +469,10 @@ export default function DashboardPage() {
 
         {/* Pending Tasks */}
         <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
-          <div className="flex items-center justify-between mb-6 gap-2">
-            <div className="min-w-0">
-              <h2 className="text-base sm:text-xl font-bold text-gray-900">Openstaande Taken</h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">Items die je aandacht nodig hebben</p>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Openstaande Taken</h2>
+              <p className="text-sm text-gray-500 mt-1">Items die je aandacht nodig hebben</p>
             </div>
             {pendingTasks.length > 0 && (
               <span className="bg-rose-100 text-rose-700 text-sm font-bold px-3 py-1 rounded-full">
@@ -674,22 +672,22 @@ function TodoWidget({ userEmail }: { userEmail: string | null }) {
 
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
-      <div className="flex items-center justify-between mb-5 gap-2">
-        <div className="min-w-0">
-          <h2 className="text-base sm:text-xl font-bold text-gray-900">To-do</h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">Workspace taken — toewijsbaar</p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">To-do</h2>
+          <p className="text-sm text-gray-500 mt-1">Workspace taken — toewijsbaar aan iedereen</p>
         </div>
-        <ListChecks className="h-5 w-5 text-gray-400 flex-shrink-0" />
+        <ListChecks className="h-5 w-5 text-gray-400" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs overflow-x-auto">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs">
           {(['mine', 'open', 'all', 'done'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={cn(
-                'px-2 sm:px-2.5 py-1 rounded-md font-medium transition whitespace-nowrap',
+                'px-2.5 py-1 rounded-md font-medium transition',
                 filter === f ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
               )}
             >
@@ -700,11 +698,10 @@ function TodoWidget({ userEmail }: { userEmail: string | null }) {
         <Button
           size="sm"
           variant="outline"
-          className="ml-auto h-7 px-2"
+          className="ml-auto h-7"
           onClick={() => setAdding(!adding)}
         >
-          <Plus className="h-3.5 w-3.5 sm:mr-1" />
-          <span className="hidden sm:inline">Nieuwe taak</span>
+          <Plus className="h-3.5 w-3.5 mr-1" />Nieuwe taak
         </Button>
       </div>
 

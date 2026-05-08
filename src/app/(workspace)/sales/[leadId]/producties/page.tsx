@@ -103,7 +103,7 @@ export default function StudioProductionsPage() {
   const open = productions.filter((p) => !p.final_date)
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
+    <div className="p-6 md:p-8 max-w-5xl mx-auto">
       <Link
         href="/marketing/agenda"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 mb-3"
@@ -113,11 +113,11 @@ export default function StudioProductionsPage() {
       </Link>
 
       {/* Studio header */}
-      <div className="rounded-xl border border-gray-100 bg-white p-4 sm:p-6 mb-6">
+      <div className="rounded-xl border border-gray-100 bg-white p-6 mb-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{studio.company_name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{studio.company_name}</h1>
               <Badge variant={studio.status === 'closed' ? 'default' : 'secondary'}>{studio.status}</Badge>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-sm text-gray-600">

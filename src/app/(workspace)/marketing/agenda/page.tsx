@@ -246,38 +246,38 @@ export default function ProductieAgendaPage() {
   const weekCount = productionsThisWeek.length
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Productie Agenda</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900">Productie Agenda</h1>
+          <p className="text-sm text-gray-500 mt-1">
             Plan productiedagen en laat het team stemmen op beschikbare datums.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className="flex bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => setView('calendar')}
               className={cn(
-                'px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
+                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
                 view === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
               )}
             >
               <CalendarDays className="h-4 w-4" />
-              <span className="hidden sm:inline">Kalender</span>
+              Kalender
             </button>
             <button
               onClick={() => setView('list')}
               className={cn(
-                'px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
+                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
                 view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
               )}
             >
               <List className="h-4 w-4" />
-              <span className="hidden sm:inline">Lijst</span>
+              Lijst
             </button>
           </div>
-          <label className="hidden sm:flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showSalesMeetings}
@@ -287,8 +287,8 @@ export default function ProductieAgendaPage() {
             Sales meetings tonen
           </label>
           <Button onClick={() => { setPrefillLead(null); setCreating(true) }}>
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Nieuwe productie</span>
+            <Plus className="h-4 w-4 mr-2" />
+            Nieuwe productie
           </Button>
         </div>
       </div>
@@ -297,7 +297,7 @@ export default function ProductieAgendaPage() {
       {!loading && (
         <div
           className={cn(
-            'mb-6 rounded-xl border px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3',
+            'mb-6 rounded-xl border px-5 py-4 flex items-center justify-between',
             weekCount >= 2
               ? 'bg-emerald-50 border-emerald-200'
               : 'bg-red-50 border-red-200',
@@ -981,8 +981,8 @@ function ProductionsTable({
       </div>
 
       {/* Filters */}
-      <div className="px-3 sm:px-5 py-3 border-b border-gray-100 grid grid-cols-2 md:grid-cols-6 gap-2">
-        <div className="col-span-2 md:col-span-2 relative">
+      <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-1 md:grid-cols-6 gap-2">
+        <div className="md:col-span-2 relative">
           <Search className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <Input
             value={search}
@@ -1030,60 +1030,7 @@ function ProductionsTable({
           {hasFilters ? 'Geen resultaten met deze filters.' : 'Alles is ingepland — top!'}
         </div>
       ) : (
-        <>
-        {/* Mobile/tablet: cards */}
-        <div className="lg:hidden p-3 space-y-2">
-          {sorted.map((r) => {
-            const lbl = statusLabel(r.status)
-            return (
-              <button
-                key={`m-${r.kind}-${r.id}`}
-                onClick={() => r.kind === 'production' ? onOpenProduction(r.id) : onOpenStudio(r.id)}
-                className="w-full text-left bg-white border border-gray-100 rounded-xl p-3 hover:bg-gray-50/50 transition"
-              >
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-gray-900 truncate">{r.title}</div>
-                    {r.contact && <div className="text-xs text-gray-500 truncate">{r.contact}</div>}
-                  </div>
-                  <span className={cn('inline-flex text-[10px] px-1.5 py-0.5 rounded-md border flex-shrink-0', lbl.cls)}>
-                    {lbl.text}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                  {r.city && <span>{r.city}</span>}
-                  {r.proposedStart && (
-                    <span>
-                      {formatDate(r.proposedStart)}
-                      {r.proposedEnd && r.proposedEnd !== r.proposedStart && ` — ${formatDate(r.proposedEnd)}`}
-                    </span>
-                  )}
-                  {r.deadline && (
-                    <span>Deadline {format(parseISO(r.deadline), 'd MMM', { locale: nl })}</span>
-                  )}
-                </div>
-                <div className="flex justify-end gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
-                  {r.kind === 'production' ? (
-                    <>
-                      <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => onCopyLink(r.production.share_token, r.id)}>
-                        {copiedId === r.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={() => onOpenProduction(r.id)}>
-                        Open
-                      </Button>
-                    </>
-                  ) : (
-                    <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={() => onPlanForStudio(r.studio)}>
-                      <Plus className="h-3.5 w-3.5 mr-1" />Plan
-                    </Button>
-                  )}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-        {/* Desktop: table */}
-        <div className="hidden lg:block overflow-x-auto rounded-b-xl">
+        <div className="overflow-x-auto rounded-b-xl">
           <table className="w-full text-sm table-auto">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
@@ -1194,7 +1141,6 @@ function ProductionsTable({
             </tbody>
           </table>
         </div>
-        </>
       )}
     </div>
   )
@@ -1265,7 +1211,7 @@ function ProductieKalender({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-6 productie-kalender">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 productie-kalender">
       <style jsx global>{`
         .productie-kalender .fc {
           font-family: inherit;
@@ -1277,30 +1223,6 @@ function ProductieKalender({
         }
         .productie-kalender .fc-toolbar.fc-header-toolbar {
           margin-bottom: 1.25rem;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-        @media (max-width: 640px) {
-          .productie-kalender .fc-toolbar.fc-header-toolbar {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .productie-kalender .fc-toolbar-chunk {
-            display: flex;
-            justify-content: center;
-          }
-          .productie-kalender .fc-toolbar-title {
-            font-size: 1rem !important;
-            text-align: center;
-          }
-          .productie-kalender .fc-button {
-            padding: 0.3rem 0.6rem !important;
-            font-size: 0.75rem !important;
-          }
-          .productie-kalender .fc-event {
-            padding: 1px 4px !important;
-            font-size: 10px !important;
-          }
         }
         .productie-kalender .fc-toolbar-title {
           font-size: 1.25rem;
