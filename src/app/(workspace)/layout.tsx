@@ -11,7 +11,7 @@ function WorkspaceContent({ children }: { children: React.ReactNode }) {
   return (
     <div className={cn(
       'transition-all duration-300',
-      collapsed ? 'xl:pl-[72px]' : 'xl:pl-64'
+      collapsed ? 'lg:pl-[72px]' : 'lg:pl-64'
     )}>
       <Header />
       <main className="p-4 sm:p-6">{children}</main>

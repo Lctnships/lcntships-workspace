@@ -153,7 +153,7 @@ function ComposeModal({ isOpen, onClose, replyTo, templates, account }: ComposeM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl m-4 flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl m-2 sm:m-4 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold">
@@ -373,7 +373,7 @@ function EmailSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl m-4 flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl m-2 sm:m-4 flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold">Email Instellingen</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -826,9 +826,9 @@ export default function EmailPage() {
   ] as const
 
   return (
-    <div className="h-[calc(100vh-64px)] -m-6 flex animate-fade-in">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
+    <div className="h-[calc(100vh-64px)] -m-4 sm:-m-6 flex animate-fade-in">
+      {/* Sidebar — hidden on mobile, scrollable column on md+ */}
+      <aside className="hidden md:flex md:w-56 lg:w-64 bg-gray-50 border-r border-gray-200 flex-col">
         {/* Account switcher */}
         {accounts.length > 0 && (
           <div className="p-3 border-b border-gray-200 space-y-1">
@@ -945,19 +945,38 @@ export default function EmailPage() {
           : 'flex flex-1'
       )}>
         {/* Toolbar */}
-        <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4">
-          <div className="flex items-center gap-4 flex-1">
+        <div className="h-16 border-b border-gray-200 flex items-center justify-between px-3 sm:px-4 gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Folder select on mobile */}
+            <select
+              value={selectedFolder}
+              onChange={(e) => { setSelectedFolder(e.target.value as typeof selectedFolder); setSelectedEmail(null) }}
+              className="md:hidden h-9 text-sm border border-gray-200 rounded-md px-2 bg-white"
+            >
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}{f.count ? ` (${f.count})` : ''}
+                </option>
+              ))}
+            </select>
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Zoeken in emails..."
+                placeholder="Zoeken..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 rounded-xl bg-gray-50 border-0"
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              onClick={() => setIsComposeOpen(true)}
+              className="md:hidden p-2 bg-gray-900 text-white rounded-lg hover:bg-black"
+              aria-label="Nieuw bericht"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
             <button
               onClick={() => refreshInbox()}
               disabled={loading}
@@ -1090,23 +1109,23 @@ export default function EmailPage() {
           </div>
 
           {/* Email Content */}
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-4 sm:p-6">
             <div className="max-w-3xl mx-auto">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 break-words">
                 {selectedEmail.subject}
               </h1>
-              
-              <div className="flex items-start justify-between mb-6 pb-6 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-semibold">
+
+              <div className="flex items-start justify-between mb-6 pb-6 border-b border-gray-100 gap-2 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900 font-semibold flex-shrink-0">
                     {selectedEmail.from.name.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{selectedEmail.from.name}</p>
-                    <p className="text-sm text-gray-500">{selectedEmail.from.email}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{selectedEmail.from.name}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 truncate">{selectedEmail.from.email}</p>
                   </div>
                 </div>
-                <span className="text-sm text-gray-400">
+                <span className="text-xs sm:text-sm text-gray-400">
                   {format(new Date(selectedEmail.date), 'PPp', { locale: nl })}
                 </span>
               </div>

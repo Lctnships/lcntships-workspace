@@ -20,13 +20,12 @@ import {
   Mail,
   Sparkles,
   Zap,
-  Menu,
   X,
   PhoneCall,
   ClipboardCheck,
   Camera,
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useSidebar } from '@/lib/sidebar-context'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -120,29 +119,29 @@ function NavSection({ title, items, collapsed, pathname }: NavSectionProps) {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { collapsed, setCollapsed } = useSidebar()
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const { collapsed, setCollapsed, mobileOpen, setMobileOpen } = useSidebar()
 
   // Close mobile sidebar on route change
   useEffect(() => {
     setMobileOpen(false)
-  }, [pathname])
+  }, [pathname, setMobileOpen])
+
+  // Lock body scroll when mobile sidebar open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
 
   return (
     <TooltipProvider>
-      {/* Mobile hamburger button */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 xl:hidden bg-white rounded-xl p-2 shadow-md border border-gray-100"
-        aria-label="Open menu"
-      >
-        <Menu className="h-5 w-5 text-gray-700" />
-      </button>
-
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 xl:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -151,10 +150,10 @@ export function Sidebar() {
         className={cn(
           'fixed left-0 top-0 z-50 h-screen bg-white border-r border-gray-100 transition-all duration-300 flex flex-col',
           // Desktop: normal sidebar
-          'max-xl:translate-x-[-100%] xl:translate-x-0',
-          collapsed ? 'xl:w-[72px]' : 'xl:w-64',
+          'max-lg:translate-x-[-100%] lg:translate-x-0',
+          collapsed ? 'lg:w-[72px]' : 'lg:w-64',
           // Mobile/tablet: overlay sidebar (always full width when open)
-          mobileOpen && 'max-xl:translate-x-0 max-xl:w-72 max-xl:shadow-2xl'
+          mobileOpen && 'max-lg:translate-x-0 max-lg:w-[280px] max-lg:shadow-2xl'
         )}
       >
         {/* Logo */}
@@ -173,7 +172,7 @@ export function Sidebar() {
             )}
           </div>
           {mobileOpen && (
-            <button onClick={() => setMobileOpen(false)} className="xl:hidden p-1" aria-label="Close menu">
+            <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1" aria-label="Close menu">
               <X className="h-5 w-5 text-gray-500" />
             </button>
           )}
@@ -201,7 +200,7 @@ export function Sidebar() {
         </nav>
 
         {/* Collapse Toggle - desktop only */}
-        <div className="hidden xl:block p-3 border-t border-gray-100">
+        <div className="hidden lg:block p-3 border-t border-gray-100">
           <Button
             variant="ghost"
             size="sm"
