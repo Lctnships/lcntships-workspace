@@ -317,12 +317,17 @@ function NavItemRow({
     )
   }
 
+  const isParentOfActive = item.sub?.some(
+    (sub) => pathname === sub.href || pathname.startsWith(sub.href + '/')
+  )
+  const showSub = item.sub && !collapsed && (isActive || isParentOfActive)
+
   return (
     <div>
       {linkEl}
-      {item.sub && !collapsed && (
+      {showSub && (
         <div className="pl-6">
-          {item.sub.map((sub) => (
+          {item.sub!.map((sub) => (
             <NavItemRow key={sub.href} item={sub} collapsed={false} pathname={pathname} depth={1} />
           ))}
         </div>
