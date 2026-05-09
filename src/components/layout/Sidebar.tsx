@@ -147,6 +147,31 @@ function IconChevronRight() {
     </svg>
   )
 }
+function IconMegaphone() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+    </svg>
+  )
+}
+function IconCustomers() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="3"/>
+      <path d="M4 21v-1a8 8 0 0 1 16 0v1"/>
+    </svg>
+  )
+}
+function IconDocuments() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+  )
+}
 function IconDots() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -176,7 +201,21 @@ const navGroups: NavGroup[] = [
         sub: [
           { href: '/scraper', label: 'Lead scraper', icon: <IconScraper /> },
           { href: '/sales/call-log', label: 'Belsamenvatting', icon: <IconPhone /> },
+          { href: '/sales/agenda', label: 'Agenda', icon: <IconCalendar /> },
           { href: '/sales/review', label: 'Wekelijkse review', icon: <IconReview /> },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      {
+        href: '/marketing',
+        label: 'Marketing',
+        icon: <IconMegaphone />,
+        sub: [
+          { href: '/marketing/analytics', label: 'Email analytics', icon: <IconInbox /> },
         ],
       },
     ],
@@ -191,9 +230,10 @@ const navGroups: NavGroup[] = [
     label: 'Overig',
     items: [
       { href: '/studios', label: 'Studios', icon: <IconBuilding /> },
-      { href: '/partners', label: 'Partners', icon: <IconPartners /> },
+      { href: '/customers', label: 'Customers', icon: <IconCustomers /> },
       { href: '/finance', label: 'Finance', icon: <IconFinance /> },
       { href: '/analytics', label: 'Analytics', icon: <IconAnalytics /> },
+      { href: '/documents', label: 'Documents', icon: <IconDocuments /> },
     ],
   },
 ]
@@ -211,19 +251,24 @@ function NavItemRow({
   pathname: string
   depth?: number
 }>) {
-  const isActive = pathname === item.href || (item.href !== '/sales' && pathname.startsWith(item.href + '/')) || (item.href === '/sales' && (pathname === '/sales' || (pathname.startsWith('/sales/') && !pathname.startsWith('/sales/call-log') && !pathname.startsWith('/sales/review') && !pathname.startsWith('/sales/agenda'))))
+  const salesSubPaths = ['/sales/call-log', '/sales/agenda', '/sales/review']
+  const isActive =
+    pathname === item.href ||
+    (item.href !== '/sales' && item.href !== '/marketing' && pathname.startsWith(item.href + '/')) ||
+    (item.href === '/sales' && (pathname === '/sales' || (pathname.startsWith('/sales/') && !salesSubPaths.some(p => pathname.startsWith(p))))) ||
+    (item.href === '/marketing' && (pathname === '/marketing' || (pathname.startsWith('/marketing/') && !pathname.startsWith('/marketing/analytics') && !pathname.startsWith('/marketing/agenda'))))
 
   const linkEl = (
     <Link
       href={item.href}
       title={collapsed ? item.label : undefined}
       className={cn(
-        'flex items-center gap-[9px] rounded-[5px] text-[11.5px] font-semibold transition-all duration-100 relative select-none whitespace-nowrap overflow-hidden',
+        'flex items-center gap-[9px] rounded-[5px] text-[14px] font-semibold transition-all duration-100 relative select-none whitespace-nowrap overflow-hidden',
         collapsed
           ? 'justify-center py-[7px] px-0 mx-[4px]'
           : depth === 0
             ? 'px-3 py-[6px] mx-[5px] pl-[14px]'
-            : 'px-3 py-[5px] mx-[5px] pl-[10px] text-[11px] font-medium',
+            : 'px-3 py-[5px] mx-[5px] pl-[10px] text-[13px] font-medium',
         isActive
           ? 'bg-[var(--accent-tint)] text-[var(--accent)]'
           : depth === 0
@@ -362,7 +407,7 @@ export function Sidebar() {
           </div>
           {!isCollapsed && (
             <>
-              <span className="text-[12.5px] font-extrabold tracking-[-0.01em] text-[var(--ink)] whitespace-nowrap">
+              <span className="text-[14px] font-extrabold tracking-[-0.01em] text-[var(--ink)] whitespace-nowrap">
                 Lctnships
               </span>
               <span
@@ -391,8 +436,8 @@ export function Sidebar() {
           {!isCollapsed && (
             <>
               <div className="min-w-0">
-                <div className="text-[11.5px] font-bold text-[var(--ink)] whitespace-nowrap">Rivaldo</div>
-                <div className="text-[9.5px] text-[var(--ink-ghost)] whitespace-nowrap">Admin</div>
+                <div className="text-[13px] font-bold text-[var(--ink)] whitespace-nowrap">Rivaldo</div>
+                <div className="text-[11px] text-[var(--ink-ghost)] whitespace-nowrap">Admin</div>
               </div>
               <button
                 className="ml-auto w-[22px] h-[22px] min-w-[22px] flex items-center justify-center rounded-[3px] text-[var(--ink-ghost)] transition-all duration-110 hover:text-[var(--ink-muted)] flex-shrink-0"
@@ -423,7 +468,7 @@ export function Sidebar() {
               )}
 
               {group.label && !isCollapsed && (
-                <span className="block px-4 pt-2 pb-1 text-[7.5px] font-bold uppercase tracking-[0.22em] text-[var(--ink-ghost)] whitespace-nowrap">
+                <span className="block px-4 pt-2 pb-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--ink-ghost)] whitespace-nowrap">
                   {group.label}
                 </span>
               )}
