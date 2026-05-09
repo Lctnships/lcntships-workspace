@@ -3,16 +3,20 @@
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
-import { cn } from '@/lib/utils'
 
 function WorkspaceContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar()
 
   return (
-    <div className={cn(
-      'transition-all duration-300',
-      collapsed ? 'lg:pl-[72px]' : 'lg:pl-64'
-    )}>
+    <div
+      style={{
+        paddingLeft: collapsed
+          ? 'var(--sidebar-collapsed-w)'
+          : 'var(--sidebar-w)',
+        transition: 'padding-left 220ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+      className="lg:block max-lg:pl-0"
+    >
       <Header />
       <main className="p-4 sm:p-6">{children}</main>
     </div>

@@ -3,123 +3,311 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import {
-  LayoutDashboard,
-  Building2,
-  Calendar,
-  Users,
-  UserCircle,
-  DollarSign,
-  BarChart3,
-  Rocket,
-  Megaphone,
-  FileText,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Mail,
-  Sparkles,
-  Zap,
-  X,
-  PhoneCall,
-  ClipboardCheck,
-  Camera,
-} from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSidebar } from '@/lib/sidebar-context'
-import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Separator } from '@/components/ui/separator'
 
-const mainNavItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/studios', label: 'Studios', icon: Building2 },
-  { href: '/bookings', label: 'Bookings', icon: Calendar },
-  { href: '/partners', label: 'Partners', icon: Users },
-  { href: '/customers', label: 'Customers', icon: UserCircle },
-  { href: '/email', label: 'Email', icon: Mail },
-]
+// ─── Nav structure ────────────────────────────────────────────────────────────
 
-const businessNavItems = [
-  { href: '/finance', label: 'Finance', icon: DollarSign },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-]
-
-const salesNavItems = [
-  { href: '/sales', label: 'Sales Pipeline', icon: Rocket },
-  { href: '/sales/call-log', label: 'Bel Samenvatting', icon: PhoneCall },
-  { href: '/sales/agenda', label: 'Sales Agenda', icon: Calendar },
-  { href: '/sales/review', label: 'Wekelijkse Review', icon: ClipboardCheck },
-  { href: '/scraper', label: 'Lead Scraper', icon: Zap },
-  { href: '/enrichment', label: 'Lead Enrichment', icon: Sparkles },
-]
-
-const marketingNavItems = [
-  { href: '/marketing', label: 'Marketing', icon: Megaphone },
-  { href: '/marketing/analytics', label: 'Email Analytics', icon: Mail },
-  { href: '/marketing/agenda', label: 'Productie Agenda', icon: Calendar },
-  { href: '/content', label: 'Content', icon: Camera },
-]
-
-const systemNavItems = [
-  { href: '/documents', label: 'Documents', icon: FileText },
-  { href: '/settings', label: 'Settings', icon: Settings },
-]
-
-interface NavSectionProps {
-  title?: string
-  items: typeof mainNavItems
-  collapsed: boolean
-  pathname: string
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ReactNode
+  badge?: string
+  badgeVariant?: 'accent' | 'neutral'
+  sub?: NavItem[]
 }
 
-function NavSection({ title, items, collapsed, pathname }: NavSectionProps) {
+type NavGroup = {
+  label?: string
+  items: NavItem[]
+}
+
+function IconDashboard() {
   return (
-    <div className="space-y-1">
-      {title && !collapsed && (
-        <p className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          {title}
-        </p>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/>
+      <rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/>
+    </svg>
+  )
+}
+function IconCalendar() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="16" rx="2"/>
+      <path d="M16 3v4M8 3v4M3 9h18"/>
+    </svg>
+  )
+}
+function IconInbox() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2"/>
+      <path d="M2 7l10 7 10-7"/>
+    </svg>
+  )
+}
+function IconPipeline() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 5h18M7 10h10M11 15h2M12 20v-5"/>
+    </svg>
+  )
+}
+function IconScraper() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <circle cx="12" cy="12" r="7.5"/>
+      <path d="M12 4.5V3M12 21v-1.5M4.5 12H3M21 12h-1.5"/>
+    </svg>
+  )
+}
+function IconPhone() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A17 17 0 0 1 4 5a1 1 0 0 1 1-1"/>
+    </svg>
+  )
+}
+function IconReview() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <path d="M9 12l2 2 4-4"/>
+    </svg>
+  )
+}
+function IconProducies() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="2"/>
+      <path d="M7 6V4M17 6V4M7 18v2M17 18v2M2 10h20M2 14h20"/>
+    </svg>
+  )
+}
+function IconBuilding() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18M5 21V8l7-5 7 5v13M10 21v-5h4v5"/>
+    </svg>
+  )
+}
+function IconPartners() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="7" r="3"/><circle cx="16" cy="7" r="3"/>
+      <path d="M2 21v-1a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v1"/>
+    </svg>
+  )
+}
+function IconFinance() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18M3 10h18M5 6l7-3 7 3M6 10v11M12 10v11M18 10v11"/>
+    </svg>
+  )
+}
+function IconAnalytics() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 20h18M7 20V10M12 20V4M17 20v-7"/>
+    </svg>
+  )
+}
+function IconSettings() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2v2.2M12 19.8V22M4.22 4.22l1.56 1.56M18.22 18.22l1.56 1.56M2 12h2.2M19.8 12H22M4.22 19.78l1.56-1.56M18.22 5.78l1.56-1.56"/>
+    </svg>
+  )
+}
+function IconLogoMark() {
+  return (
+    <svg viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: 15, height: 15 }}>
+      <path d="M7.5 2V11" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M7.5 3L12.5 10H7.5V3Z" fill="white" fillOpacity="0.9"/>
+      <path d="M2 13H13" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+function IconChevronLeft() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 6l-6 6 6 6"/>
+    </svg>
+  )
+}
+function IconChevronRight() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 6l6 6-6 6"/>
+    </svg>
+  )
+}
+function IconDots() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+    </svg>
+  )
+}
+
+// ─── Groups ───────────────────────────────────────────────────────────────────
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'Kern',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
+      { href: '/bookings', label: 'Agenda', icon: <IconCalendar /> },
+      { href: '/email', label: 'Inbox', icon: <IconInbox /> },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      {
+        href: '/sales',
+        label: 'Pipeline',
+        icon: <IconPipeline />,
+        sub: [
+          { href: '/scraper', label: 'Lead scraper', icon: <IconScraper /> },
+          { href: '/sales/call-log', label: 'Belsamenvatting', icon: <IconPhone /> },
+          { href: '/sales/review', label: 'Wekelijkse review', icon: <IconReview /> },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Producties',
+    items: [
+      { href: '/marketing/agenda', label: 'Overzicht', icon: <IconProducies /> },
+    ],
+  },
+  {
+    label: 'Overig',
+    items: [
+      { href: '/studios', label: 'Studios', icon: <IconBuilding /> },
+      { href: '/partners', label: 'Partners', icon: <IconPartners /> },
+      { href: '/finance', label: 'Finance', icon: <IconFinance /> },
+      { href: '/analytics', label: 'Analytics', icon: <IconAnalytics /> },
+    ],
+  },
+]
+
+// ─── NavItem component ─────────────────────────────────────────────────────────
+
+function NavItemRow({
+  item,
+  collapsed,
+  pathname,
+  depth = 0,
+}: Readonly<{
+  item: NavItem
+  collapsed: boolean
+  pathname: string
+  depth?: number
+}>) {
+  const isActive = pathname === item.href || (item.href !== '/sales' && pathname.startsWith(item.href + '/')) || (item.href === '/sales' && (pathname === '/sales' || (pathname.startsWith('/sales/') && !pathname.startsWith('/sales/call-log') && !pathname.startsWith('/sales/review') && !pathname.startsWith('/sales/agenda'))))
+
+  const linkEl = (
+    <Link
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      className={cn(
+        'flex items-center gap-[9px] rounded-[5px] text-[11.5px] font-semibold transition-all duration-100 relative select-none whitespace-nowrap overflow-hidden',
+        collapsed
+          ? 'justify-center py-[7px] px-0 mx-[4px]'
+          : depth === 0
+            ? 'px-3 py-[6px] mx-[5px] pl-[14px]'
+            : 'px-3 py-[5px] mx-[5px] pl-[10px] text-[11px] font-medium',
+        isActive
+          ? 'bg-[var(--accent-tint)] text-[var(--accent)]'
+          : depth === 0
+            ? 'text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]'
+            : 'text-[var(--ink-faint)] hover:bg-[var(--surface)] hover:text-[var(--ink)]',
       )}
-      {items.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-        const Icon = item.icon
+    >
+      {/* Active indicator bar */}
+      {isActive && !collapsed && (
+        <span
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-[17px] bg-[var(--accent)] rounded-r-[2px]"
+          aria-hidden
+        />
+      )}
 
-        const linkContent = (
-          <Link
-            href={item.href}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
-              isActive
-                ? 'bg-gray-100 text-gray-900'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            )}
-          >
-            <Icon className={cn('h-5 w-5 flex-shrink-0', isActive ? 'text-gray-900' : 'text-gray-400')} />
-            {!collapsed && <span>{item.label}</span>}
-          </Link>
-        )
+      <span className="flex-shrink-0 text-current">{item.icon}</span>
 
-        if (collapsed) {
-          return (
-            <Tooltip key={item.href} delayDuration={0}>
-              <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-              <TooltipContent side="right" className="font-medium">
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
-          )
-        }
+      {!collapsed && (
+        <>
+          <span className="flex-1 leading-[1.2]">{item.label}</span>
+          {item.badge && (
+            <span
+              className={cn(
+                'text-[8.5px] font-bold px-[5px] py-[1px] rounded-full font-mono',
+                item.badgeVariant === 'neutral'
+                  ? 'bg-[var(--surface)] text-[var(--ink-ghost)] border border-[var(--edge)]'
+                  : 'bg-[var(--accent)] text-white',
+              )}
+            >
+              {item.badge}
+            </span>
+          )}
+        </>
+      )}
+    </Link>
+  )
 
-        return <div key={item.href}>{linkContent}</div>
-      })}
+  if (collapsed) {
+    return (
+      <Tooltip key={item.href} delayDuration={0}>
+        <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+        <TooltipContent side="right" className="font-semibold text-xs">
+          {item.label}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return (
+    <div>
+      {linkEl}
+      {item.sub && !collapsed && (
+        <div className="pl-6">
+          {item.sub.map((sub) => (
+            <NavItemRow key={sub.href} item={sub} collapsed={false} pathname={pathname} depth={1} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+
 export function Sidebar() {
   const pathname = usePathname()
   const { collapsed, setCollapsed, mobileOpen, setMobileOpen } = useSidebar()
+  const isCollapsed = collapsed && !mobileOpen
+
+  // Persist collapse state in localStorage
+  const didMount = useRef(false)
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true
+      try {
+        const stored = localStorage.getItem('lctnships-sidebar-collapsed')
+        if (stored === '1') setCollapsed(true)
+      } catch { /* ignore */ }
+      return
+    }
+    try {
+      localStorage.setItem('lctnships-sidebar-collapsed', collapsed ? '1' : '0')
+    } catch { /* ignore */ }
+  }, [collapsed, setCollapsed])
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -128,11 +316,7 @@ export function Sidebar() {
 
   // Lock body scroll when mobile sidebar open
   useEffect(() => {
-    if (mobileOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
@@ -140,82 +324,147 @@ export function Sidebar() {
     <TooltipProvider>
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        <button
+          type="button"
+          aria-label="Sidebar sluiten"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden w-full cursor-default"
+          style={{ border: 'none' }}
           onClick={() => setMobileOpen(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setMobileOpen(false) }}
         />
       )}
 
       <aside
+        style={{
+          width: isCollapsed ? 'var(--sidebar-collapsed-w)' : 'var(--sidebar-w)',
+          transition: 'width 220ms cubic-bezier(0.4, 0, 0.2, 1)',
+          background: 'var(--bg)',
+        }}
         className={cn(
-          'fixed left-0 top-0 z-50 h-screen bg-white border-r border-gray-100 transition-all duration-300 flex flex-col',
-          // Desktop: normal sidebar
+          'fixed left-0 top-0 z-50 h-screen border-r flex flex-col overflow-hidden',
+          'border-[var(--edge)]',
           'max-lg:translate-x-[-100%] lg:translate-x-0',
-          collapsed ? 'lg:w-[72px]' : 'lg:w-64',
-          // Mobile/tablet: overlay sidebar (always full width when open)
-          mobileOpen && 'max-lg:translate-x-0 max-lg:w-[280px] max-lg:shadow-2xl'
+          mobileOpen && 'max-lg:translate-x-0 max-lg:shadow-2xl',
         )}
       >
         {/* Logo */}
-        <div className={cn('flex items-center h-16 px-4 border-b border-gray-100', collapsed && !mobileOpen ? 'justify-center' : 'justify-between')}>
-          <div className="flex items-center gap-3">
-            <img
-              src="/lcntships-logo.png"
-              alt="lcntships"
-              className="w-9 h-9 object-contain"
-            />
-            {(!collapsed || mobileOpen) && (
-              <div className="flex flex-col">
-                <span className="font-bold text-gray-900">lcntships</span>
-                <span className="text-xs text-gray-500">Workspace</span>
-              </div>
-            )}
+        <div
+          className={cn(
+            'h-14 flex items-center flex-shrink-0 border-b border-[var(--edge)] overflow-hidden gap-[9px]',
+            isCollapsed ? 'justify-center px-0' : 'px-4',
+          )}
+        >
+          <div
+            className="w-[26px] h-[26px] min-w-[26px] rounded-[5px] flex items-center justify-center flex-shrink-0"
+            style={{ background: 'var(--accent)' }}
+          >
+            <IconLogoMark />
           </div>
-          {mobileOpen && (
-            <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1" aria-label="Close menu">
-              <X className="h-5 w-5 text-gray-500" />
-            </button>
+          {!isCollapsed && (
+            <>
+              <span className="text-[12.5px] font-extrabold tracking-[-0.01em] text-[var(--ink)] whitespace-nowrap">
+                Lctnships
+              </span>
+              <span
+                className="ml-auto text-[7.5px] font-bold uppercase tracking-[0.14em] text-[var(--ink-ghost)] whitespace-nowrap px-[6px] py-[2px] rounded-[3px] border border-[var(--edge)]"
+                style={{ background: 'var(--surface)' }}
+              >
+                Workspace
+              </span>
+            </>
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-6">
-          <NavSection items={mainNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
+        {/* User */}
+        <div
+          className={cn(
+            'flex items-center gap-2 flex-shrink-0 border-b border-[var(--edge)] overflow-hidden',
+            isCollapsed ? 'justify-center py-[9px] px-0' : 'py-[9px] px-3',
+          )}
+        >
+          <div
+            className="w-[27px] h-[27px] min-w-[27px] rounded-full flex items-center justify-center text-[9.5px] font-black text-white flex-shrink-0"
+            style={{ background: 'var(--accent)' }}
+          >
+            R
+          </div>
+          {!isCollapsed && (
+            <>
+              <div className="min-w-0">
+                <div className="text-[11.5px] font-bold text-[var(--ink)] whitespace-nowrap">Rivaldo</div>
+                <div className="text-[9.5px] text-[var(--ink-ghost)] whitespace-nowrap">Admin</div>
+              </div>
+              <button
+                className="ml-auto w-[22px] h-[22px] min-w-[22px] flex items-center justify-center rounded-[3px] text-[var(--ink-ghost)] transition-all duration-110 hover:text-[var(--ink-muted)] flex-shrink-0"
+                style={{ border: 'none', background: 'none' }}
+                aria-label="Gebruikersmenu"
+              >
+                <IconDots />
+              </button>
+            </>
+          )}
+        </div>
 
-          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
+        {/* Nav */}
+        <nav
+          className="flex-1 overflow-y-auto overflow-x-hidden py-2"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--edge) transparent' }}
+        >
+          {navGroups.map((group, gi) => (
+            <div key={gi}>
+              {gi > 0 && (
+                <div
+                  className="h-px my-[5px]"
+                  style={{
+                    background: 'var(--edge-soft)',
+                    margin: '5px 12px',
+                  }}
+                />
+              )}
 
-          <NavSection title="Business" items={businessNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
+              {group.label && !isCollapsed && (
+                <span className="block px-4 pt-2 pb-1 text-[7.5px] font-bold uppercase tracking-[0.22em] text-[var(--ink-ghost)] whitespace-nowrap">
+                  {group.label}
+                </span>
+              )}
 
-          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
-
-          <NavSection title="Sales" items={salesNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
-
-          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
-
-          <NavSection title="Marketing & Content" items={marketingNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
-
-          {(!collapsed || mobileOpen) && <Separator className="my-3" />}
-
-          <NavSection items={systemNavItems} collapsed={collapsed && !mobileOpen} pathname={pathname} />
+              {group.items.map((item) => (
+                <NavItemRow
+                  key={item.href}
+                  item={item}
+                  collapsed={isCollapsed}
+                  pathname={pathname}
+                />
+              ))}
+            </div>
+          ))}
         </nav>
 
-        {/* Collapse Toggle - desktop only */}
-        <div className="hidden lg:block p-3 border-t border-gray-100">
-          <Button
-            variant="ghost"
-            size="sm"
+        {/* Bottom */}
+        <div className="flex-shrink-0 border-t border-[var(--edge)] p-[5px]">
+          <NavItemRow
+            item={{ href: '/settings', label: 'Instellingen', icon: <IconSettings /> }}
+            collapsed={isCollapsed}
+            pathname={pathname}
+          />
+          <div
+            className="h-px my-[5px]"
+            style={{ background: 'var(--edge-soft)', margin: '5px 12px' }}
+          />
+          <button
             onClick={() => setCollapsed(!collapsed)}
-            className={cn('w-full', collapsed ? 'justify-center' : 'justify-start')}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <>
-                <ChevronLeft className="h-4 w-4" />
-                <span className="ml-2">Collapse</span>
-              </>
+            title={collapsed ? 'Uitklappen' : 'Inklappen'}
+            className={cn(
+              'hidden lg:flex items-center gap-[9px] rounded-[5px] text-[11.5px] font-semibold transition-all duration-100 w-full whitespace-nowrap text-[var(--ink-ghost)] hover:text-[var(--ink-muted)] cursor-pointer',
+              isCollapsed
+                ? 'justify-center py-[7px] px-0'
+                : 'px-3 py-[6px] pl-[14px]',
             )}
-          </Button>
+            style={{ border: 'none', background: 'none' }}
+          >
+            {isCollapsed ? <IconChevronRight /> : <IconChevronLeft />}
+            {!isCollapsed && <span className="flex-1 text-left">Inklappen</span>}
+          </button>
         </div>
       </aside>
     </TooltipProvider>
