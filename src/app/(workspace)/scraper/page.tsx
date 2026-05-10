@@ -1,50 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import {
-  Search,
-  Globe,
-  Mail,
-  Phone,
-  MapPin,
-  Instagram,
-  Facebook,
-  Linkedin,
-  Twitter,
-  Star,
-  RefreshCw,
-  Play,
-  Pause,
-  Square,
-  Copy,
-  Check,
-  AlertCircle,
-  Clock,
-  Download,
-  ChevronUp,
-  ChevronDown,
-  ExternalLink,
-  Edit2,
-  X,
-  Users,
-  CheckSquare,
-  History,
-  Zap,
-  Filter,
-  Trash2,
-  Target,
-  LayoutGrid,
-  List,
-  ThumbsUp,
-  ThumbsDown,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Search, Plus, Check, X, Play, Camera, ExternalLink, Loader2, Globe } from 'lucide-react'
 import { workspaceClient as supabase } from '@/lib/workspace-client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 interface Lead {
   id: string
   name: string
@@ -53,11 +13,6 @@ interface Lead {
   email?: string
   city?: string
   address?: string
-  google_rating?: number
-  google_reviews?: number
-  google_url?: string
-  google_place_id?: string
-  thumbnail?: string
   categories?: string[]
   instagram?: string
   facebook?: string
@@ -67,230 +22,138 @@ interface Lead {
   search_query?: string
   status: string
   enriched: boolean
-  enriched_at?: string
   enrichment_error?: string
   notes?: string
   created_at?: string
-  qualified?: boolean | null
-  disqualified_reason?: string | null
   _duplicate?: boolean
 }
 
-interface SearchHistory {
+interface SearchHistoryItem {
   id: string
   query: string
   city?: string
   results_count: number
   emails_found: number
   created_at: string
+  failed?: boolean
 }
 
-interface Usage {
-  searches_used: number
-  max_searches: number
-}
+type RowStatus = 'new' | 'in-pipe' | 'duplicate' | 'closed'
+type FilterMode = 'new' | 'in-pipe' | 'duplicate' | null
 
-type SortField = 'name' | 'city' | 'google_rating' | 'google_reviews' | 'status' | 'enriched'
-type SortDir = 'asc' | 'desc'
-type FilterType = 'all' | 'with_email' | 'without_email' | 'not_scraped' | 'errors' | 'qualified' | 'disqualified' | 'unreviewed'
-
-const CITIES = ['Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen', 'Haarlem', 'Leiden', 'Arnhem', 'Tilburg']
-const TYPES = ['Fotostudio', 'Filmstudio', 'Muziekstudio', 'Podcast Studio', 'Dansstudio', 'Creative Space', 'Evenementenlocatie', 'Recording Studio']
-const STATUSES = ['new', 'contacted', 'interested', 'partner', 'rejected']
+const CITIES = ['Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen']
+const TYPES = ['Fotostudio', 'Muziekstudio', 'Dansstudio', 'Podcaststudio', 'Multifunctioneel']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text).catch(() => {
-    const el = document.createElement('textarea')
-    el.value = text
-    document.body.appendChild(el)
-    el.select()
-    document.execCommand('copy')
-    document.body.removeChild(el)
-  })
+function statusOf(lead: Lead, pipelineNames: Set<string>): RowStatus {
+  if (lead._duplicate) return 'duplicate'
+  if (pipelineNames.has(lead.name)) return 'in-pipe'
+  if (lead.status === 'closed' || lead.status === 'partner') return 'closed'
+  return 'new'
 }
 
-function StarRating({ rating }: { rating?: number }) {
-  if (!rating) return <span className="text-gray-300 text-xs">—</span>
-  return (
-    <span className="flex items-center gap-0.5 text-amber-400">
-      <Star className="h-3.5 w-3.5 fill-current" />
-      <span className="text-xs font-medium text-gray-700">{rating.toFixed(1)}</span>
-    </span>
-  )
+function statusLabel(s: RowStatus): string {
+  return { 'new': 'nieuw', 'in-pipe': 'in pipeline', 'duplicate': 'dubbel', 'closed': 'gesloten' }[s]
 }
 
-function StatusBadge({ status, onChange }: { status: string; onChange?: (s: string) => void }) {
-  const styles: Record<string, string> = {
-    new: 'bg-slate-100 text-slate-600',
-    contacted: 'bg-sky-100 text-sky-700',
-    interested: 'bg-teal-100 text-teal-700',
-    partner: 'bg-emerald-100 text-emerald-700',
-    rejected: 'bg-rose-100 text-rose-700',
-  }
-  if (!onChange) {
-    return <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize', styles[status] || 'bg-gray-100 text-gray-500')}>{status}</span>
-  }
-  return (
-    <select
-      value={status}
-      onChange={e => onChange(e.target.value)}
-      onClick={e => e.stopPropagation()}
-      className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-700', styles[status] || 'bg-gray-100 text-gray-500')}
-    >
-      {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-    </select>
-  )
+function statusClass(s: RowStatus): string {
+  return { 'new': 'st-new', 'in-pipe': 'st-pipe', 'duplicate': 'st-dup', 'closed': 'st-closed' }[s]
 }
 
-function EnrichmentIcon({ lead }: { lead: Lead }) {
-  if (!lead.website) return <span className="text-gray-300 text-xs">—</span>
-  if (lead.enrichment_error) return <span title={lead.enrichment_error}><AlertCircle className="h-4 w-4 text-red-400" /></span>
-  if (lead.enriched) return <Check className="h-4 w-4 text-green-500" />
-  return <Clock className="h-4 w-4 text-gray-300 animate-pulse" />
+function formatRelativeDate(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffH = diffMs / (1000 * 60 * 60)
+  if (diffH < 1) return `${Math.round(diffH * 60)} min geleden`
+  if (diffH < 24) return d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+  if (diffH < 48) return `gisteren ${d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`
+  return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-// ─── Edit Modal ───────────────────────────────────────────────────────────────
-
-function EditLeadModal({ lead, onSave, onClose }: { lead: Lead; onSave: (id: string, updates: Partial<Lead>) => void; onClose: () => void }) {
-  const [email, setEmail] = useState(lead.email || '')
-  const [phone, setPhone] = useState(lead.phone || '')
-  const [notes, setNotes] = useState(lead.notes || '')
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 truncate">{lead.name}</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0"><X className="h-4 w-4" /></button>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-          <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@bedrijf.nl" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Telefoon</label>
-          <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+31 20 123 4567" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Notities</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
-            placeholder="Voeg notities toe..." />
-        </div>
-        <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={onClose}>Annuleren</Button>
-          <Button size="sm" onClick={() => { onSave(lead.id, { email: email || undefined, phone: phone || undefined, notes: notes || undefined }); onClose() }}>Opslaan</Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ScraperPage() {
-  // Search state
-  const [query, setQuery] = useState('')
-  const [selectedCity, setSelectedCity] = useState('')
-  const [selectedType, setSelectedType] = useState('')
+  // Data
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [history, setHistory] = useState<SearchHistoryItem[]>([])
+  const [pipelineNames, setPipelineNames] = useState<Set<string>>(new Set())
+
+  // List filters (zoek-input bovenin = scraper trigger; type/stad = lokaal filter)
+  const [searchInput, setSearchInput] = useState('')
+  const [cityFilter, setCityFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [filterMode, setFilterMode] = useState<FilterMode>(null)
+
+  // Selection
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [added, setAdded] = useState<Set<string>>(new Set())
+
+  // Loading
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
 
-  // Data
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [history, setHistory] = useState<SearchHistory[]>([])
-  const [usage, setUsage] = useState<Usage>({ searches_used: 0, max_searches: 100 })
-  const [showHistory, setShowHistory] = useState(false)
+  // Session stats
+  const [sessionStats, setSessionStats] = useState({ found: 0, added: 0, alreadyInPipe: 0, duplicates: 0, skipped: 0 })
 
-  // Enrichment
-  const [enriching, setEnriching] = useState(false)
-  const [enrichPaused, setEnrichPaused] = useState(false)
-  const [enrichProgress, setEnrichProgress] = useState({ total: 0, done: 0, emails: 0, errors: 0 })
-  const enrichPausedRef = useRef(false)
-  const enrichAbortRef = useRef(false)
-
-  // Table state
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
-  const [filter, setFilter] = useState<FilterType>('all')
-  const [cityFilter, setCityFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [minRating, setMinRating] = useState('')
-  const [search, setSearch] = useState('')
-  const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [editLead, setEditLead] = useState<Lead | null>(null)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
-
-  // Load initial data
-  useEffect(() => {
-    loadInitialData()
-  }, [])
-
-  const loadInitialData = async () => {
-    // Load pipeline company names to filter out leads already in pipeline
+  // ── Load initial data ─────────────────────────────────────────────────────
+  const loadInitial = useCallback(async () => {
+    // Pipeline names
     const { data: pipelineData } = await supabase
       .from('sales_leads')
       .select('company_name')
+      .order('created_at', { ascending: false })
     if (pipelineData) {
-      const pipelineNames = new Set<string>(pipelineData.map((p: { company_name: string }) => p.company_name))
-      setPipelineExisting(new Set()) // reset
-      // Store pipeline names for filtering after search
-      setPipelineNames(pipelineNames)
+      const arr = pipelineData as Array<{ company_name: string }>
+      setPipelineNames(new Set(arr.map(l => l.company_name)))
     }
-
-    // Load usage + history
+    // Recent searches
     const res = await fetch('/api/search-leads')
     if (res.ok) {
       const data = await res.json()
-      setUsage(data.usage || { searches_used: 0, max_searches: 100 })
       setHistory(data.history || [])
     }
-  }
+  }, [])
 
-  const updateLead = (id: string, updates: Partial<Lead>) => {
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l))
-  }
+  useEffect(() => { loadInitial() }, [loadInitial])
 
   // ── Search ────────────────────────────────────────────────────────────────
-
-  const handleSearch = async (overrideQuery?: string, overrideCity?: string) => {
-    const q = overrideQuery ?? (selectedType ? `${selectedType} ${selectedCity}`.trim() : query)
-    const c = overrideCity ?? selectedCity
-    if (!q.trim()) return
-
+  const handleSearch = async () => {
+    // Zoekbalk heeft voorrang; anders type + stad als query
+    const fromInput = searchInput.trim()
+    const fromFilters = [typeFilter, cityFilter].filter(Boolean).join(' ').trim()
+    const q = fromInput || fromFilters
+    if (!q) {
+      setSearchError('Typ een zoekterm in of kies een studio-type / stad')
+      return
+    }
+    const city = cityFilter || undefined
     setSearching(true)
     setSearchError(null)
-    setSelected(new Set())
-
     try {
       const res = await fetch('/api/search-leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q, city: c || undefined }),
+        body: JSON.stringify({ query: q, city }),
       })
       const data = await res.json()
       if (!res.ok) {
         setSearchError(data.error || 'Zoeken mislukt')
         return
       }
-
-      // Filter out leads already in pipeline, then prepend to list
-      const freshLeads = (data.leads as Lead[]).filter((l: Lead) => !pipelineNames.has(l.name))
-      const newIds = new Set(freshLeads.map((l: Lead) => l.id))
-      setLeads(prev => [
-        ...freshLeads,
-        ...prev.filter((l: Lead) => !newIds.has(l.id)),
-      ])
-      setUsage(data.usage || usage)
-
-      // Auto-start enrichment on new leads with websites
-      const toEnrich = data.leads.filter((l: Lead) => l.website && !l.enriched && !l.enrichment_error)
-      if (toEnrich.length > 0) {
-        startEnrichment(toEnrich)
-      }
-
+      const fresh: Lead[] = (data.leads as Lead[]).map(l => ({ ...l, _duplicate: pipelineNames.has(l.name) }))
+      const newIds = new Set(fresh.map(l => l.id))
+      setLeads(prev => [...fresh, ...prev.filter(l => !newIds.has(l.id))])
+      setSessionStats(prev => ({
+        found: prev.found + fresh.length,
+        added: prev.added,
+        alreadyInPipe: prev.alreadyInPipe + fresh.filter(l => pipelineNames.has(l.name)).length,
+        duplicates: prev.duplicates + fresh.filter(l => l._duplicate).length,
+        skipped: prev.skipped,
+      }))
+      // Reset alle list-filters na een succesvolle scrape zodat álle resultaten zichtbaar zijn
+      setCityFilter('')
+      setTypeFilter('')
+      setFilterMode(null)
       // Refresh history
       const histRes = await fetch('/api/search-leads')
       if (histRes.ok) {
@@ -304,231 +167,13 @@ export default function ScraperPage() {
     }
   }
 
-  // ── Enrichment ────────────────────────────────────────────────────────────
-
-  const startEnrichment = useCallback(async (targetLeads: Lead[]) => {
-    const queue = targetLeads.filter(l => l.website)
-    if (queue.length === 0) return
-
-    setEnriching(true)
-    setEnrichPaused(false)
-    enrichPausedRef.current = false
-    enrichAbortRef.current = false
-    setEnrichProgress({ total: queue.length, done: 0, emails: 0, errors: 0 })
-
-    const CONCURRENCY = 3
-    const DELAY_MS = 500
-
-    for (let i = 0; i < queue.length; i += CONCURRENCY) {
-      if (enrichAbortRef.current) break
-      while (enrichPausedRef.current) {
-        await new Promise(r => setTimeout(r, 300))
-        if (enrichAbortRef.current) break
-      }
-      if (enrichAbortRef.current) break
-
-      const batch = queue.slice(i, i + CONCURRENCY)
-      await Promise.all(batch.map(async (lead) => {
-        try {
-          const res = await fetch('/api/enrich-lead', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: lead.website }),
-          })
-          const data = await res.json()
-          const email = data.emails?.[0] || null
-          const updates: Partial<Lead> = {
-            email: email || lead.email || undefined,
-            instagram: data.socials?.instagram || undefined,
-            facebook: data.socials?.facebook || undefined,
-            linkedin: data.socials?.linkedin || undefined,
-            twitter: data.socials?.twitter || undefined,
-            enriched: true,
-            enriched_at: new Date().toISOString(),
-            enrichment_error: undefined,
-          }
-          await supabase.from('leads').update(updates).eq('id', lead.id)
-          updateLead(lead.id, updates)
-          setEnrichProgress(p => ({ ...p, done: p.done + 1, emails: p.emails + (email ? 1 : 0) }))
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Fout'
-          await supabase.from('leads').update({ enrichment_error: msg }).eq('id', lead.id)
-          updateLead(lead.id, { enrichment_error: msg })
-          setEnrichProgress(p => ({ ...p, done: p.done + 1, errors: p.errors + 1 }))
-        }
-      }))
-
-      if (i + CONCURRENCY < queue.length && !enrichAbortRef.current) {
-        await new Promise(r => setTimeout(r, DELAY_MS))
-      }
-    }
-
-    setEnriching(false)
-    setEnrichPaused(false)
-  }, [])
-
-  const toggleEnrichPause = () => { enrichPausedRef.current = !enrichPausedRef.current; setEnrichPaused(enrichPausedRef.current) }
-  const stopEnrichment = () => { enrichAbortRef.current = true; enrichPausedRef.current = false; setEnrichPaused(false) }
-
-  // ── Table filtering & sorting ─────────────────────────────────────────────
-
-  const filtered = leads.filter(lead => {
-    if (filter === 'with_email' && !lead.email) return false
-    if (filter === 'without_email' && (lead.email || !lead.website)) return false
-    if (filter === 'not_scraped' && (lead.enriched || !lead.website)) return false
-    if (filter === 'errors' && !lead.enrichment_error) return false
-    if (filter === 'qualified' && lead.qualified !== true) return false
-    if (filter === 'disqualified' && lead.qualified !== false) return false
-    if (filter === 'unreviewed' && lead.qualified !== null && lead.qualified !== undefined) return false
-    if (cityFilter && lead.city !== cityFilter) return false
-    if (statusFilter && lead.status !== statusFilter) return false
-    if (minRating && (lead.google_rating || 0) < Number(minRating)) return false
-    if (search) {
-      const q = search.toLowerCase()
-      return (
-        lead.name.toLowerCase().includes(q) ||
-        (lead.city || '').toLowerCase().includes(q) ||
-        (lead.email || '').toLowerCase().includes(q) ||
-        (lead.website || '').toLowerCase().includes(q)
-      )
-    }
-    return true
-  })
-
-  const deduplicated = filtered.filter((lead, index, self) => self.findIndex(l => l.id === lead.id) === index)
-  const sorted = [...deduplicated].sort((a, b) => {
-    let av: string | number = '', bv: string | number = ''
-    if (sortField === 'name') { av = a.name || ''; bv = b.name || '' }
-    if (sortField === 'city') { av = a.city || ''; bv = b.city || '' }
-    if (sortField === 'google_rating') { av = a.google_rating || 0; bv = b.google_rating || 0 }
-    if (sortField === 'google_reviews') { av = a.google_reviews || 0; bv = b.google_reviews || 0 }
-    if (sortField === 'status') { av = a.status || ''; bv = b.status || '' }
-    if (sortField === 'enriched') { av = String(a.enriched); bv = String(b.enriched) }
-    if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av
-    return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
-  })
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortField(field); setSortDir('asc') }
-  }
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ChevronUp className="h-3 w-3 text-gray-300" />
-    return sortDir === 'asc' ? <ChevronUp className="h-3 w-3 text-gray-900" /> : <ChevronDown className="h-3 w-3 text-gray-900" />
-  }
-
-  // ── Selection & bulk actions ──────────────────────────────────────────────
-
-  const toggleSelect = (id: string) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const selectAll = () => setSelected(new Set(sorted.map(l => l.id)))
-  const selectNone = () => setSelected(new Set())
-  const selectWithEmail = () => setSelected(new Set(sorted.filter(l => l.email).map(l => l.id)))
-  const selectNewOnly = () => setSelected(new Set(sorted.filter(l => !pipelineExisting.has(l.id) && !pipelineAdded.has(l.id)).map(l => l.id)))
-
-  const copyAllEmails = () => {
-    const target = selected.size > 0 ? sorted.filter(l => selected.has(l.id)) : sorted
-    copyToClipboard(target.filter(l => l.email).map(l => l.email).join('\n'))
-  }
-
-  const exportCSV = () => {
-    const target = selected.size > 0 ? sorted.filter(l => selected.has(l.id)) : sorted
-    const rows = [
-      ['Naam', 'Stad', 'Email', 'Telefoon', 'Website', 'Rating', 'Reviews', 'Instagram', 'Facebook', 'LinkedIn', 'Status', 'Notities'],
-      ...target.map(l => [l.name, l.city || '', l.email || '', l.phone || '', l.website || '', l.google_rating || '', l.google_reviews || '', l.instagram || '', l.facebook || '', l.linkedin || '', l.status, l.notes || '']),
-    ]
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const exportHubSpotCSV = () => {
-    const target = selected.size > 0 ? sorted.filter(l => selected.has(l.id)) : sorted
-    const rows = [
-      ['Company name', 'Phone Number', 'Website URL', 'City', 'Email', 'Instagram Company Page', 'Studio Type', 'Lead Status'],
-      ...target.map(l => [
-        l.name,
-        l.phone || '',
-        l.website || '',
-        l.city || '',
-        l.email || '',
-        l.instagram || '',
-        l.categories?.[0] || '',
-        'NEW',
-      ]),
-    ]
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `lcntships-leads-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const bulkChangeStatus = async (status: string) => {
-    if (selected.size === 0) return
-    const ids = [...selected]
-    await supabase.from('leads').update({ status }).in('id', ids)
-    ids.forEach(id => updateLead(id, { status }))
-  }
-
-  const bulkReScrape = () => {
-    const target = selected.size > 0 ? sorted.filter(l => selected.has(l.id) && l.website) : sorted.filter(l => l.website && !l.enriched)
-    startEnrichment(target)
-  }
-
-  const deleteLead = async (lead: Lead) => {
-    await supabase.from('leads').delete().eq('id', lead.id)
-    await supabase.from('sales_leads').delete().eq('company_name', lead.name)
-    setLeads(prev => prev.filter(l => l.id !== lead.id))
-    setPipelineExisting(prev => { const s = new Set(prev); s.delete(lead.id); return s })
-    setPipelineAdded(prev => { const s = new Set(prev); s.delete(lead.id); return s })
-  }
-
-  const bulkDelete = async () => {
-    if (selected.size === 0) return
-    if (!confirm(`Weet je zeker dat je ${selected.size} leads wilt verwijderen?`)) return
-    const ids = [...selected]
-    const names = leads.filter(l => ids.includes(l.id)).map(l => l.name)
-    await supabase.from('leads').delete().in('id', ids)
-    await supabase.from('sales_leads').delete().in('company_name', names)
-    setLeads(prev => prev.filter(l => !ids.includes(l.id)))
-    setSelected(new Set())
-  }
-
-  const saveLead = async (id: string, updates: Partial<Lead>) => {
-    await supabase.from('leads').update(updates).eq('id', id)
-    updateLead(id, updates)
-  }
-
-  const changeStatus = async (id: string, status: string) => {
-    await supabase.from('leads').update({ status }).eq('id', id)
-    updateLead(id, { status })
-  }
-
-  const setQualification = async (id: string, qualified: boolean | null) => {
-    await supabase.from('leads').update({ qualified, disqualified_reason: qualified === false ? 'Handmatig afgekeurd' : null }).eq('id', id)
-    updateLead(id, { qualified, disqualified_reason: qualified === false ? 'Handmatig afgekeurd' : null })
-  }
-
-  const reScrapeOne = (lead: Lead) => startEnrichment([lead])
-
-  const [pipelineAdded, setPipelineAdded] = useState<Set<string>>(new Set())
-  const [pipelineExisting, setPipelineExisting] = useState<Set<string>>(new Set())
-  const [pipelineNames, setPipelineNames] = useState<Set<string>>(new Set())
-  const [pipelineToast, setPipelineToast] = useState<{ count: number; visible: boolean } | null>(null)
-
+  // ── Add to pipeline ───────────────────────────────────────────────────────
   const addToPipeline = async (lead: Lead) => {
-    // Use selectedCity as the canonical city; lead.city from scraper may contain street addresses
-    const cleanCity = selectedCity || lead.city || undefined
     const payload = {
       company_name: lead.name,
       email: lead.email || undefined,
       phone: lead.phone || undefined,
-      city: cleanCity,
+      city: lead.city || undefined,
       address: lead.address || undefined,
       website: lead.website || undefined,
       status: 'cold' as const,
@@ -540,633 +185,473 @@ export default function ScraperPage() {
       twitter: lead.twitter || undefined,
     }
     const { data: existing } = await supabase.from('sales_leads').select('id').eq('company_name', lead.name).maybeSingle()
-    const { error } = existing
-      ? await supabase.from('sales_leads').update(payload).eq('id', existing.id)
+    const exists = existing as { id: string } | null
+    const { error } = exists
+      ? await supabase.from('sales_leads').update(payload).eq('id', exists.id)
       : await supabase.from('sales_leads').insert(payload)
     if (!error) {
-      setPipelineAdded(prev => new Set([...prev, lead.id]))
+      setAdded(prev => new Set([...prev, lead.id]))
       setPipelineNames(prev => new Set([...prev, lead.name]))
-      // Remove from scraper list after short delay
-      setTimeout(() => {
-        setLeads(prev => prev.filter(l => l.id !== lead.id))
-        setPipelineAdded(prev => { const n = new Set(prev); n.delete(lead.id); return n })
-      }, 1000)
+      setSessionStats(prev => ({ ...prev, added: prev.added + 1 }))
     }
   }
 
-  const bulkAddToPipeline = async () => {
-    if (selected.size === 0) return
-    const target = sorted.filter(l => selected.has(l.id))
+  const addSelected = async () => {
+    const target = leads.filter(l => selected.has(l.id))
     await Promise.all(target.map(l => addToPipeline(l)))
-    // Update existing set so they show as "already in pipeline"
-    setPipelineExisting(prev => new Set([...prev, ...target.map(l => l.id)]))
-    // Show success toast
-    setPipelineToast({ count: target.length, visible: true })
-    setTimeout(() => setPipelineToast(null), 4000)
-    selectNone()
+    setSelected(new Set())
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
+  // ── Filter logic — losse substring-match op city + type (categories of naam) ──
+  const filteredLeads = useMemo(() => {
+    return leads.filter(l => {
+      if (cityFilter) {
+        const cityLower = cityFilter.toLowerCase()
+        const cityMatch = (l.city || '').toLowerCase().includes(cityLower)
+          || (l.address || '').toLowerCase().includes(cityLower)
+        if (!cityMatch) return false
+      }
+      if (typeFilter) {
+        const tLower = typeFilter.toLowerCase()
+        const inCats = (l.categories || []).some(c => c.toLowerCase().includes(tLower))
+        const inName = l.name.toLowerCase().includes(tLower)
+        if (!inCats && !inName) return false
+      }
+      const s = statusOf(l, pipelineNames)
+      if (filterMode === 'new' && s !== 'new') return false
+      if (filterMode === 'in-pipe' && s !== 'in-pipe') return false
+      if (filterMode === 'duplicate' && s !== 'duplicate') return false
+      return true
+    })
+  }, [leads, cityFilter, typeFilter, filterMode, pipelineNames])
 
-  const totalLeads = leads.length
-  const withEmail = leads.filter(l => l.email).length
-  const notScraped = leads.filter(l => !l.enriched && l.website).length
-  const enrichProgressPercent = enrichProgress.total > 0 ? (enrichProgress.done / enrichProgress.total) * 100 : 0
-  const cities = [...new Set(leads.map(l => l.city).filter(Boolean))].sort() as string[]
-  const usagePercent = (usage.searches_used / usage.max_searches) * 100
+  const toggleRow = (id: string) => {
+    setSelected(prev => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id); else n.add(id)
+      return n
+    })
+  }
+
+  const toggleFilterMode = (mode: FilterMode) => {
+    setFilterMode(prev => prev === mode ? null : mode)
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <>
+      <style jsx global>{`
+        .scr-root { font-size: 14px; line-height: 1.5; color: var(--ink); }
+        .scr-input {
+          width: 100%; padding: 7px 12px 7px 36px;
+          border: 1px solid var(--edge); border-radius: 6px;
+          background: var(--surface); font-size: 12.5px; color: var(--ink);
+          outline: none; transition: border-color 130ms, background 130ms;
+        }
+        .scr-input:focus { border-color: var(--accent); background: var(--bg, #F9FAFE); }
+        .scr-input::placeholder { color: var(--ink-ghost); }
+        .scr-select {
+          height: 32px; padding: 0 28px 0 10px; border: 1px solid var(--edge);
+          border-radius: 6px; background: var(--surface); font-size: 11px;
+          font-weight: 600; color: var(--ink-muted); outline: none;
+          -webkit-appearance: none; appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23aaaaaa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+          background-repeat: no-repeat; background-position: right 9px center;
+          cursor: pointer; transition: border-color 130ms;
+        }
+        .scr-select:focus { border-color: var(--accent); }
+        .scr-pill {
+          height: 32px; padding: 0 13px; border: 1px solid var(--edge);
+          border-radius: 6px; font-size: 11px; font-weight: 600;
+          color: var(--ink-ghost); background: var(--surface); transition: all 130ms;
+          cursor: pointer; white-space: nowrap;
+        }
+        .scr-pill.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+        .scr-pill:hover:not(.active) { border-color: var(--ink-ghost); color: var(--ink-muted); }
+        .scr-btn-primary {
+          background: var(--accent); color: #fff; border: none;
+          padding: 6px 16px; border-radius: 9999px;
+          font-size: 11px; font-weight: 700; letter-spacing: 0.035em;
+          display: inline-flex; align-items: center; gap: 5px; transition: opacity 130ms;
+          cursor: pointer;
+        }
+        .scr-btn-primary:hover { opacity: 0.82; }
+        .scr-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .scr-btn-outline {
+          height: 32px; padding: 0 14px; border: 1px solid var(--edge);
+          border-radius: 9999px; background: transparent; font-size: 11px;
+          font-weight: 600; color: var(--ink); transition: all 130ms; cursor: pointer;
+        }
+        .scr-btn-outline:hover { border-color: var(--ink-ghost); background: var(--surface); }
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Zap className="h-6 w-6 text-gray-900" />
+        .scr-table { width: 100%; border-collapse: collapse; }
+        .scr-table thead tr { border-bottom: 1px solid var(--edge); }
+        .scr-table th {
+          padding: 8px 12px 7px; font-size: 8px; font-weight: 700; letter-spacing: 0.18em;
+          text-transform: uppercase; color: var(--ink-ghost); text-align: left;
+          white-space: nowrap; background: var(--surface);
+        }
+        .scr-table th:first-child { padding-left: 28px; }
+        .scr-table th:last-child { padding-right: 28px; }
+        .scr-table td { padding: 13px 12px; border-bottom: 1px solid var(--edge-soft); vertical-align: middle; }
+        .scr-table td:first-child { padding-left: 28px; }
+        .scr-table td:last-child { padding-right: 28px; }
+        .scr-row { cursor: pointer; transition: background 110ms; }
+        .scr-row:hover { background: oklch(0.988 0 0); }
+        .scr-row.selected { background: var(--accent-tint); }
+
+        .scr-check {
+          width: 14px; height: 14px; border-radius: 3px;
+          border: 1.5px solid var(--edge); background: var(--bg, #F9FAFE);
+          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          transition: all 130ms;
+        }
+        .scr-check.on { background: var(--accent); border-color: var(--accent); }
+        .scr-check.on::after { content: ''; display: block; width: 7px; height: 4px; border-left: 1.5px solid #fff; border-bottom: 1.5px solid #fff; transform: rotate(-45deg) translateY(-1px); }
+
+        .scr-cat-chip {
+          display: inline-flex; align-items: center; padding: 2px 8px;
+          border-radius: 9999px; font-size: 9.5px; font-weight: 600;
+          background: var(--surface); border: 1px solid var(--edge); color: var(--ink-faint); white-space: nowrap;
+        }
+
+        .scr-status-chip {
+          display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+          border-radius: 9999px; font-size: 9.5px; font-weight: 600;
+          text-transform: lowercase; white-space: nowrap;
+        }
+        .scr-status-chip .scr-dot { width: 5px; height: 5px; border-radius: 50%; }
+        .st-new { background: var(--surface); border: 1px solid var(--edge); color: var(--ink-ghost); }
+        .st-new .scr-dot { background: var(--ink-ghost); }
+        .st-pipe { background: var(--accent-tint); color: var(--accent); }
+        .st-pipe .scr-dot { background: var(--accent); }
+        .st-dup { background: oklch(0.97 0.05 72); color: oklch(0.50 0.14 65); }
+        .st-dup .scr-dot { background: oklch(0.50 0.14 65); }
+        .st-closed { background: oklch(0.96 0.04 145); color: oklch(0.65 0.16 145); }
+        .st-closed .scr-dot { background: oklch(0.65 0.16 145); }
+
+        .scr-add-btn {
+          width: 28px; height: 28px; border: 1px solid var(--edge); border-radius: 50%;
+          background: transparent; display: flex; align-items: center; justify-content: center;
+          color: var(--ink-ghost); transition: all 130ms; cursor: pointer;
+        }
+        .scr-add-btn:hover:not(.done) { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
+        .scr-add-btn.done { border-color: oklch(0.65 0.16 145); color: oklch(0.65 0.16 145); background: oklch(0.96 0.04 145); cursor: default; }
+
+        .scr-panel { border: 1px solid var(--edge); border-radius: 4px; background: var(--bg, #F9FAFE); overflow: hidden; }
+        .scr-panel-head { padding: 10px 14px; border-bottom: 1px solid var(--edge); background: var(--surface); }
+        .scr-panel-eye { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.20em; color: var(--ink-ghost); }
+        .scr-panel-body { padding: 14px; }
+
+        .scr-field-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-ghost); margin-bottom: 5px; }
+        .scr-form-input {
+          width: 100%; border: 1px solid var(--edge); border-radius: 5px;
+          padding: 7px 10px; font-size: 12px; color: var(--ink); background: var(--bg, #F9FAFE);
+          outline: none; transition: border-color 130ms; box-sizing: border-box;
+        }
+        .scr-form-input:focus { border-color: var(--accent); }
+
+        .scr-city-tag {
+          padding: 3px 10px; border-radius: 9999px; font-size: 10.5px; font-weight: 600;
+          border: 1px solid var(--edge); color: var(--ink-ghost); background: var(--surface);
+          cursor: pointer; transition: all 120ms;
+        }
+        .scr-city-tag.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .scr-city-tag:hover:not(.on) { border-color: var(--ink-ghost); color: var(--ink-muted); }
+
+        .scr-run-btn {
+          display: flex; width: 100%; align-items: center; justify-content: center; gap: 7px;
+          background: var(--accent); color: #fff; border: none;
+          padding: 10px; border-radius: 6px; font-size: 12px; font-weight: 700;
+          letter-spacing: 0.03em; transition: opacity 130ms; cursor: pointer;
+        }
+        .scr-run-btn:hover:not(:disabled) { opacity: 0.82; }
+        .scr-run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .scr-stat-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--edge-soft); }
+        .scr-stat-row:last-child { border-bottom: none; }
+        .scr-stat-lbl { font-size: 11px; color: var(--ink-ghost); }
+        .scr-stat-val { font-size: 12px; font-weight: 700; color: var(--ink-muted); font-family: ui-monospace, monospace; }
+
+        .scr-run-history-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--edge-soft); }
+        .scr-run-history-row:last-child { border-bottom: none; }
+        .scr-run-dot { width: 6px; height: 6px; border-radius: 50%; background: oklch(0.65 0.16 145); flex-shrink: 0; }
+        .scr-run-dot.fail { background: var(--danger); }
+        .scr-run-title { font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+        .scr-run-sub { font-size: 10px; color: var(--ink-ghost); }
+        .scr-run-count { font-size: 10.5px; font-weight: 700; color: var(--ink-ghost); font-family: ui-monospace, monospace; }
+
+        .scr-bulk-bar {
+          position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+          background: var(--ink); color: #fff; border-radius: 10px;
+          display: flex; align-items: center; gap: 12px; padding: 10px 18px;
+          box-shadow: 0 4px 20px rgba(5,15,22,0.22); z-index: 200; white-space: nowrap;
+        }
+        .scr-bulk-btn { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,0.72); border: none; background: none; padding: 3px 8px; border-radius: 5px; transition: all 120ms; cursor: pointer; }
+        .scr-bulk-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+        .scr-bulk-btn.primary { background: var(--accent); color: #fff; padding: 5px 12px; border-radius: 7px; }
+        .scr-bulk-btn.primary:hover { opacity: 0.85; background: var(--accent); }
+      `}</style>
+
+      <div className="scr-root" style={{ margin: '-16px -16px 0', minHeight: 'calc(100vh - 64px)', background: 'var(--bg, #F9FAFE)' }}>
+        {/* Header */}
+        <div
+          style={{
+            height: 58, background: 'var(--bg, #F9FAFE)', borderBottom: '1px solid var(--edge)',
+            display: 'flex', alignItems: 'center', padding: '0 24px', gap: 12,
+            position: 'sticky', top: 64, zIndex: 30,
+          }}
+        >
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginRight: 16, whiteSpace: 'nowrap' }}>
             Lead Scraper
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Vind bedrijven via Google Maps en scrape automatisch hun emails</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className={cn('flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-colors',
-              showHistory ? 'bg-gray-100 border-gray-300 text-black' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50')}
-          >
-            <History className="h-4 w-4" />
-            Geschiedenis
-          </button>
-          <Button variant="outline" size="sm" onClick={loadInitialData} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Vernieuwen
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Search Box ─────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-        <div className="flex gap-3 flex-wrap">
-          <select
-            value={selectedCity}
-            onChange={e => setSelectedCity(e.target.value)}
-            className={cn(
-              'px-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-gray-900',
-              selectedCity ? 'border-gray-200 bg-gray-50' : 'border-orange-300 bg-orange-50 text-orange-700'
-            )}
-          >
-            <option value="">⚠ Kies een stad *</option>
-            {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-
-          <select
-            value={selectedType}
-            onChange={e => { setSelectedType(e.target.value); if (e.target.value) setQuery('') }}
-            className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900"
-          >
-            <option value="">Type studio...</option>
-            {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          </span>
+          <div style={{ flex: 1, maxWidth: 480, position: 'relative' }}>
+            <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-ghost)', width: 14, height: 14 }} />
             <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="bijv. fotostudio, podcast studio, muziekstudio..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-gray-50"
+              className="scr-input"
+              placeholder='Zoekterm voor scraper, bv. "fotostudio Amsterdam"'
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
             />
           </div>
-
-          <Button
-            onClick={() => handleSearch()}
-            disabled={searching || (!query.trim() && !selectedType) || !selectedCity}
-            className="gap-2 px-6"
-            title={!selectedCity ? 'Selecteer eerst een stad' : undefined}
-          >
-            {searching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            {searching ? 'Zoeken...' : 'Zoek'}
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <select className="scr-select" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
+              <option value="">Alle steden</option>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select className="scr-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="">Alle types</option>
+              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button className={`scr-pill${filterMode === 'new' ? ' active' : ''}`} onClick={() => toggleFilterMode('new')}>Nieuw</button>
+            <button className={`scr-pill${filterMode === 'in-pipe' ? ' active' : ''}`} onClick={() => toggleFilterMode('in-pipe')}>In pipeline</button>
+            <button className={`scr-pill${filterMode === 'duplicate' ? ' active' : ''}`} onClick={() => toggleFilterMode('duplicate')}>Dubbel</button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+            <button className="scr-btn-outline">Exporteren</button>
+            <button className="scr-btn-primary" onClick={handleSearch} disabled={searching}>
+              {searching ? <Loader2 className="animate-spin" style={{ width: 13, height: 13 }} /> : <Play style={{ width: 13, height: 13 }} />}
+              Scraper starten
+            </button>
+          </div>
         </div>
 
-        {/* Usage bar */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-              <span>SerpAPI gebruik deze maand</span>
-              <span className={cn('font-medium', usagePercent >= 80 ? 'text-red-500' : usagePercent >= 60 ? 'text-amber-500' : 'text-gray-600')}>
-                {usage.searches_used} / {usage.max_searches} searches
+        {/* Body grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', alignItems: 'start' }}>
+          {/* Results column */}
+          <div style={{ borderRight: '1px solid var(--edge)' }}>
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 28px', borderBottom: '1px solid var(--edge)', background: 'var(--surface)',
+              }}
+            >
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-ghost)' }}>
+                Resultaten
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace' }}>
+                {filteredLeads.length} studio{filteredLeads.length !== 1 ? "'s" : ''} gevonden
               </span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5">
-              <div
-                className={cn('h-1.5 rounded-full transition-all', usagePercent >= 80 ? 'bg-red-400' : usagePercent >= 60 ? 'bg-amber-400' : 'bg-gray-900')}
-                style={{ width: `${Math.min(usagePercent, 100)}%` }}
-              />
+
+            {searchError && (
+              <div style={{ padding: '12px 28px', background: 'oklch(0.97 0.03 27)', color: 'var(--danger)', fontSize: 12, borderBottom: '1px solid var(--edge)' }}>
+                {searchError}
+              </div>
+            )}
+
+            <table className="scr-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 40 }}></th>
+                  <th style={{ width: 220 }}>Studio</th>
+                  <th style={{ width: 140 }}>Type</th>
+                  <th>Contact</th>
+                  <th style={{ width: 130 }}>Status</th>
+                  <th style={{ width: 44 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 40, textAlign: 'center', fontSize: 13, color: 'var(--ink-ghost)' }}>
+                      {searching ? 'Bezig met zoeken…' : 'Geen resultaten. Start een nieuwe zoekopdracht in het paneel rechts.'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLeads.map(lead => {
+                    const status = statusOf(lead, pipelineNames)
+                    const isDone = added.has(lead.id) || status === 'in-pipe' || status === 'closed'
+                    const isSelected = selected.has(lead.id)
+                    const primaryCat = lead.categories?.[0] || 'Studio'
+                    return (
+                      <tr
+                        key={lead.id}
+                        className={`scr-row${isSelected ? ' selected' : ''}`}
+                        onClick={() => toggleRow(lead.id)}
+                      >
+                        <td>
+                          <div
+                            className={`scr-check${isSelected ? ' on' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); toggleRow(lead.id) }}
+                          />
+                        </td>
+                        <td>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{lead.name}</div>
+                          {lead.city && (
+                            <div style={{ fontSize: 11, color: 'var(--ink-ghost)', fontWeight: 500, marginTop: 1 }}>{lead.city}</div>
+                          )}
+                        </td>
+                        <td>
+                          <span className="scr-cat-chip">{primaryCat}</span>
+                        </td>
+                        <td>
+                          {lead.website && (
+                            <a
+                              href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'underline', textUnderlineOffset: 2 }}
+                            >
+                              <Globe style={{ width: 11, height: 11 }} />
+                              {lead.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                            </a>
+                          )}
+                          {lead.instagram && (
+                            <div style={{ marginTop: 2 }}>
+                              <a
+                                href={lead.instagram.startsWith('http') ? lead.instagram : `https://instagram.com/${lead.instagram.replace('@', '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'underline', textUnderlineOffset: 2 }}
+                              >
+                                <Camera style={{ width: 11, height: 11 }} />
+                                {lead.instagram}
+                              </a>
+                            </div>
+                          )}
+                          {lead.phone && (
+                            <div style={{ fontSize: 11, color: 'var(--ink-muted)', fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>
+                              {lead.phone}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`scr-status-chip ${statusClass(status)}`}>
+                            <span className="scr-dot" />
+                            {statusLabel(status)}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            className={`scr-add-btn${isDone ? ' done' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); if (!isDone) addToPipeline(lead) }}
+                            disabled={isDone}
+                            title={isDone ? 'Al in pipeline' : 'Toevoegen aan pipeline'}
+                          >
+                            {isDone ? <Check style={{ width: 14, height: 14 }} /> : <Plus style={{ width: 14, height: 14 }} />}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+
+            <div style={{ borderTop: '1px solid var(--edge)', padding: '11px 28px' }}>
+              <span style={{ fontSize: 11, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace' }}>
+                Lctnships Workspace &middot; Lead Scraper &middot; Google Maps + Instagram
+              </span>
             </div>
           </div>
-          {usagePercent >= 80 && (
-            <span className="text-xs text-red-500 font-medium flex items-center gap-1">
-              <AlertCircle className="h-3.5 w-3.5" /> Bijna op
-            </span>
-          )}
+
+          {/* Sidebar */}
+          <div
+            style={{
+              position: 'sticky', top: 122, maxHeight: 'calc(100vh - 122px)',
+              overflowY: 'auto', padding: 20,
+              display: 'flex', flexDirection: 'column', gap: 14,
+            }}
+          >
+            {/* Session stats */}
+            <div className="scr-panel">
+              <div className="scr-panel-head">
+                <span className="scr-panel-eye">Sessie</span>
+              </div>
+              <div style={{ padding: '0 14px' }}>
+                <div className="scr-stat-row">
+                  <span className="scr-stat-lbl">Gevonden</span>
+                  <span className="scr-stat-val">{sessionStats.found}</span>
+                </div>
+                <div className="scr-stat-row">
+                  <span className="scr-stat-lbl">Toegevoegd aan pipeline</span>
+                  <span className="scr-stat-val">{sessionStats.added}</span>
+                </div>
+                <div className="scr-stat-row">
+                  <span className="scr-stat-lbl">Al in pipeline</span>
+                  <span className="scr-stat-val">{sessionStats.alreadyInPipe}</span>
+                </div>
+                <div className="scr-stat-row">
+                  <span className="scr-stat-lbl">Dubbel gevonden</span>
+                  <span className="scr-stat-val">{sessionStats.duplicates}</span>
+                </div>
+                <div className="scr-stat-row">
+                  <span className="scr-stat-lbl">Overgeslagen</span>
+                  <span className="scr-stat-val">{sessionStats.skipped}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent searches */}
+            <div className="scr-panel">
+              <div className="scr-panel-head">
+                <span className="scr-panel-eye">Recente zoekopdrachten</span>
+              </div>
+              <div style={{ padding: '0 14px' }}>
+                {history.length === 0 ? (
+                  <div style={{ padding: '12px 0', fontSize: 11, color: 'var(--ink-ghost)' }}>
+                    Nog geen zoekopdrachten.
+                  </div>
+                ) : (
+                  history.slice(0, 6).map(h => (
+                    <div key={h.id} className="scr-run-history-row">
+                      <div className={`scr-run-dot${h.results_count === 0 ? ' fail' : ''}`} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="scr-run-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {h.query}
+                        </div>
+                        <div className="scr-run-sub">
+                          {formatRelativeDate(h.created_at)}{h.results_count === 0 ? ' · mislukt' : ''}
+                        </div>
+                      </div>
+                      <span className="scr-run-count">{h.results_count === 0 ? '—' : h.results_count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {searchError && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-600 text-sm">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            {searchError}
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div className="scr-bulk-bar">
+            <span style={{ fontSize: 12, fontWeight: 700 }}>{selected.size} geselecteerd</span>
+            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.18)' }} />
+            <button className="scr-bulk-btn primary" onClick={addSelected}>
+              <Plus style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', marginRight: 3 }} />
+              Toevoegen aan pipeline
+            </button>
+            <button className="scr-bulk-btn" onClick={() => setSelected(new Set())}>Deselecteren</button>
+            <button className="scr-bulk-btn" onClick={() => setSelected(new Set())} aria-label="Sluiten">
+              <X style={{ width: 14, height: 14 }} />
+            </button>
           </div>
         )}
       </div>
-
-      {/* ── History panel ──────────────────────────────────────────────────── */}
-      {showHistory && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <History className="h-4 w-4 text-gray-400" />
-            Zoekgeschiedenis
-          </h2>
-          {history.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">Nog geen zoekopdrachten</p>
-          ) : (
-            <div className="space-y-2">
-              {history.map(h => (
-                <div key={h.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{h.query}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(h.created_at).toLocaleDateString('nl-NL')} · {h.results_count} resultaten · {h.emails_found} emails
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => handleSearch(h.query, h.city || '')} className="gap-1.5">
-                    <Play className="h-3.5 w-3.5" />
-                    Opnieuw
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Enrichment progress ────────────────────────────────────────────── */}
-      {(enriching || enrichProgress.done > 0) && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-600">
-                  Emails zoeken... {enrichProgress.done}/{enrichProgress.total}
-                  <span className="text-green-600 ml-2">· {enrichProgress.emails} gevonden</span>
-                  {enrichProgress.errors > 0 && <span className="text-red-400 ml-2">· {enrichProgress.errors} fouten</span>}
-                  {enrichPaused && <span className="text-amber-500 ml-2">· Gepauzeerd</span>}
-                </span>
-                <span className="font-medium">{Math.round(enrichProgressPercent)}%</span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div
-                  className={cn('h-2 rounded-full transition-all', enrichPaused ? 'bg-amber-400' : 'bg-gray-900')}
-                  style={{ width: `${enrichProgressPercent}%` }}
-                />
-              </div>
-            </div>
-            {enriching && (
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={toggleEnrichPause} className="gap-1.5">
-                  {enrichPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-                  {enrichPaused ? 'Hervatten' : 'Pauzeer'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={stopEnrichment} className="gap-1.5 text-red-500 border-red-200 hover:bg-red-50">
-                  <Square className="h-3.5 w-3.5" />
-                  Stop
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Stats ──────────────────────────────────────────────────────────── */}
-      {leads.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
-            <p className="text-2xl font-bold text-gray-900">{totalLeads}</p>
-            <p className="text-xs text-gray-500 mt-1">Totaal leads</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
-            <p className="text-2xl font-bold text-green-600">{withEmail}</p>
-            <p className="text-xs text-gray-500 mt-1">Met email</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
-            <p className="text-2xl font-bold text-gray-900">{notScraped}</p>
-            <p className="text-xs text-gray-500 mt-1">Nog te scrapen</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Filters ────────────────────────────────────────────────────────── */}
-      {leads.length > 0 && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative max-w-xs flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input placeholder="Filteren op naam, email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 rounded-xl" />
-          </div>
-
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-            {([
-              { id: 'all', label: 'Alle' },
-              { id: 'with_email', label: 'Met email' },
-              { id: 'not_scraped', label: 'Te scrapen' },
-              { id: 'errors', label: 'Fouten' },
-            ] as { id: FilterType; label: string }[]).map(f => (
-              <button key={f.id} onClick={() => setFilter(f.id)}
-                className={cn('px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
-                  filter === f.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          <select value={filter === 'qualified' || filter === 'disqualified' || filter === 'unreviewed' ? filter : ''} onChange={e => setFilter((e.target.value || 'all') as FilterType)}
-            className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none">
-            <option value="">Kwalificatie</option>
-            <option value="qualified">✓ Geschikt (87)</option>
-            <option value="disqualified">✗ Afgekeurd (56)</option>
-            <option value="unreviewed">? Nog beoordelen (10)</option>
-          </select>
-
-          <select value={cityFilter} onChange={e => setCityFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none">
-            <option value="">Alle steden</option>
-            {cities.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none">
-            <option value="">Alle statussen</option>
-            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-
-          <select value={minRating} onChange={e => setMinRating(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none">
-            <option value="">Min. rating</option>
-            {['3', '3.5', '4', '4.5'].map(r => <option key={r} value={r}>★ {r}+</option>)}
-          </select>
-
-          <span className="text-xs text-gray-400 flex items-center gap-1">
-            <Filter className="h-3.5 w-3.5" />{sorted.length} leads
-          </span>
-
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 ml-auto">
-            <button onClick={() => setViewMode('table')} className={cn('p-1.5 rounded-lg transition-all', viewMode === 'table' ? 'bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
-              <List className="h-4 w-4" />
-            </button>
-            <button onClick={() => setViewMode('cards')} className={cn('p-1.5 rounded-lg transition-all', viewMode === 'cards' ? 'bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Select helpers + bulk actions ──────────────────────────────────── */}
-      {leads.length > 0 && (
-        <div className="flex items-center gap-3 flex-wrap text-sm">
-          <button onClick={selectAll} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
-            <CheckSquare className="h-3.5 w-3.5" /> Alles ({sorted.length})
-          </button>
-          <span className="text-gray-300">·</span>
-          <button onClick={selectWithEmail} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
-            <Mail className="h-3.5 w-3.5" /> Met email ({sorted.filter(l => l.email).length})
-          </button>
-          <span className="text-gray-300">·</span>
-          <button onClick={selectNewOnly} className="text-gray-900 hover:text-gray-800 flex items-center gap-1">
-            <Target className="h-3.5 w-3.5" /> Alleen nieuw ({sorted.filter(l => !pipelineExisting.has(l.id) && !pipelineAdded.has(l.id)).length})
-          </button>
-          {selected.size > 0 && (
-            <>
-              <span className="text-gray-300">·</span>
-              <button onClick={selectNone} className="text-gray-500 hover:text-gray-700">Wis selectie</button>
-            </>
-          )}
-        </div>
-      )}
-
-      {selected.size > 0 && (
-        <div className="bg-gray-100 border border-gray-300 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
-          <span className="text-sm font-medium text-black">{selected.size} geselecteerd</span>
-          <Button size="sm" variant="outline" onClick={copyAllEmails} className="gap-1.5 bg-white">
-            <Copy className="h-3.5 w-3.5" /> Kopieer emails
-          </Button>
-          <Button size="sm" variant="outline" onClick={exportCSV} className="gap-1.5 bg-white">
-            <Download className="h-3.5 w-3.5" /> Export CSV
-          </Button>
-          <Button size="sm" variant="outline" onClick={exportHubSpotCSV} className="gap-1.5 bg-white">
-            <Download className="h-3.5 w-3.5" /> HubSpot CSV
-          </Button>
-          <Button size="sm" variant="outline" onClick={bulkReScrape} className="gap-1.5 bg-white">
-            <RefreshCw className="h-3.5 w-3.5" /> Opnieuw scrapen
-          </Button>
-          <select onChange={e => { if (e.target.value) bulkChangeStatus(e.target.value) }} defaultValue=""
-            className="px-2 py-1 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none">
-            <option value="">Status wijzigen...</option>
-            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <Button size="sm" variant="outline" onClick={bulkAddToPipeline} className="gap-1.5 bg-white text-gray-900 border-gray-300 hover:bg-gray-100">
-            <Target className="h-3.5 w-3.5" /> Naar Pipeline
-          </Button>
-          <Button size="sm" variant="outline" onClick={bulkDelete} className="gap-1.5 bg-white text-red-500 border-red-200 hover:bg-red-50 ml-auto">
-            <Trash2 className="h-3.5 w-3.5" /> Verwijder
-          </Button>
-        </div>
-      )}
-
-      {/* ── Cards ──────────────────────────────────────────────────────────── */}
-      {leads.length > 0 && viewMode === 'cards' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sorted.map(lead => (
-            <div key={lead.id} className={cn(
-              'bg-white rounded-2xl border overflow-hidden flex flex-col transition-all',
-              lead.qualified === true ? 'border-green-200' : lead.qualified === false ? 'border-red-100' : 'border-gray-100'
-            )}>
-              {/* Header met thumbnail */}
-              <div className="relative h-28 bg-gray-50 flex items-center justify-center">
-                {lead.thumbnail
-                  ? <img src={lead.thumbnail} alt="" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = 'none')} />
-                  : <Globe className="h-10 w-10 text-gray-200" />
-                }
-                {lead.qualified === true && <span className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Geschikt</span>}
-                {lead.qualified === false && <span className="absolute top-2 right-2 bg-red-400 text-white text-xs px-2 py-0.5 rounded-full font-medium">Afgekeurd</span>}
-              </div>
-
-              {/* Info */}
-              <div className="p-4 flex-1 space-y-2">
-                <h3 className="font-semibold text-gray-900 leading-tight">{lead.name}</h3>
-                {lead.categories && <p className="text-xs text-gray-400">{lead.categories.join(', ')}</p>}
-                {lead.city && <p className="text-xs text-gray-500 flex items-center gap-1"><MapPin className="h-3 w-3" />{lead.city}</p>}
-                {lead.google_rating && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-amber-400" /> {lead.google_rating} ({lead.google_reviews} reviews)
-                  </p>
-                )}
-                {lead.email && <p className="text-xs text-green-700 truncate flex items-center gap-1"><Mail className="h-3 w-3" />{lead.email}</p>}
-                {lead.phone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</p>}
-              </div>
-
-              {/* Acties */}
-              <div className="px-4 pb-4 flex items-center gap-2">
-                {lead.website && (
-                  <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Globe className="h-3.5 w-3.5" /> Website
-                  </a>
-                )}
-                <button onClick={() => setQualification(lead.id, true)}
-                  className={cn('p-2 rounded-xl border transition-colors', lead.qualified === true ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-gray-400 hover:bg-green-50 hover:text-green-600 hover:border-green-200')}>
-                  <ThumbsUp className="h-4 w-4" />
-                </button>
-                <button onClick={() => setQualification(lead.id, false)}
-                  className={cn('p-2 rounded-xl border transition-colors', lead.qualified === false ? 'bg-red-400 border-red-400 text-white' : 'border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200')}>
-                  <ThumbsDown className="h-4 w-4" />
-                </button>
-                <button onClick={() => addToPipeline(lead)}
-                  className="p-2 rounded-xl border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors">
-                  <Target className="h-4 w-4" />
-                </button>
-                <button onClick={() => deleteLead(lead)}
-                  className="p-2 rounded-xl border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors ml-auto">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Table ──────────────────────────────────────────────────────────── */}
-      {leads.length === 0 && !searching ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
-          <Zap className="h-16 w-16 mx-auto mb-4 text-gray-200" />
-          <h2 className="text-xl font-semibold text-gray-700">Zoek je eerste leads</h2>
-          <p className="text-gray-400 mt-2 text-sm">Typ een zoekopdracht hierboven, bijv. &quot;podcast studio Amsterdam&quot;</p>
-        </div>
-      ) : viewMode === 'table' && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="w-10 px-4 py-3">
-                    <input type="checkbox"
-                      checked={selected.size === sorted.length && sorted.length > 0}
-                      onChange={e => e.target.checked ? selectAll() : selectNone()}
-                      className="rounded" />
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[180px]">
-                    <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-gray-900">
-                      Naam <SortIcon field="name" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">
-                    <button onClick={() => toggleSort('city')} className="flex items-center gap-1 hover:text-gray-900">
-                      Stad <SortIcon field="city" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[140px]">Adres</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Telefoon</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Website</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Socials</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">
-                    <button onClick={() => toggleSort('google_rating')} className="flex items-center gap-1 hover:text-gray-900">
-                      Rating <SortIcon field="google_rating" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">
-                    <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-gray-900">
-                      Status <SortIcon field="status" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">
-                    <button onClick={() => toggleSort('enriched')} className="flex items-center gap-1 hover:text-gray-900">
-                      Email status <SortIcon field="enriched" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Acties</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {sorted.length === 0 ? (
-                  <tr>
-                    <td colSpan={12} className="px-4 py-12 text-center text-gray-400">
-                      <Users className="h-10 w-10 mx-auto mb-2 text-gray-200" />
-                      Geen leads voor deze filters
-                    </td>
-                  </tr>
-                ) : sorted.map(lead => (
-                  <tr key={lead.id} className={cn('hover:bg-gray-50/80 transition-colors', selected.has(lead.id) && 'bg-gray-100/40')}>
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)} className="rounded" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {lead.thumbnail && (
-                          <img src={lead.thumbnail} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0 bg-gray-100" onError={e => (e.currentTarget.style.display = 'none')} />
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-900 max-w-[160px] truncate">{lead.name}</p>
-                          {lead.notes && <p className="text-xs text-amber-600 truncate max-w-[160px]">{lead.notes}</p>}
-                          {lead._duplicate && <span className="text-xs text-gray-700">al aanwezig</span>}
-                          <div className="flex items-center gap-1 mt-0.5">
-                            {lead.qualified === true && (
-                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-md font-medium">✓ Geschikt</span>
-                            )}
-                            {lead.qualified === false && (
-                              <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-medium">✗ Afgekeurd</span>
-                            )}
-                            {(lead.qualified === null || lead.qualified === undefined) && (
-                              <div className="flex gap-1">
-                                <button onClick={() => setQualification(lead.id, true)} className="text-xs bg-gray-100 hover:bg-green-100 hover:text-green-700 px-1.5 py-0.5 rounded-md">✓</button>
-                                <button onClick={() => setQualification(lead.id, false)} className="text-xs bg-gray-100 hover:bg-red-100 hover:text-red-600 px-1.5 py-0.5 rounded-md">✗</button>
-                              </div>
-                            )}
-                            {lead.qualified !== null && lead.qualified !== undefined && (
-                              <button onClick={() => setQualification(lead.id, null)} className="text-xs text-gray-300 hover:text-gray-500 px-1">↩</button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 min-w-[100px]">
-                      {lead.city
-                        ? <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-gray-300" />{lead.city}</span>
-                        : <span className="text-gray-200 text-xs">—</span>
-                      }
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 min-w-[140px]">
-                      {lead.address
-                        ? <span className="text-xs truncate block max-w-[130px]" title={lead.address}>{lead.address}</span>
-                        : <span className="text-gray-200 text-xs">—</span>
-                      }
-                    </td>
-                    <td className="px-4 py-3">
-                      {lead.phone ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-gray-600 text-xs">{lead.phone}</span>
-                          <button onClick={() => { copyToClipboard(lead.phone!); setCopiedId(lead.id + '_phone'); setTimeout(() => setCopiedId(null), 1500) }} className="p-1 hover:bg-gray-100 rounded">
-                            {copiedId === lead.id + '_phone' ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-gray-300" />}
-                          </button>
-                        </div>
-                      ) : <span className="text-gray-200 text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {lead.website ? (
-                        <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="text-gray-900 hover:text-black flex items-center gap-1 max-w-[130px]">
-                          <Globe className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="truncate text-xs">{lead.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
-                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                        </a>
-                      ) : <span className="text-gray-200 text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {lead.email ? (
-                        <div className="flex items-center gap-1">
-                          <span
-                            className="text-green-700 font-medium max-w-[150px] truncate cursor-pointer hover:text-green-900 text-xs"
-                            onClick={() => { copyToClipboard(lead.email!); setCopiedId(lead.id); setTimeout(() => setCopiedId(null), 1500) }}
-                            title={lead.email}
-                          >
-                            {lead.email}
-                          </span>
-                          {copiedId === lead.id
-                            ? <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
-                            : <button onClick={() => { copyToClipboard(lead.email!); setCopiedId(lead.id); setTimeout(() => setCopiedId(null), 1500) }} className="p-0.5 hover:bg-gray-100 rounded flex-shrink-0">
-                                <Copy className="h-3 w-3 text-gray-300" />
-                              </button>
-                          }
-                        </div>
-                      ) : <span className="text-gray-200 text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {lead.instagram && <a href={lead.instagram} target="_blank" rel="noopener noreferrer"><Instagram className="h-4 w-4 text-pink-400 hover:text-pink-600" /></a>}
-                        {lead.facebook && <a href={lead.facebook} target="_blank" rel="noopener noreferrer"><Facebook className="h-4 w-4 text-blue-500 hover:text-blue-700" /></a>}
-                        {lead.linkedin && <a href={lead.linkedin} target="_blank" rel="noopener noreferrer"><Linkedin className="h-4 w-4 text-blue-400 hover:text-blue-600" /></a>}
-                        {lead.twitter && <a href={lead.twitter} target="_blank" rel="noopener noreferrer"><Twitter className="h-4 w-4 text-gray-500 hover:text-black" /></a>}
-                        {!lead.instagram && !lead.facebook && !lead.linkedin && !lead.twitter && <span className="text-gray-200 text-xs">—</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="space-y-0.5">
-                        <StarRating rating={lead.google_rating} />
-                        {lead.google_reviews && <p className="text-xs text-gray-400">{lead.google_reviews} reviews</p>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={lead.status} onChange={(s) => changeStatus(lead.id, s)} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <EnrichmentIcon lead={lead} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setEditLead(lead)} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Bewerk">
-                          <Edit2 className="h-3.5 w-3.5 text-gray-400" />
-                        </button>
-                        {lead.website && (
-                          <button onClick={() => reScrapeOne(lead)} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Scrape opnieuw">
-                            <RefreshCw className="h-3.5 w-3.5 text-gray-600" />
-                          </button>
-                        )}
-                        {lead.google_url && (
-                          <a href={lead.google_url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-100 rounded-lg" title="Open in Google Maps">
-                            <MapPin className="h-3.5 w-3.5 text-gray-300" />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => addToPipeline(lead)}
-                          className={cn('p-1.5 rounded-lg transition-colors', pipelineAdded.has(lead.id) ? 'bg-gray-200' : 'hover:bg-gray-100')}
-                          title="Voeg toe aan sales pipeline"
-                        >
-                          {pipelineAdded.has(lead.id)
-                            ? <Check className="h-3.5 w-3.5 text-gray-900" />
-                            : <Target className="h-3.5 w-3.5 text-gray-600" />
-                          }
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ── Edit modal ─────────────────────────────────────────────────────── */}
-      {editLead && <EditLeadModal lead={editLead} onSave={saveLead} onClose={() => setEditLead(null)} />}
-
-      {/* ── Pipeline success toast ───────────────────────────────────────── */}
-      {pipelineToast?.visible && (
-        <div className="fixed bottom-6 right-6 z-50 animate-fade-in">
-          <div className="flex items-center gap-3 bg-gray-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500">
-              <Check className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">{pipelineToast.count} lead{pipelineToast.count !== 1 ? 's' : ''} toegevoegd aan pipeline</p>
-              <p className="text-xs text-gray-400">Bekijk ze in Sales Pipeline</p>
-            </div>
-            <button onClick={() => setPipelineToast(null)} className="ml-2 p-1 rounded-full hover:bg-gray-800">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   )
 }
