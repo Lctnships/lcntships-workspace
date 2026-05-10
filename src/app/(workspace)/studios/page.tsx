@@ -569,11 +569,10 @@ export default function StudiosPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg)]" style={{ marginTop: -24, marginLeft: -24, marginRight: -24 }}>
+    <div className="flex flex-col bg-[var(--bg)]">
 
       {/* Header bar */}
-      <div className="sticky top-0 z-10 bg-[var(--bg)] border-b border-[var(--edge)]" style={{ height: 48 }}>
-        <div className="flex items-center gap-0 h-full px-10">
+      <div className="flex items-center gap-0 mb-4 pb-4 border-b border-[var(--edge)]" style={{ height: 48 }}>
           <span className="text-[9px] font-bold tracking-[0.20em] uppercase text-[var(--ink-ghost)] mr-6 whitespace-nowrap">Studios</span>
 
           {/* View toggle */}
@@ -625,7 +624,6 @@ export default function StudiosPage() {
             className="flex items-center gap-[5px] bg-[var(--accent)] text-white border-none px-4 py-[6px] rounded-full text-[11px] font-bold tracking-[0.03em] transition-opacity hover:opacity-80">
             <IcoPlus />Studio toevoegen
           </button>
-        </div>
       </div>
 
       {/* Content */}
