@@ -1437,13 +1437,19 @@ export default function SalesPage() {
   }
 
   const handleStatusChange = async (leadId: string, newStatus: SalesLead['status']) => {
+    // Optimistic: bewaar oude status, update UI direct, sync DB op achtergrond.
+    let prevStatus: SalesLead['status'] | undefined
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) { prevStatus = l.status; return { ...l, status: newStatus } }
+      return l
+    }))
+    setSelectedLead(prev => (prev && prev.id === leadId ? { ...prev, status: newStatus } : prev))
     try {
       await salesLeadsApi.update(leadId, { status: newStatus })
-      setLeads(leads.map(l => l.id === leadId ? { ...l, status: newStatus } : l))
-      if (selectedLead?.id === leadId) {
-        setSelectedLead({ ...selectedLead, status: newStatus })
-      }
     } catch (error: unknown) {
+      // Rollback bij fail
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: prevStatus ?? l.status } : l))
+      setSelectedLead(prev => (prev && prev.id === leadId ? { ...prev, status: prevStatus ?? prev.status } : prev))
       const err = error as { message?: string; code?: string; details?: string }
       console.error('Error updating status:', err?.message, err?.code, err?.details)
     }
