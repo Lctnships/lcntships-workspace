@@ -1373,6 +1373,15 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
 }
 
 
+function GoalStat({ val, label, color }: { val: string; label: string; color?: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+      <span style={{ fontSize: 13, fontWeight: 800, color: color || 'var(--ink-muted)', fontFamily: 'ui-monospace, monospace' }}>{val}</span>
+      <span style={{ fontSize: 8.5, color: 'var(--ink-ghost)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>{label}</span>
+    </div>
+  )
+}
+
 export default function SalesPage() {
   const [leads, setLeads] = useState<SalesLead[]>([])
   const [loading, setLoading] = useState(true)
@@ -1685,94 +1694,232 @@ export default function SalesPage() {
     )
   }
 
+  const activeCount = leads.filter(l => l.status !== 'closed' && l.status !== 'lost').length
+  const statusCounts = {
+    cold: leads.filter(l => l.status === 'cold').length,
+    warm: leads.filter(l => l.status === 'warm').length,
+    hot: leads.filter(l => l.status === 'hot').length,
+    voicemail: leads.filter(l => l.status === 'voicemail').length,
+    negotiation: leads.filter(l => l.status === 'negotiation').length,
+  }
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Hero Section - Road to 1000 */}
-      <div className="bg-gradient-to-br from-gray-900 via-purple-600 to-black rounded-3xl p-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+    <div style={{ margin: '-16px -16px 0', minHeight: 'calc(100vh - 64px)', background: 'var(--bg, #F9FAFE)' }}>
+      <style jsx global>{`
+        :root {
+          --cold-bg: oklch(0.96 0.005 240); --cold-fg: oklch(0.40 0.012 240); --cold-dot: oklch(0.55 0.012 240);
+          --warm-bg: oklch(0.97 0.06 72);   --warm-fg: oklch(0.48 0.14 65);   --warm-dot: oklch(0.68 0.16 72);
+          --hot-bg: oklch(0.97 0.06 40);    --hot-fg: oklch(0.45 0.18 35);    --hot-dot: oklch(0.60 0.22 30);
+          --vm-bg: oklch(0.97 0.04 280);    --vm-fg: oklch(0.46 0.18 280);    --vm-dot: oklch(0.60 0.20 280);
+          --neg-bg: oklch(0.94 0 0);        --neg-fg: oklch(0.20 0 0);        --neg-dot: oklch(0.22 0 0);
+          --closed-bg: oklch(0.96 0.06 145); --closed-fg: oklch(0.42 0.16 145); --closed-dot: oklch(0.58 0.18 145);
+          --lost-bg: oklch(0.97 0.03 27);   --lost-fg: oklch(0.48 0.20 27);   --lost-dot: oklch(0.57 0.24 27);
+        }
+        .sp-tab {
+          padding: 5px 14px; border-radius: 9999px; font-size: 10.5px; font-weight: 600;
+          border: 1px solid transparent; color: var(--ink-ghost); background: transparent;
+          transition: all 120ms; cursor: pointer;
+        }
+        .sp-tab.active { background: var(--surface); border-color: var(--edge); color: var(--ink); }
+        .sp-tab:hover:not(.active) { color: var(--ink-muted); }
+        .sp-btn-pill {
+          background: var(--ink); color: #fff; border: none; padding: 7px 16px;
+          border-radius: 9999px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+          display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 130ms;
+        }
+        .sp-btn-pill:hover { opacity: 0.82; }
+        .sp-btn-outline {
+          background: transparent; color: var(--ink); border: 1px solid var(--edge);
+          padding: 6px 14px; border-radius: 9999px; font-size: 11px; font-weight: 600;
+          display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 130ms;
+        }
+        .sp-btn-outline:hover { border-color: var(--ink-ghost); background: var(--surface); }
+        .sp-filter-pill {
+          display: inline-flex; align-items: center; gap: 5px; padding: 4px 13px;
+          border-radius: 9999px; font-size: 10.5px; font-weight: 600; border: 1px solid var(--edge);
+          background: var(--bg, #F9FAFE); color: var(--ink-ghost); transition: all 120ms;
+          white-space: nowrap; cursor: pointer;
+        }
+        .sp-filter-pill:hover { border-color: var(--ink-ghost); color: var(--ink-muted); }
+        .sp-filter-pill.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+        .sp-chip {
+          display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+          border-radius: 9999px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.02em;
+          white-space: nowrap; text-transform: lowercase;
+        }
+        .sp-chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+        .sp-chip.cold { background: var(--cold-bg); color: var(--cold-fg); }
+        .sp-chip.cold .sp-chip-dot { background: var(--cold-dot); }
+        .sp-chip.warm { background: var(--warm-bg); color: var(--warm-fg); }
+        .sp-chip.warm .sp-chip-dot { background: var(--warm-dot); }
+        .sp-chip.hot { background: var(--hot-bg); color: var(--hot-fg); }
+        .sp-chip.hot .sp-chip-dot { background: var(--hot-dot); }
+        .sp-chip.voicemail { background: var(--vm-bg); color: var(--vm-fg); }
+        .sp-chip.voicemail .sp-chip-dot { background: var(--vm-dot); }
+        .sp-chip.negotiation { background: var(--neg-bg); color: var(--neg-fg); }
+        .sp-chip.negotiation .sp-chip-dot { background: var(--neg-dot); }
+        .sp-chip.closed { background: var(--closed-bg); color: var(--closed-fg); }
+        .sp-chip.closed .sp-chip-dot { background: var(--closed-dot); }
+        .sp-chip.lost { background: var(--lost-bg); color: var(--lost-fg); }
+        .sp-chip.lost .sp-chip-dot { background: var(--lost-dot); }
+        .sp-src-chip {
+          display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px;
+          font-size: 9px; font-weight: 700; letter-spacing: 0.04em; background: var(--surface);
+          color: var(--ink-ghost); border: 1px solid var(--edge); text-transform: uppercase;
+        }
+        .sp-table { width: 100%; border-collapse: collapse; }
+        .sp-table th { padding: 9px 16px; border-bottom: 1px solid var(--edge); background: var(--surface); font-size: 8.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-ghost); text-align: left; white-space: nowrap; }
+        .sp-table th:first-child { padding-left: 32px; }
+        .sp-table th:last-child { padding-right: 32px; }
+        .sp-table td { padding: 11px 16px; border-bottom: 1px solid var(--edge-soft); vertical-align: middle; }
+        .sp-table td:first-child { padding-left: 32px; }
+        .sp-table td:last-child { padding-right: 32px; }
+        .sp-table tr:hover td { background: oklch(0.988 0 0); cursor: pointer; }
+        .sp-co-name { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+        .sp-co-url { font-size: 10.5px; color: var(--ink-ghost); }
+        .sp-avatar-sm { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: #fff; flex-shrink: 0; }
+        .sp-date-cell { font-size: 11px; color: var(--ink-ghost); font-family: ui-monospace, monospace; }
+        .sp-activity-cell { font-size: 11px; color: var(--ink-faint); }
+      `}</style>
 
-        <div className="relative">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="h-5 w-5 text-gray-300" />
-                <span className="text-gray-300 text-sm font-medium">Company Goal</span>
-              </div>
-              <h1 className="text-3xl font-bold">Road to 1,000 Studios</h1>
-            </div>
-            <div className="text-right">
-              <div className="text-5xl font-bold">{currentStudios}</div>
-              <div className="text-gray-300">of {goalStudios.toLocaleString()} studios</div>
-            </div>
-          </div>
+      {/* ── Frame switcher (zwarte balk) ── */}
+      <div style={{ height: 40, background: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 4, padding: '0 24px', position: 'sticky', top: 64, zIndex: 30 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.20em', color: 'rgba(255,255,255,0.28)', marginRight: 10, whiteSpace: 'nowrap' }}>
+          Sales pipeline
+        </span>
+        <button
+          onClick={() => setSalesModeActive(false)}
+          style={{
+            padding: '4px 14px', borderRadius: 9999, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.04em',
+            border: '1px solid ' + (!salesModeActive ? 'rgba(255,255,255,0.14)' : 'transparent'),
+            background: !salesModeActive ? 'rgba(255,255,255,0.09)' : 'transparent',
+            color: !salesModeActive ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.38)',
+            transition: 'all 120ms', cursor: 'pointer',
+          }}
+        >
+          Pipeline overzicht
+        </button>
+        <button
+          onClick={() => filteredLeads.length > 0 && setSalesModeActive(true)}
+          disabled={filteredLeads.length === 0}
+          style={{
+            padding: '4px 14px', borderRadius: 9999, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.04em',
+            border: '1px solid transparent',
+            background: 'transparent',
+            color: 'rgba(255,255,255,0.38)',
+            transition: 'all 120ms', cursor: filteredLeads.length === 0 ? 'not-allowed' : 'pointer',
+            opacity: filteredLeads.length === 0 ? 0.4 : 1,
+          }}
+        >
+          Sales Mode — actief scherm
+        </button>
+      </div>
 
-          <div className="relative">
-            <div className="h-4 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-300 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            <div className="flex justify-between mt-2">
-              {milestones.map((milestone) => (
-                <div key={milestone.value} className="flex flex-col items-center">
-                  <div className={cn(
-                    'w-3 h-3 rounded-full border-2 -mt-5 mb-1',
-                    currentStudios >= milestone.value
-                      ? 'bg-emerald-400 border-emerald-300'
-                      : 'bg-white/20 border-white/40'
-                  )} />
-                  <span className="text-xs text-gray-300">{milestone.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-white/20">
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{leads.filter(l => l.status !== 'closed' && l.status !== 'lost').length}</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Active Leads</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{closedLeads.length}</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Closed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{conversionRate}%</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Conversion</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{totalLeads}</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Total</div>
-            </div>
-          </div>
+      {/* ── Header ── */}
+      <div style={{ height: 58, background: 'var(--bg, #F9FAFE)', borderBottom: '1px solid var(--edge)', display: 'flex', alignItems: 'center', padding: '0 24px', position: 'sticky', top: 104, zIndex: 20 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginRight: 24, whiteSpace: 'nowrap' }}>
+          Sales Pipeline
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button className={`sp-tab${salesView === 'pipeline' ? ' active' : ''}`} onClick={() => setSalesView('pipeline')}>
+            Pipeline
+          </button>
+          <button className={`sp-tab${salesView === 'cities' ? ' active' : ''}`} onClick={() => setSalesView('cities')}>
+            Per stad
+          </button>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            className="sp-btn-pill"
+            onClick={() => filteredLeads.length > 0 && setSalesModeActive(true)}
+            disabled={filteredLeads.length === 0}
+            style={{ opacity: filteredLeads.length === 0 ? 0.5 : 1 }}
+          >
+            <Crosshair className="h-3 w-3" />
+            Sales Mode
+            <span style={{ background: 'rgba(255,255,255,0.18)', padding: '1px 7px', borderRadius: 9999, fontSize: 10, fontWeight: 700 }}>
+              {filteredLeads.length}
+            </span>
+          </button>
+          <button className="sp-btn-outline" onClick={() => setShowCSVModal(true)}>
+            <Upload className="h-3 w-3" />
+            CSV
+          </button>
+          <button className="sp-btn-outline" onClick={() => setShowAddModal(true)}>
+            <Plus className="h-3 w-3" />
+            Nieuw
+          </button>
         </div>
       </div>
 
-      {/* View toggle */}
-      <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
-        <button
-          onClick={() => setSalesView('pipeline')}
-          className={cn(
-            'px-3 py-1.5 rounded-md text-sm font-medium transition',
-            salesView === 'pipeline' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
-          )}
-        >
-          Pipeline
-        </button>
-        <button
-          onClick={() => setSalesView('cities')}
-          className={cn(
-            'px-3 py-1.5 rounded-md text-sm font-medium transition',
-            salesView === 'cities' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
-          )}
-        >
-          Per stad
-        </button>
+      {/* ── Goal strip ── */}
+      <div style={{ borderBottom: '1px solid var(--edge)', padding: '13px 24px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'var(--ink-ghost)', whiteSpace: 'nowrap' }}>
+          Road to 1000
+        </span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.025em', color: 'var(--accent)' }}>{currentStudios}</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace' }}>/ {goalStudios.toLocaleString()}</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ height: 5, background: 'var(--edge)', borderRadius: 3, position: 'relative' }}>
+            <div style={{ height: '100%', background: 'var(--accent)', borderRadius: 3, width: `${progressPercent}%`, transition: 'width 0.5s' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+            {milestones.map(ms => (
+              <span key={ms.value} style={{ fontSize: 9, fontFamily: 'ui-monospace, monospace', color: 'var(--ink-ghost)' }}>{ms.label}</span>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0 }}>
+          <GoalStat val={String(activeCount)} label="Actief" />
+          <GoalStat val={String(closedLeads.length)} label="Gesloten" />
+          <GoalStat val={`${conversionRate}%`} label="Conversie" color="oklch(0.57 0.24 27)" />
+          <GoalStat val={String(totalLeads)} label="Totaal" />
+        </div>
       </div>
 
+      {/* ── Filter bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px', borderBottom: '1px solid var(--edge)', background: 'var(--surface)', overflowX: 'auto' }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-ghost)', width: 14, height: 14 }} />
+          <input
+            type="text"
+            placeholder="Zoeken op naam, stad, contact…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              border: '1px solid var(--edge)', borderRadius: 9999, background: 'var(--bg, #F9FAFE)',
+              padding: '5px 12px 5px 32px', fontSize: 11.5, color: 'var(--ink)',
+              outline: 'none', width: 240, transition: 'border-color 130ms',
+            }}
+          />
+        </div>
+        <div style={{ width: 1, height: 16, background: 'var(--edge)', flexShrink: 0 }} />
+        <button className={`sp-filter-pill${!statusFilter ? ' active' : ''}`} onClick={() => setStatusFilter(null)}>
+          Alle statussen
+        </button>
+        {(['cold', 'warm', 'hot', 'voicemail', 'negotiation'] as const).map(s => {
+          const count = statusCounts[s]
+          if (count === 0) return null
+          const colors = getStatusColor(s)
+          return (
+            <button
+              key={s}
+              className={`sp-filter-pill${statusFilter === s ? ' active' : ''}`}
+              onClick={() => setStatusFilter(statusFilter === s ? null : s)}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: colors.dot.replace('bg-', '').includes('-') ? undefined : colors.dot }} className={cn('inline-block', colors.dot)} />
+              <span style={{ textTransform: 'capitalize' }}>{s === 'negotiation' ? 'Onderhandeling' : s}</span>
+              <span style={{ fontFamily: 'ui-monospace, monospace' }}>{count}</span>
+            </button>
+          )
+        })}
+        <div style={{ flex: 1 }} />
+      </div>
+
+      {/* ── Content ── */}
       {salesView === 'cities' ? (
         <CityOverview
           leads={leads}
@@ -1782,342 +1929,74 @@ export default function SalesPage() {
           }}
         />
       ) : (
-        <>
-      {/* Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Zoeken..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent w-full sm:w-64"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <button
-              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <Filter className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700">
-                {statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : 'Alle statussen'}
-              </span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </button>
-
-            {showStatusDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10">
-                <button
-                  onClick={() => { setStatusFilter(null); setShowStatusDropdown(false) }}
-                  className={cn(
-                    'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors',
-                    !statusFilter && 'bg-gray-50 font-medium'
-                  )}
-                >
-                  Alle statussen
-                </button>
-                {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map((status) => {
-                  const colors = getStatusColor(status)
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => { setStatusFilter(status); setShowStatusDropdown(false) }}
-                      className={cn(
-                        'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center gap-2',
-                        statusFilter === status && 'bg-gray-50 font-medium'
+        <div style={{ overflowX: 'auto' }}>
+          <table className="sp-table">
+            <thead>
+              <tr>
+                <th>Studio / Bedrijf</th>
+                <th>Contactpersoon</th>
+                <th>Stad</th>
+                <th>Status</th>
+                <th style={{ width: 28 }}></th>
+                <th>Bron</th>
+                <th>Laatste activiteit</th>
+                <th>Toegevoegd</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLeads.map((lead) => {
+                const colors = getStatusColor(lead.status)
+                const approval = getApproval(lead)
+                const initials = (lead.contact_name || lead.company_name || '?').split(' ').slice(0, 2).map(s => s[0]).join('').toUpperCase()
+                return (
+                  <tr key={lead.id} onClick={() => selectLead(lead)}>
+                    <td>
+                      <div className="sp-co-name">{lead.company_name}</div>
+                      {lead.website && <div className="sp-co-url">{lead.website.replace(/^https?:\/\//, '')}</div>}
+                    </td>
+                    <td>
+                      {lead.contact_name ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                          <div className="sp-avatar-sm" style={{ background: 'var(--accent)' }}>{initials}</div>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>{lead.contact_name}</span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--ink-ghost)' }}>—</span>
                       )}
-                    >
-                      <span className={cn('w-2 h-2 rounded-full', colors.dot)} />
-                      <span className="capitalize">{status}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          
-          {/* City Filter */}
-          <div className="relative">
-            <button
-              onClick={() => setShowCityDropdown(!showCityDropdown)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl border hover:bg-gray-50 transition-colors',
-                cityFilter ? 'border-gray-900 bg-gray-50' : 'border-gray-200'
-              )}
-            >
-              <MapPin className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700">
-                {cityFilter || 'Alle steden'}
-              </span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </button>
-
-            {showCityDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10 max-h-64 overflow-auto">
-                <button
-                  onClick={() => { setCityFilter(null); setShowCityDropdown(false) }}
-                  className={cn(
-                    'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors',
-                    !cityFilter && 'bg-gray-50 font-medium'
-                  )}
-                >
-                  Alle steden
-                </button>
-                {uniqueCities.map((city) => (
-                  <button
-                    key={city}
-                    onClick={() => { setCityFilter(city); setShowCityDropdown(false) }}
-                    className={cn(
-                      'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center justify-between',
-                      cityFilter === city && 'bg-gray-50 font-medium'
-                    )}
-                  >
-                    <span>{city}</span>
-                    <span className="text-xs text-gray-400">
-                      {cityCountMap.get(city) || 0}
-                    </span>
-                  </button>
-                ))}
-                <div className="border-t border-gray-100 mt-1 pt-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleNormalizeCities() }}
-                    disabled={normalizingCities}
-                    className="w-full px-4 py-2 text-left text-xs text-purple-600 hover:bg-purple-50 transition-colors flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {normalizingCities ? (
-                      <><Loader2 className="h-3 w-3 animate-spin" /> AI normaliseert steden...</>
-                    ) : (
-                      <><Sparkles className="h-3 w-3" /> Steden opschonen (AI)</>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sort Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <ArrowUpDown className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700">
-                {sortBy === 'name' ? 'Naam' : sortBy === 'city' ? 'Stad' : sortBy === 'company' ? 'Bedrijf' : 'Datum'}
-              </span>
-              <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-            </button>
-
-            {showSortDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10">
-                {[
-                  { key: 'date', label: 'Datum' },
-                  { key: 'name', label: 'Contact naam' },
-                  { key: 'company', label: 'Bedrijf' },
-                  { key: 'city', label: 'Stad' },
-                ].map((option) => (
-                  <div
-                    key={option.key}
-                    className={cn(
-                      'w-full px-4 py-2 hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer',
-                      sortBy === option.key && 'bg-gray-50 font-medium'
-                    )}
-                  >
-                    <button
-                      onClick={() => { setSortBy(option.key as typeof sortBy); setShowSortDropdown(false) }}
-                      className="flex-1 text-left"
-                    >
-                      {option.label}
-                    </button>
-                    {sortBy === option.key && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc') }}
-                        className="text-gray-400 hover:text-gray-600 ml-2"
-                      >
-                        {sortOrder === 'asc' ? '↑' : '↓'}
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: 12, color: 'var(--ink-muted)', fontWeight: 500 }}>{lead.city || '—'}</span>
+                    </td>
+                    <td>
+                      <span className={`sp-chip ${lead.status || 'cold'}`}>
+                        <span className="sp-chip-dot" />
+                        {lead.status || 'cold'}
+                      </span>
+                    </td>
+                    <td>
+                      {approval === 'approved' && <ThumbsUp className="h-4 w-4" style={{ color: 'oklch(0.52 0.18 145)' }} />}
+                      {approval === 'rejected' && <ThumbsDown className="h-4 w-4" style={{ color: 'oklch(0.57 0.24 27)' }} />}
+                    </td>
+                    <td>
+                      <span className="sp-src-chip">{lead.source || 'Unknown'}</span>
+                    </td>
+                    <td>
+                      <span className="sp-activity-cell">{lead.updated_at && lead.updated_at !== lead.created_at ? `Bijgewerkt ${formatDate(lead.updated_at)}` : 'Toegevoegd'}</span>
+                    </td>
+                    <td>
+                      <span className="sp-date-cell">{formatDate(lead.created_at)}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {filteredLeads.length === 0 && (
+            <div style={{ padding: 60, textAlign: 'center', fontSize: 13, color: 'var(--ink-ghost)' }}>
+              Geen leads gevonden voor dit filter.
+            </div>
+          )}
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            onClick={() => { setSalesModeResumeIndex(0); setSalesModeActive(true) }}
-            disabled={filteredLeads.length === 0}
-            className="gap-2 bg-gray-900 hover:bg-black"
-          >
-            <Crosshair className="h-4 w-4" />
-            <span className="hidden sm:inline">Sales Mode</span>
-            {filteredLeads.length > 0 && (
-              <Badge className="bg-white/20 text-white ml-1">{filteredLeads.length}</Badge>
-            )}
-          </Button>
-
-          <Link href="/scraper">
-            <Button variant="outline" className="gap-2">
-              <SearchIcon2 className="h-4 w-4" />
-              <span className="hidden md:inline">Meer scrapen</span>
-            </Button>
-          </Link>
-
-          <Button variant="outline" onClick={() => setShowCSVModal(true)}>
-            <Upload className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">CSV Import</span>
-          </Button>
-
-          <Button onClick={() => { setEditLead(null); setShowAddModal(true) }}>
-            <Plus className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">Nieuwe Lead</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Leads Table (desktop) */}
-      <div className="hidden lg:block bg-white rounded-2xl border border-gray-100 overflow-x-auto">
-        <table className="w-full min-w-[700px]">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="text-left p-4 font-semibold text-gray-600">Bedrijf</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Contact</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Locatie</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Status</th>
-              <th className="text-left p-4 font-semibold text-gray-600 w-10"></th>
-              <th className="text-left p-4 font-semibold text-gray-600">Bron</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Toegevoegd</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredLeads.map((lead) => {
-              const statusColors = getStatusColor(lead.status)
-              return (
-                <tr
-                  key={lead.id}
-                  onClick={() => selectLead(lead)}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <td className="p-4">
-                    <div className="font-semibold text-gray-900">{lead.company_name}</div>
-                    {lead.website && (
-                      <div className="text-sm text-gray-500 truncate max-w-[200px]">{lead.website}</div>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <div className="text-gray-900">{lead.contact_name || '-'}</div>
-                    {lead.email && (
-                      <div className="text-sm text-gray-500">{lead.email}</div>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <div>
-                        <div>{lead.city || '-'}</div>
-                        {(lead as SalesLead & { address?: string }).address && (
-                          <div className="text-xs text-gray-400 truncate max-w-[160px]">
-                            {(lead as SalesLead & { address?: string }).address}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <Badge className={cn(statusColors.bg, statusColors.text, 'capitalize')}>
-                      <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', statusColors.dot)} />
-                      {lead.status}
-                    </Badge>
-                  </td>
-                  <td className="p-4">
-                    {(() => {
-                      const a = getApproval(lead)
-                      if (a === 'approved') return <ThumbsUp className="h-4 w-4 text-emerald-500" />
-                      if (a === 'rejected') return <ThumbsDown className="h-4 w-4 text-red-500" />
-                      return null
-                    })()}
-                  </td>
-                  <td className="p-4">
-                    <Badge className={getSourceColor(lead.source)}>
-                      {lead.source || 'Unknown'}
-                    </Badge>
-                  </td>
-                  <td className="p-4 text-gray-500">
-                    {formatDate(lead.created_at)}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-
-        {filteredLeads.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-gray-500">Geen leads gevonden</p>
-          </div>
-        )}
-      </div>
-
-      {/* Leads Cards (mobile/tablet) */}
-      <div className="lg:hidden space-y-2">
-        {filteredLeads.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-            <p className="text-gray-500">Geen leads gevonden</p>
-          </div>
-        ) : (
-          filteredLeads.map((lead) => {
-            const statusColors = getStatusColor(lead.status)
-            const approval = getApproval(lead)
-            return (
-              <button
-                key={lead.id}
-                onClick={() => selectLead(lead)}
-                className="w-full bg-white rounded-xl border border-gray-100 p-4 text-left hover:shadow-sm transition"
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-gray-900 truncate">{lead.company_name}</h3>
-                      {approval === 'approved' && <ThumbsUp className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
-                      {approval === 'rejected' && <ThumbsDown className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
-                    </div>
-                    {lead.contact_name && (
-                      <p className="text-sm text-gray-600 truncate mt-0.5">{lead.contact_name}</p>
-                    )}
-                  </div>
-                  <Badge className={cn(statusColors.bg, statusColors.text, 'capitalize flex-shrink-0 text-xs')}>
-                    <span className={cn('w-1.5 h-1.5 rounded-full mr-1', statusColors.dot)} />
-                    {lead.status}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                  {lead.city && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-gray-400" />
-                      {lead.city}
-                    </span>
-                  )}
-                  {lead.email && (
-                    <span className="truncate max-w-[180px]">{lead.email}</span>
-                  )}
-                  <Badge className={cn(getSourceColor(lead.source), 'text-[10px] px-1.5 py-0')}>
-                    {lead.source || 'Unknown'}
-                  </Badge>
-                  <span className="ml-auto text-gray-400">{formatDate(lead.created_at)}</span>
-                </div>
-              </button>
-            )
-          })
-        )}
-      </div>
-        </>
       )}
 
       {/* Modals */}
