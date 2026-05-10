@@ -310,89 +310,92 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
 
   if (!isOpen) return null
 
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+    textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 5,
+  }
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    border: '1px solid var(--edge)', borderRadius: 3,
+    padding: '8px 10px', fontSize: 12, color: 'var(--ink)',
+    background: '#fff', outline: 'none', fontFamily: 'inherit',
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto m-2 sm:m-4">
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-            {editLead ? 'Lead Bewerken' : 'Nieuwe Lead Toevoegen'}
-          </h2>
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: '#fff', border: '1px solid var(--edge)', borderRadius: 6, width: '100%', maxWidth: 640, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+      >
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--edge)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+            {editLead ? 'Lead bewerken' : 'Nieuwe lead'}
+          </span>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            style={{ background: 'none', border: 'none', color: 'var(--ink-ghost)', cursor: 'pointer', padding: 2 }}
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
-          {/* Company Info */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Bedrijfsnaam *
-            </label>
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px' }}>
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Bedrijfsnaam *</label>
             <input
               type="text"
               value={formData.company_name}
               onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              style={inputStyle}
               placeholder="Bijv. Studio Amsterdam"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Stad
-              </label>
+              <label style={labelStyle}>Stad</label>
               <input
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                style={inputStyle}
                 placeholder="Amsterdam"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Adres
-              </label>
+              <label style={labelStyle}>Adres</label>
               <input
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                style={inputStyle}
                 placeholder="Keizersgracht 123"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Website
-              </label>
-              <input
-                type="url"
-                value={formData.website}
-                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                placeholder="https://www.studio.nl"
-              />
-            </div>
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Website</label>
+            <input
+              type="url"
+              value={formData.website}
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+              style={inputStyle}
+              placeholder="https://www.studio.nl"
+            />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bron
-              </label>
+              <label style={labelStyle}>Bron</label>
               <select
                 value={formData.source}
                 onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                style={inputStyle}
               >
                 <option value="Manual">Handmatig</option>
                 <option value="Apollo">Apollo</option>
@@ -403,99 +406,102 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as 'cold' | 'warm' | 'hot' | 'voicemail' | 'negotiation' | 'closed' | 'lost' })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              >
-                <option value="cold">Cold</option>
-                <option value="warm">Warm</option>
-                <option value="hot">Hot</option>
-                <option value="negotiation">Negotiation</option>
-                <option value="closed">Closed</option>
-                <option value="lost">Lost</option>
-              </select>
+              <label style={labelStyle}>Status</label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map(s => {
+                  const sc = getStatusColor(s)
+                  const active = formData.status === s
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, status: s })}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold lowercase border transition-all',
+                        active ? cn(sc.bg, sc.text, 'border-transparent') : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'
+                      )}
+                    >
+                      <span className={cn('w-1.5 h-1.5 rounded-full', sc.dot)} />
+                      {s === 'negotiation' ? 'onderhandeling' : s}
+                      {active && <Check style={{ width: 10, height: 10 }} />}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Contacts Section */}
-          <div className="border-t border-gray-100 pt-4 mt-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-semibold text-gray-900">
-                  Contactpersonen
-                </label>
-              </div>
+          {/* Contactpersonen */}
+          <div style={{ borderTop: '1px solid var(--edge-soft)', paddingTop: 18, marginTop: 4, marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <label style={{ ...labelStyle, margin: 0 }}>Contactpersonen</label>
               <button
                 type="button"
                 onClick={addContact}
-                className="flex items-center gap-1.5 text-sm text-gray-900 hover:text-black font-medium transition-colors"
+                style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
               >
-                <UserPlus className="h-4 w-4" />
+                <UserPlus style={{ width: 12, height: 12 }} />
                 Contact toevoegen
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {contacts.map((contact, index) => (
-                <div key={index} className="relative bg-gray-50 rounded-xl p-4 space-y-3">
-                  {/* Primary badge & remove button */}
-                  <div className="flex items-center justify-between">
+                <div key={index} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 3, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <button
                       type="button"
                       onClick={() => updateContact(index, 'is_primary', true)}
-                      className={cn(
-                        'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
-                        contact.is_primary
-                          ? 'bg-gray-200 text-black'
-                          : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
-                      )}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 9, fontWeight: 700, padding: '2px 8px',
+                        letterSpacing: '0.04em', textTransform: 'uppercase',
+                        borderRadius: 2, border: 'none', cursor: 'pointer',
+                        background: contact.is_primary ? 'var(--accent-tint)' : 'var(--edge)',
+                        color: contact.is_primary ? 'var(--accent)' : 'var(--ink-muted)',
+                      }}
                     >
-                      {contact.is_primary && <Check className="h-3 w-3" />}
+                      {contact.is_primary && <Check style={{ width: 10, height: 10 }} />}
                       {contact.is_primary ? 'Primair' : 'Maak primair'}
                     </button>
                     {contacts.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeContact(index)}
-                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-ghost)', padding: 2 }}
                       >
-                        <X className="h-4 w-4" />
+                        <X style={{ width: 14, height: 14 }} />
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <input
                       type="text"
                       value={contact.name}
                       onChange={(e) => updateContact(index, 'name', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                      style={inputStyle}
                       placeholder="Naam *"
                     />
                     <input
                       type="text"
                       value={contact.role}
                       onChange={(e) => updateContact(index, 'role', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                      style={inputStyle}
                       placeholder="Functie (bijv. Manager)"
                     />
                     <input
                       type="email"
                       value={contact.email}
                       onChange={(e) => updateContact(index, 'email', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-                      placeholder="Email"
+                      style={inputStyle}
+                      placeholder="E-mail"
                     />
                     <input
                       type="tel"
                       value={contact.phone}
                       onChange={(e) => updateContact(index, 'phone', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                      style={inputStyle}
                       placeholder="Telefoon"
                     />
                   </div>
@@ -505,28 +511,28 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
           </div>
 
           {/* Studio-ruimtes (optioneel) */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Studio-ruimtes <span className="text-xs font-normal text-gray-400">(optioneel)</span>
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ ...labelStyle, margin: 0 }}>
+                Studio-ruimtes <span style={{ fontSize: 9, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--ink-ghost)' }}>(optioneel)</span>
               </label>
               <button
                 type="button"
                 onClick={() => setStudioSpaces([...studioSpaces, { name: '', notes: '' }])}
-                className="text-xs text-indigo-600 hover:underline"
+                style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 + Ruimte toevoegen
               </button>
             </div>
             {studioSpaces.length === 0 ? (
-              <p className="text-xs text-gray-500">
+              <p style={{ fontSize: 11, color: 'var(--ink-ghost)' }}>
                 Vul in als dit bedrijf meerdere studio-ruimtes heeft (bv. Studio 1 — cyclorama).
               </p>
             ) : (
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {studioSpaces.map((s, i) => (
-                  <div key={i} className="flex gap-2 items-start">
-                    <div className="flex-1 grid grid-cols-2 gap-2">
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <input
                         type="text"
                         value={s.name}
@@ -536,7 +542,7 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                           setStudioSpaces(next)
                         }}
                         placeholder="Ruimte naam *"
-                        className="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        style={inputStyle}
                       />
                       <input
                         type="text"
@@ -547,15 +553,15 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
                           setStudioSpaces(next)
                         }}
                         placeholder="Notities (m², etc)"
-                        className="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        style={inputStyle}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => setStudioSpaces(studioSpaces.filter((_, idx) => idx !== i))}
-                      className="px-2 py-2 text-gray-400 hover:text-red-600"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-ghost)', padding: '8px 4px' }}
                     >
-                      <X className="h-4 w-4" />
+                      <X style={{ width: 14, height: 14 }} />
                     </button>
                   </div>
                 ))}
@@ -563,47 +569,57 @@ function AddLeadModal({ isOpen, onClose, onSuccess, editLead, existingContacts }
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notities
-            </label>
+          <div style={{ marginBottom: 0 }}>
+            <label style={labelStyle}>Notities</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+              style={{ ...inputStyle, resize: 'vertical', minHeight: 70 }}
               rows={3}
               placeholder="Extra informatie over deze lead..."
             />
           </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
-              Annuleren
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || !formData.company_name.trim()}
-              className="flex-1"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Opslaan...
-                </>
-              ) : (
-                <>
-                  {editLead ? <Check className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                  {editLead ? 'Opslaan' : 'Lead Toevoegen'}
-                </>
-              )}
-            </Button>
-          </div>
         </form>
+
+        <div style={{ padding: '12px 24px', borderTop: '1px solid var(--edge)', display: 'flex', justifyContent: 'flex-end', gap: 8, position: 'sticky', bottom: 0, background: '#fff' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            style={{
+              fontSize: 12, fontWeight: 600, padding: '8px 16px',
+              borderRadius: 3, border: '1px solid var(--edge)',
+              background: '#fff', color: 'var(--ink)', cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Annuleren
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); handleSubmit({ preventDefault: () => {} } as React.FormEvent) }}
+            disabled={loading || !formData.company_name.trim()}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontSize: 12, fontWeight: 700, padding: '8px 20px',
+              borderRadius: 3, border: 'none',
+              background: 'var(--accent)', color: '#fff',
+              cursor: (loading || !formData.company_name.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (loading || !formData.company_name.trim()) ? 0.5 : 1,
+            }}
+          >
+            {loading ? (
+              <>
+                <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+                Opslaan...
+              </>
+            ) : (
+              <>
+                {editLead ? <Check style={{ width: 13, height: 13 }} /> : <Plus style={{ width: 13, height: 13 }} />}
+                {editLead ? 'Opslaan' : 'Lead toevoegen'}
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -1030,6 +1046,49 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
   const [notesValue, setNotesValue] = useState(lead.notes || '')
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesError, setNotesError] = useState<string | null>(null)
+  // Plan call modal
+  const [showCallModal, setShowCallModal] = useState(false)
+  const today = new Date().toISOString().slice(0, 10)
+  const [callDate, setCallDate] = useState(today)
+  const [callStart, setCallStart] = useState('10:00')
+  const [callEnd, setCallEnd] = useState('10:30')
+  const [callNotes, setCallNotes] = useState('')
+  const [callSaving, setCallSaving] = useState(false)
+  const [callError, setCallError] = useState<string | null>(null)
+
+  const openCallModal = () => {
+    setCallDate(new Date().toISOString().slice(0, 10))
+    setCallStart('10:00')
+    setCallEnd('10:30')
+    setCallNotes('')
+    setCallError(null)
+    setShowCallModal(true)
+  }
+
+  const saveCall = async () => {
+    setCallSaving(true); setCallError(null)
+    try {
+      const { error: dbErr } = await workspaceClient
+        .from('sales_agenda')
+        .insert([{
+          lead_id: lead.id,
+          title: `Belafspraak ${lead.company_name}`,
+          description: callNotes.trim() || null,
+          type: 'call',
+          date: callDate,
+          start_time: callStart,
+          end_time: callEnd,
+          location: 'Telefonisch',
+          status: 'scheduled',
+        }])
+      if (dbErr) throw new Error(dbErr.message || 'Opslaan mislukt.')
+      setShowCallModal(false)
+    } catch (e) {
+      setCallError(e instanceof Error ? e.message : 'Opslaan mislukt.')
+    } finally {
+      setCallSaving(false)
+    }
+  }
 
   // Sync local notes state when the selected lead changes or when the
   // parent refreshes the lead after an edit elsewhere. Without this, the
@@ -1056,322 +1115,629 @@ function LeadDetail({ lead, contacts, onBack, onEdit, onDelete, onStatusChange, 
     }
   }
 
+  const statusLabel = (lead.status || 'cold').charAt(0).toUpperCase() + (lead.status || 'cold').slice(1)
+  const statusToneVar: Record<string, string> = {
+    cold: 'oklch(0.55 0.012 240)',
+    warm: 'oklch(0.68 0.16 72)',
+    hot: 'oklch(0.60 0.22 30)',
+    voicemail: 'oklch(0.60 0.20 280)',
+    negotiation: 'oklch(0.22 0 0)',
+    closed: 'oklch(0.58 0.18 145)',
+    lost: 'oklch(0.57 0.24 27)',
+  }
+  const statusColor = statusToneVar[lead.status || 'cold']
+  const initials = (lead.company_name || '?').split(' ').slice(0, 2).map(s => s[0]).join('').toUpperCase()
+  const primaryContact = contacts.find(c => c.is_primary) || contacts[0]
+
+  // Done-steps uit notes-tag `[STEPS:0,1,2]`
+  const stepsMatch = (lead.notes || '').match(/\[STEPS:([\d,]+)\]/)
+  const manualDoneSteps = stepsMatch ? stepsMatch[1].split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n)) : null
+
+  // Sales funnel basisstappen
+  const baseFunnelSteps = [
+    { name: 'Eerste contact', meta: `Toegevoegd via ${lead.source || 'onbekende bron'}`, date: lead.created_at ? new Date(lead.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) : undefined },
+    { name: 'Kennismaking', meta: 'Eerste contact gelegd' },
+    { name: 'Bezoek / demo', meta: 'Studio-bezoek of platform-demo' },
+    { name: 'Onderhandeling', meta: 'Voorwaarden besproken' },
+    { name: 'Listing-onboarding', meta: 'Info, foto\'s en agenda invoeren' },
+    { name: 'Live op platform', meta: 'Boekbaar voor huurders' },
+  ]
+
+  // Als geen handmatige steps zijn opgeslagen, leid af uit status
+  const autoDoneSteps = (() => {
+    const done: number[] = [0] // Eerste contact altijd done
+    if (lead.status && !['cold'].includes(lead.status)) done.push(1)
+    if (lead.status && ['hot', 'negotiation', 'closed'].includes(lead.status)) done.push(2)
+    if (lead.status === 'closed') { done.push(3); done.push(4); done.push(5) }
+    return done
+  })()
+
+  const doneSteps = manualDoneSteps !== null ? manualDoneSteps : autoDoneSteps
+  const activeStep = doneSteps.length < baseFunnelSteps.length ? Math.max(...doneSteps, -1) + 1 : -1
+
+  const funnelSteps = baseFunnelSteps.map((step, i) => ({
+    ...step,
+    state: doneSteps.includes(i) ? 'done' as const : i === activeStep ? 'active' as const : 'pending' as const,
+  }))
+
+  const toggleStep = async (idx: number) => {
+    const isDone = doneSteps.includes(idx)
+    const newDone = isDone ? doneSteps.filter(d => d !== idx) : [...doneSteps, idx].sort((a, b) => a - b)
+    // Strip oude [STEPS:...] tag en voeg nieuwe toe
+    const cleanNotes = (lead.notes || '').replace(/\[STEPS:[\d,]*\]\s*/g, '').trim()
+    const newNotes = newDone.length > 0
+      ? `[STEPS:${newDone.join(',')}] ${cleanNotes}`.trim()
+      : cleanNotes
+    try {
+      await onNotesChange(newNotes)
+    } catch (err) {
+      console.error('Toggle step failed:', err)
+    }
+  }
+
+  // Strip approval + steps tags uit notes voor weergave
+  const stripTags = (s: string) => s.replace(/\[APPROVAL:(approved|rejected|pending)\]\s*/g, '').replace(/\[STEPS:[\d,]*\]\s*/g, '').trim()
+  const displayNotes = stripTags(lead.notes || '')
+  const editableDisplayNotes = stripTags(notesValue)
+
   return (
-    <div className="animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div style={{ margin: '-16px -16px 0', minHeight: 'calc(100vh - 64px)', background: 'var(--bg, #F9FAFE)' }}>
+      <style jsx>{`
+        .ld-card { background: #fff; border: 1px solid var(--edge); border-radius: 4px; padding: 18px 20px; }
+        .ld-card-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--edge-soft); }
+        .ld-card-h-title { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
+        .ld-card-h-action { font-size: 11px; color: var(--accent); font-weight: 600; cursor: pointer; background: none; border: none; padding: 0; }
+        .ld-card-h-action:hover { text-decoration: underline; }
+        .ld-tab { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 12px; font-weight: 600; color: var(--ink-ghost); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; transition: color 0.12s, border-color 0.12s; height: 46px; }
+        .ld-tab:hover { color: var(--ink-muted); }
+        .ld-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .ld-tab-badge { font-size: 10px; padding: 1px 6px; background: var(--surface); color: var(--ink-muted); border-radius: 8px; font-weight: 700; }
+        .ld-tab.active .ld-tab-badge { background: var(--accent-tint); color: var(--accent); }
+        .ld-btn-sm { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; font-size: 12px; font-weight: 600; border: 1px solid var(--edge); cursor: pointer; white-space: nowrap; border-radius: 3px; transition: background 0.12s; background: #fff; color: var(--ink); }
+        .ld-btn-sm:hover { background: var(--surface); }
+        .ld-btn-sm.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ld-btn-sm.primary:hover { background: #0a3e57; }
+        .ld-btn-sm.danger { color: var(--danger); }
+        .ld-btn-sm.danger:hover { background: oklch(0.97 0.03 27); }
+      `}</style>
+
+      {/* Topbar */}
+      <div style={{ height: 52, background: '#fff', borderBottom: '1px solid var(--edge)', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 12, position: 'sticky', top: 64, zIndex: 30 }}>
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', color: 'var(--ink-ghost)', cursor: 'pointer', borderRadius: 4 }}
+          title="Terug naar pipeline"
         >
-          <ArrowLeft className="h-5 w-5" />
-          <span className="font-medium">Terug naar overzicht</span>
+          <ArrowLeft style={{ width: 16, height: 16 }} />
         </button>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onEdit}>
-            <Edit3 className="h-4 w-4 mr-2" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-muted)', minWidth: 0, flex: 1 }}>
+          <span>Sales</span>
+          <span style={{ color: 'var(--ink-ghost)' }}>/</span>
+          <span>Pipeline</span>
+          <span style={{ color: 'var(--ink-ghost)' }}>/</span>
+          <span style={{ fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.company_name}</span>
+          <span
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '3px 9px', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+              textTransform: 'uppercase', borderRadius: 2, marginLeft: 8,
+              background: '#fff', color: statusColor, border: `1px solid ${statusColor}`,
+            }}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
+            {statusLabel}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {lead.email && (
+            <a className="ld-btn-sm" href={`mailto:${lead.email}`}>
+              <Mail style={{ width: 13, height: 13 }} />
+              Bericht
+            </a>
+          )}
+          <button className="ld-btn-sm" onClick={openCallModal}>
+            <Phone style={{ width: 13, height: 13 }} />
+            Plan call
+          </button>
+          <button className="ld-btn-sm" onClick={onEdit}>
+            <Edit3 style={{ width: 13, height: 13 }} />
             Bewerken
-          </Button>
-          <Button variant="outline" size="sm" onClick={onDelete} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Verwijderen
-          </Button>
+          </button>
+          <button className="ld-btn-sm primary" onClick={() => onStatusChange('closed')}>
+            <Check style={{ width: 13, height: 13 }} />
+            Markeer afgerond
+          </button>
+          <button className="ld-btn-sm danger" onClick={onDelete} title="Verwijderen">
+            <Trash2 style={{ width: 13, height: 13 }} />
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-        {/* Main Info */}
-        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-          {/* Company Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{lead.company_name}</h1>
-                {lead.city && (
-                  <div className="flex items-center gap-2 text-gray-500">
-                    <MapPin className="h-4 w-4" />
-                    <span>{lead.city}</span>
+      {/* Body */}
+      <div style={{ padding: '22px', maxWidth: 1240, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
+          {/* Main column */}
+          <div>
+            {/* Studio header card */}
+            <div className="ld-card">
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{ width: 96, height: 96, borderRadius: 4, flexShrink: 0, background: 'linear-gradient(135deg, #0E4F6D 0%, #08B9EE 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.04em', position: 'relative' }}>
+                  {initials}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--ink)', marginBottom: 4, lineHeight: 1.2 }}>
+                    {lead.company_name}
                   </div>
+                  {(lead as SalesLead & { tagline?: string }).tagline && (
+                    <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginBottom: 10, fontWeight: 500 }}>
+                      {(lead as SalesLead & { tagline?: string }).tagline}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 8 }}>
+                    {lead.city && (
+                      <MetaItem label="Locatie" val={lead.city} />
+                    )}
+                    {lead.source && (
+                      <MetaItem label="Bron" val={lead.source} />
+                    )}
+                    {lead.assigned_to && (
+                      <MetaItem label="Owner" val={lead.assigned_to} muted />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--edge-soft)' }}>
+                {primaryContact && (
+                  <ContactRow icon={<Users style={{ width: 12, height: 12 }} />} label="Contact" val={primaryContact.name} />
+                )}
+                {lead.email && (
+                  <ContactRow icon={<Mail style={{ width: 12, height: 12 }} />} label="E-mail" val={lead.email} href={`mailto:${lead.email}`} />
+                )}
+                {lead.phone && (
+                  <ContactRow icon={<Phone style={{ width: 12, height: 12 }} />} label="Telefoon" val={lead.phone} href={`tel:${lead.phone}`} />
+                )}
+                {lead.website && (
+                  <ContactRow icon={<Globe style={{ width: 12, height: 12 }} />} label="Website" val={lead.website.replace(/^https?:\/\//, '')} href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} />
+                )}
+                {(lead as SalesLead & { address?: string }).address && (
+                  <ContactRow icon={<MapPin style={{ width: 12, height: 12 }} />} label="Adres" val={(lead as SalesLead & { address?: string }).address as string} />
                 )}
               </div>
-              <Badge className={cn('text-sm', getSourceColor(lead.source))}>
-                {lead.source || 'Unknown'}
-              </Badge>
             </div>
 
-            {lead.website && (
-              <a
-                href={lead.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-gray-900 hover:text-black transition-colors"
-              >
-                <Globe className="h-4 w-4" />
-                <span>{lead.website}</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
+            {/* Sales-progressie funnel */}
+            <div className="ld-card" style={{ marginTop: 16 }}>
+              <div className="ld-card-h">
+                <span className="ld-card-h-title">Sales-progressie</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {funnelSteps.map((step, i) => {
+                  const tone = step.state === 'done'
+                    ? { bg: 'oklch(0.96 0.04 145)', border: 'oklch(0.65 0.16 145)', markerBg: 'oklch(0.65 0.16 145)', markerColor: '#fff' }
+                    : step.state === 'active'
+                      ? { bg: 'oklch(0.96 0.04 70)', border: 'oklch(0.7 0.16 70)', markerBg: 'oklch(0.7 0.16 70)', markerColor: '#fff' }
+                      : { bg: '#fff', border: 'var(--edge)', markerBg: 'var(--surface)', markerColor: 'var(--ink-ghost)' }
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => toggleStep(i)}
+                      title={step.state === 'done' ? 'Klik om weer als open te markeren' : 'Klik om af te vinken'}
+                      style={{
+                        display: 'flex', gap: 10, alignItems: 'flex-start',
+                        padding: '10px 12px', borderRadius: 3,
+                        background: tone.bg, border: `1px solid ${tone.border}`,
+                        opacity: step.state === 'pending' ? 0.7 : 1,
+                        cursor: 'pointer', textAlign: 'left', width: '100%',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      <div style={{
+                        width: 22, height: 22, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 800, flexShrink: 0,
+                        background: tone.markerBg, color: tone.markerColor,
+                        border: step.state === 'pending' ? '1px dashed var(--edge)' : 'none',
+                      }}>
+                        {step.state === 'done' ? <Check style={{ width: 12, height: 12 }} /> : i + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: step.state === 'pending' ? 'var(--ink-ghost)' : 'var(--ink)', marginBottom: 2 }}>
+                          {step.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-muted)' }}>{step.meta}</div>
+                      </div>
+                      {step.date && (
+                        <span style={{ fontSize: 10, color: 'var(--ink-ghost)', flexShrink: 0, paddingTop: 4 }}>
+                          {step.state === 'active' ? 'Nu' : step.date}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Notities */}
+            <div className="ld-card" style={{ marginTop: 16 }}>
+              <div className="ld-card-h">
+                <span className="ld-card-h-title">Notities</span>
+                {!editingNotes && (
+                  <button className="ld-card-h-action" onClick={() => setEditingNotes(true)}>
+                    {displayNotes ? 'Bewerken' : 'Toevoegen'}
+                  </button>
+                )}
+              </div>
+              {editingNotes ? (
+                <div>
+                  <textarea
+                    value={editableDisplayNotes}
+                    onChange={(e) => {
+                      // Bewaar approval tag, vervang alleen tekst-deel
+                      const approvalMatch = notesValue.match(/\[APPROVAL:(approved|rejected|pending)\]/)
+                      const tag = approvalMatch ? `${approvalMatch[0]} ` : ''
+                      setNotesValue(tag + e.target.value)
+                    }}
+                    rows={6}
+                    style={{
+                      width: '100%', boxSizing: 'border-box', border: '1px solid var(--edge)',
+                      borderRadius: 3, padding: '10px 12px', fontSize: 12, color: 'var(--ink)',
+                      background: 'var(--surface)', outline: 'none', resize: 'vertical', fontFamily: 'inherit',
+                    }}
+                    placeholder="Notitie toevoegen..."
+                    autoFocus
+                  />
+                  {notesError && (
+                    <div style={{ marginTop: 8, padding: '6px 10px', background: 'oklch(0.97 0.03 27)', color: 'var(--danger)', fontSize: 12, borderRadius: 3 }}>
+                      {notesError}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 8 }}>
+                    <button
+                      className="ld-btn-sm"
+                      onClick={() => { setEditingNotes(false); setNotesValue(lead.notes || '') }}
+                      disabled={savingNotes}
+                    >
+                      Annuleren
+                    </button>
+                    <button
+                      className="ld-btn-sm primary"
+                      onClick={handleSaveNotes}
+                      disabled={savingNotes}
+                    >
+                      {savingNotes ? 'Opslaan...' : 'Opslaan'}
+                    </button>
+                  </div>
+                </div>
+              ) : displayNotes ? (
+                <div style={{ padding: '12px 14px', border: '1px solid var(--edge)', background: 'var(--surface)', borderRadius: 3 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        N
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink)' }}>Notitie</span>
+                    </div>
+                    {lead.updated_at && (
+                      <span style={{ fontSize: 10, color: 'var(--ink-ghost)' }}>
+                        {new Date(lead.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-muted)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{displayNotes}</div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => setEditingNotes(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', border: '1px dashed var(--edge)', borderRadius: 3, cursor: 'pointer', color: 'var(--ink-ghost)' }}
+                >
+                  <Plus style={{ width: 13, height: 13 }} />
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>Notitie toevoegen</span>
+                </div>
+              )}
+            </div>
+
+            {/* Contactpersonen */}
+            {contacts.length > 0 && (
+              <div className="ld-card" style={{ marginTop: 16 }}>
+                <div className="ld-card-h">
+                  <span className="ld-card-h-title">Contactpersonen ({contacts.length})</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {contacts.map((c) => (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, background: 'var(--surface)', borderRadius: 3 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {c.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{c.name}</span>
+                          {c.is_primary && (
+                            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '1px 6px', background: 'var(--accent-tint)', color: 'var(--accent)', borderRadius: 2 }}>
+                              Primair
+                            </span>
+                          )}
+                          {c.role && <span style={{ fontSize: 11, color: 'var(--ink-muted)' }}>{c.role}</span>}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: 'var(--ink-muted)' }}>
+                          {c.email && (
+                            <a href={`mailto:${c.email}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--accent)' }}>
+                              <Mail style={{ width: 12, height: 12 }} />
+                              {c.email}
+                            </a>
+                          )}
+                          {c.phone && (
+                            <a href={`tel:${c.phone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--ink)' }}>
+                              <Phone style={{ width: 12, height: 12 }} />
+                              {c.phone}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
+
+            {/* Email versturen */}
+            {(lead.email || contacts.some(c => c.email)) && (
+              <div className="ld-card" style={{ marginTop: 16 }}>
+                <div className="ld-card-h">
+                  <span className="ld-card-h-title">Email</span>
+                </div>
+                <Link
+                  href={`/email?lead=${lead.id}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    width: '100%', padding: '12px 16px', background: 'var(--accent)', color: '#fff',
+                    borderRadius: 3, fontSize: 13, fontWeight: 700,
+                    textDecoration: 'none', transition: 'background 0.12s',
+                  }}
+                >
+                  <Send style={{ width: 14, height: 14 }} />
+                  Email versturen
+                </Link>
+              </div>
+            )}
+
+            {/* Status wijzigen */}
+            <div className="ld-card" style={{ marginTop: 16 }}>
+              <div className="ld-card-h">
+                <span className="ld-card-h-title">Status wijzigen</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map(s => {
+                  const sc = getStatusColor(s)
+                  const active = lead.status === s
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => onStatusChange(s)}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold lowercase border transition-all',
+                        active ? cn(sc.bg, sc.text, 'border-transparent') : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'
+                      )}
+                    >
+                      <span className={cn('w-1.5 h-1.5 rounded-full', sc.dot)} />
+                      {s === 'negotiation' ? 'onderhandeling' : s}
+                      {active && <Check style={{ width: 10, height: 10 }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* Contacts */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="h-5 w-5 text-gray-400" />
-              <h2 className="font-semibold text-gray-900">
-                Contactpersonen ({contacts.length > 0 ? contacts.length : (lead.contact_name ? 1 : 0)})
-              </h2>
-            </div>
-
-            {contacts.length > 0 ? (
-              <div className="space-y-3">
-                {contacts.map((contact) => (
-                  <div key={contact.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                      <span className="text-gray-900 font-semibold text-sm">
-                        {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-gray-900">{contact.name}</span>
-                        {contact.is_primary && (
-                          <Badge className="bg-gray-200 text-black text-xs">Primair</Badge>
-                        )}
-                        {contact.role && (
-                          <span className="text-sm text-gray-500">{contact.role}</span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        {contact.email && (
-                          <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 transition-colors">
-                            <Mail className="h-3.5 w-3.5" />
-                            {contact.email}
-                          </a>
-                        )}
-                        {contact.phone && (
-                          <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 transition-colors">
-                            <Phone className="h-3.5 w-3.5" />
-                            {contact.phone}
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {/* Sidebar */}
+          <div>
+            {/* Next action */}
+            <div style={{ background: 'var(--accent)', color: '#fff', padding: '16px 18px', borderRadius: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)' }}>Volgende actie</span>
               </div>
-            ) : (
-              /* Fallback to legacy single contact */
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {lead.contact_name && (
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-900 font-semibold">
-                        {lead.contact_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Contactpersoon</div>
-                      <div className="font-medium text-gray-900">{lead.contact_name}</div>
-                    </div>
-                  </div>
-                )}
-
+              <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3, marginBottom: 4 }}>
+                {lead.status === 'cold' && 'Eerste contact leggen'}
+                {lead.status === 'warm' && 'Studio-bezoek of demo plannen'}
+                {lead.status === 'hot' && 'Voorstel doen'}
+                {lead.status === 'voicemail' && 'Terugbellen'}
+                {lead.status === 'negotiation' && 'Voorwaarden afronden'}
+                {lead.status === 'closed' && 'Listing-onboarding starten'}
+                {lead.status === 'lost' && 'Lead afgesloten — geen actie nodig'}
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginBottom: 12 }}>
+                {primaryContact ? `Contact: ${primaryContact.name}` : 'Geen contactpersoon toegevoegd'}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
                 {lead.email && (
                   <a
                     href={`mailto:${lead.email}`}
-                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 32, padding: '0 10px', fontSize: 12, fontWeight: 600, background: '#fff', color: 'var(--accent)', borderRadius: 3, textDecoration: 'none' }}
                   >
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Mail className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Email</div>
-                      <div className="font-medium text-gray-900">{lead.email}</div>
-                    </div>
+                    <Mail style={{ width: 13, height: 13 }} />
+                    Mail
                   </a>
                 )}
-
                 {lead.phone && (
                   <a
                     href={`tel:${lead.phone}`}
-                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 32, padding: '0 10px', fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 3, textDecoration: 'none' }}
                   >
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                      <Phone className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Telefoon</div>
-                      <div className="font-medium text-gray-900">{lead.phone}</div>
-                    </div>
+                    <Phone style={{ width: 13, height: 13 }} />
+                    Bel
                   </a>
                 )}
               </div>
-            )}
+            </div>
 
-            {lead.address && (
-              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl mt-3">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Adres</div>
-                  <div className="font-medium text-gray-900">{lead.address}</div>
-                </div>
+            {/* Sales-data */}
+            <div className="ld-card" style={{ marginTop: 14, padding: '16px 18px' }}>
+              <div className="ld-card-h" style={{ marginBottom: 12 }}>
+                <span className="ld-card-h-title">Sales-data</span>
               </div>
-            )}
-          </div>
+              <DataRow k="Status" v={statusLabel} color={statusColor} />
+              <DataRow k="Bron" v={lead.source || '—'} muted />
+              <DataRow k="Owner" v={lead.assigned_to || '—'} muted />
+              <DataRow k="Eerste contact" v={lead.created_at ? new Date(lead.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} muted />
+              <DataRow k="Laatste activiteit" v={lead.updated_at ? new Date(lead.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} muted />
+            </div>
 
-          {/* Notes */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-gray-400" />
-                <h2 className="font-semibold text-gray-900">Notities</h2>
+            {/* Marketing-context */}
+            <div className="ld-card" style={{ marginTop: 14, padding: '16px 18px' }}>
+              <div className="ld-card-h" style={{ marginBottom: 12 }}>
+                <span className="ld-card-h-title">Marketing-context</span>
               </div>
-              {editingNotes ? (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={savingNotes}
-                    onClick={() => {
-                      setNotesValue(lead.notes || '')
-                      setEditingNotes(false)
-                      setNotesError(null)
-                    }}
-                  >
-                    Annuleren
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={savingNotes}
-                    onClick={handleSaveNotes}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {savingNotes ? 'Opslaan...' : 'Opslaan'}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setNotesValue(lead.notes || '')
-                    setEditingNotes(true)
-                    setNotesError(null)
-                  }}
-                >
-                  <Edit3 className="h-4 w-4 mr-2" />
-                  Bewerken
-                </Button>
+              <CtxRow icon={<Building2 style={{ width: 12, height: 12 }} />} label="Bron" val={lead.source || 'Onbekend'} />
+              {lead.city && <CtxRow icon={<MapPin style={{ width: 12, height: 12 }} />} label="Locatie" val={lead.city} />}
+              {(lead as SalesLead & { enriched?: boolean }).enriched && (
+                <CtxRow icon={<Sparkles style={{ width: 12, height: 12 }} />} label="Verrijkt" val="Apollo data toegevoegd" />
               )}
             </div>
-            {editingNotes ? (
-              <>
-                <textarea
-                  value={notesValue}
-                  onChange={(e) => setNotesValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault()
-                      handleSaveNotes()
-                    }
-                  }}
-                  disabled={savingNotes}
-                  className="w-full min-h-[120px] p-3 rounded-xl border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y disabled:opacity-60"
-                  placeholder="Voeg notities toe... (⌘+Enter om op te slaan)"
+          </div>
+        </div>
+      </div>
+
+      {/* Plan call modal */}
+      {showCallModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={() => setShowCallModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', border: '1px solid var(--edge)', borderRadius: 6, width: '100%', maxWidth: 480, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--edge)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>Belafspraak plannen</span>
+              <button onClick={() => setShowCallModal(false)} style={{ background: 'none', border: 'none', color: 'var(--ink-ghost)', cursor: 'pointer', padding: 2 }}>
+                <X style={{ width: 16, height: 16 }} />
+              </button>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 5 }}>Studio</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{lead.company_name}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 5 }}>Datum</div>
+                <input
+                  type="date"
+                  value={callDate}
+                  onChange={(e) => setCallDate(e.target.value)}
+                  style={{ width: '100%', border: '1px solid var(--edge)', borderRadius: 3, padding: '8px 10px', fontSize: 12, color: 'var(--ink)', background: '#fff', outline: 'none' }}
                 />
-                {notesError && (
-                  <p className="mt-2 text-sm text-red-600">{notesError}</p>
-                )}
-              </>
-            ) : (
-              <p className="text-gray-600 whitespace-pre-wrap">
-                {lead.notes || 'Geen notities. Klik op Bewerken om notities toe te voegen.'}
-              </p>
-            )}
-          </div>
-
-          {/* Email Action */}
-          {(lead.email || contacts.some(c => c.email)) && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Mail className="h-5 w-5 text-gray-400" />
-                <h2 className="font-semibold text-gray-900">Email</h2>
               </div>
-              <Link
-                href={`/email?lead=${lead.id}`}
-                className="flex items-center justify-center gap-2 w-full p-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-colors"
-              >
-                <Send className="h-4 w-4" />
-                <span className="font-medium">Email versturen</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Status Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Status</h2>
-            <div className="space-y-2">
-              {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map((status) => {
-                const colors = getStatusColor(status)
-                const isActive = lead.status === status
-                return (
-                  <button
-                    key={status}
-                    onClick={() => onStatusChange(status)}
-                    className={cn(
-                      'w-full flex items-center gap-3 p-3 rounded-xl transition-all',
-                      isActive ? colors.bg : 'hover:bg-gray-50'
-                    )}
-                  >
-                    <span className={cn('w-3 h-3 rounded-full', colors.dot)} />
-                    <span className={cn('font-medium capitalize', isActive ? colors.text : 'text-gray-600')}>
-                      {status}
-                    </span>
-                    {isActive && <Check className={cn('h-4 w-4 ml-auto', colors.text)} />}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Timeline */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Tijdlijn</h2>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-gray-500" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 5 }}>Begintijd</div>
+                  <input
+                    type="time"
+                    value={callStart}
+                    onChange={(e) => setCallStart(e.target.value)}
+                    style={{ width: '100%', border: '1px solid var(--edge)', borderRadius: 3, padding: '8px 10px', fontSize: 12, color: 'var(--ink)', background: '#fff', outline: 'none' }}
+                  />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">Toegevoegd</div>
-                  <div className="font-medium text-gray-900">{formatDate(lead.created_at)}</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 5 }}>Eindtijd</div>
+                  <input
+                    type="time"
+                    value={callEnd}
+                    onChange={(e) => setCallEnd(e.target.value)}
+                    style={{ width: '100%', border: '1px solid var(--edge)', borderRadius: 3, padding: '8px 10px', fontSize: 12, color: 'var(--ink)', background: '#fff', outline: 'none' }}
+                  />
                 </div>
               </div>
-              {lead.updated_at && lead.updated_at !== lead.created_at && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Edit3 className="h-4 w-4 text-gray-500" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Laatst bewerkt</div>
-                    <div className="font-medium text-gray-900">{formatDate(lead.updated_at)}</div>
-                  </div>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 5 }}>Notities</div>
+                <textarea
+                  value={callNotes}
+                  onChange={(e) => setCallNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Onderwerpen, aandachtspunten…"
+                  style={{ width: '100%', border: '1px solid var(--edge)', borderRadius: 3, padding: '8px 10px', fontSize: 12, color: 'var(--ink)', background: '#fff', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </div>
+              {callError && (
+                <div style={{ padding: '6px 10px', background: 'oklch(0.97 0.03 27)', color: 'var(--danger)', fontSize: 12, borderRadius: 3 }}>
+                  {callError}
                 </div>
               )}
             </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--edge)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="ld-btn-sm" onClick={() => setShowCallModal(false)} disabled={callSaving}>
+                Annuleren
+              </button>
+              <button className="ld-btn-sm primary" onClick={saveCall} disabled={callSaving}>
+                {callSaving ? 'Opslaan...' : 'Plan call'}
+              </button>
+            </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// Helper sub-components voor LeadDetail
+function MetaItem({ label, val, muted }: { label: string; val: string; muted?: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-ghost)' }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: muted ? 600 : 700, color: muted ? 'var(--ink-muted)' : 'var(--ink)' }}>{val}</span>
+    </div>
+  )
+}
+
+function ContactRow({ icon, label, val, href }: { icon: React.ReactNode; label: string; val: string; href?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+      <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', color: 'var(--ink-muted)', borderRadius: 3, flexShrink: 0 }}>
+        {icon}
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-ghost)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 60 }}>{label}</span>
+      {href ? (
+        <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {val}
+        </a>
+      ) : (
+        <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
+      )}
+    </div>
+  )
+}
+
+function DataRow({ k, v, muted, color }: { k: string; v: string; muted?: boolean; color?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--edge-soft)', gap: 8 }}>
+      <span style={{ fontSize: 11, color: 'var(--ink-ghost)', fontWeight: 600 }}>{k}</span>
+      <span style={{ fontSize: 12, color: color || (muted ? 'var(--ink-muted)' : 'var(--ink)'), fontWeight: muted ? 500 : 700, textAlign: 'right' }}>{v}</span>
+    </div>
+  )
+}
+
+function CtxRow({ icon, label, val }: { icon: React.ReactNode; label: string; val: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 0', borderBottom: '1px solid var(--edge-soft)' }}>
+      <div style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 3, background: 'var(--accent-tint)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-ghost)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 1 }}>{label}</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>{val}</div>
       </div>
     </div>
   )
 }
 
+
+function GoalStat({ val, label, color }: { val: string; label: string; color?: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+      <span style={{ fontSize: 13, fontWeight: 800, color: color || 'var(--ink-muted)', fontFamily: 'ui-monospace, monospace' }}>{val}</span>
+      <span style={{ fontSize: 8.5, color: 'var(--ink-ghost)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>{label}</span>
+    </div>
+  )
+}
 
 export default function SalesPage() {
   const [leads, setLeads] = useState<SalesLead[]>([])
@@ -1386,6 +1752,42 @@ export default function SalesPage() {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false)
   const [cityFilter, setCityFilter] = useState<string | null>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
+  const cityBtnRef = useRef<HTMLButtonElement>(null)
+  const [cityDropdownPos, setCityDropdownPos] = useState<{ top: number; left: number } | null>(null)
+
+  const openCityDropdown = () => {
+    if (!showCityDropdown && cityBtnRef.current) {
+      const rect = cityBtnRef.current.getBoundingClientRect()
+      setCityDropdownPos({ top: rect.bottom + 6, left: rect.left })
+    }
+    setShowCityDropdown(!showCityDropdown)
+  }
+
+  // Close on outside click + reposition on scroll/resize
+  useEffect(() => {
+    if (!showCityDropdown) return
+    const close = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (cityBtnRef.current && !cityBtnRef.current.contains(target)) {
+        const dd = document.getElementById('city-dropdown-portal')
+        if (!dd || !dd.contains(target)) setShowCityDropdown(false)
+      }
+    }
+    const reposition = () => {
+      if (cityBtnRef.current) {
+        const rect = cityBtnRef.current.getBoundingClientRect()
+        setCityDropdownPos({ top: rect.bottom + 6, left: rect.left })
+      }
+    }
+    document.addEventListener('mousedown', close)
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [showCityDropdown])
   const [normalizingCities, setNormalizingCities] = useState(false)
   const [salesView, setSalesView] = useState<'pipeline' | 'cities'>('pipeline')
 
@@ -1437,13 +1839,19 @@ export default function SalesPage() {
   }
 
   const handleStatusChange = async (leadId: string, newStatus: SalesLead['status']) => {
+    // Optimistic: bewaar oude status, update UI direct, sync DB op achtergrond.
+    let prevStatus: SalesLead['status'] | undefined
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) { prevStatus = l.status; return { ...l, status: newStatus } }
+      return l
+    }))
+    setSelectedLead(prev => (prev && prev.id === leadId ? { ...prev, status: newStatus } : prev))
     try {
       await salesLeadsApi.update(leadId, { status: newStatus })
-      setLeads(leads.map(l => l.id === leadId ? { ...l, status: newStatus } : l))
-      if (selectedLead?.id === leadId) {
-        setSelectedLead({ ...selectedLead, status: newStatus })
-      }
     } catch (error: unknown) {
+      // Rollback bij fail
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: prevStatus ?? l.status } : l))
+      setSelectedLead(prev => (prev && prev.id === leadId ? { ...prev, status: prevStatus ?? prev.status } : prev))
       const err = error as { message?: string; code?: string; details?: string }
       console.error('Error updating status:', err?.message, err?.code, err?.details)
     }
@@ -1679,94 +2087,281 @@ export default function SalesPage() {
     )
   }
 
+  const activeCount = leads.filter(l => l.status !== 'closed' && l.status !== 'lost').length
+  const statusCounts = {
+    cold: leads.filter(l => l.status === 'cold').length,
+    warm: leads.filter(l => l.status === 'warm').length,
+    hot: leads.filter(l => l.status === 'hot').length,
+    voicemail: leads.filter(l => l.status === 'voicemail').length,
+    negotiation: leads.filter(l => l.status === 'negotiation').length,
+  }
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Hero Section - Road to 1000 */}
-      <div className="bg-gradient-to-br from-gray-900 via-purple-600 to-black rounded-3xl p-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+    <div style={{ margin: '-16px -16px 0', minHeight: 'calc(100vh - 64px)', background: 'var(--bg, #F9FAFE)' }}>
+      <style jsx global>{`
+        :root {
+          --cold-bg: oklch(0.96 0.005 240); --cold-fg: oklch(0.40 0.012 240); --cold-dot: oklch(0.55 0.012 240);
+          --warm-bg: oklch(0.97 0.06 72);   --warm-fg: oklch(0.48 0.14 65);   --warm-dot: oklch(0.68 0.16 72);
+          --hot-bg: oklch(0.97 0.06 40);    --hot-fg: oklch(0.45 0.18 35);    --hot-dot: oklch(0.60 0.22 30);
+          --vm-bg: oklch(0.97 0.04 280);    --vm-fg: oklch(0.46 0.18 280);    --vm-dot: oklch(0.60 0.20 280);
+          --neg-bg: oklch(0.94 0 0);        --neg-fg: oklch(0.20 0 0);        --neg-dot: oklch(0.22 0 0);
+          --closed-bg: oklch(0.96 0.06 145); --closed-fg: oklch(0.42 0.16 145); --closed-dot: oklch(0.58 0.18 145);
+          --lost-bg: oklch(0.97 0.03 27);   --lost-fg: oklch(0.48 0.20 27);   --lost-dot: oklch(0.57 0.24 27);
+        }
+        .sp-tab {
+          padding: 5px 14px; border-radius: 9999px; font-size: 10.5px; font-weight: 600;
+          border: 1px solid transparent; color: var(--ink-ghost); background: transparent;
+          transition: all 120ms; cursor: pointer;
+        }
+        .sp-tab.active { background: var(--surface); border-color: var(--edge); color: var(--ink); }
+        .sp-tab:hover:not(.active) { color: var(--ink-muted); }
+        .sp-btn-pill {
+          background: var(--ink); color: #fff; border: none; padding: 7px 16px;
+          border-radius: 9999px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+          display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 130ms;
+        }
+        .sp-btn-pill:hover { opacity: 0.82; }
+        .sp-btn-outline {
+          background: transparent; color: var(--ink); border: 1px solid var(--edge);
+          padding: 6px 14px; border-radius: 9999px; font-size: 11px; font-weight: 600;
+          display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 130ms;
+        }
+        .sp-btn-outline:hover { border-color: var(--ink-ghost); background: var(--surface); }
+        .sp-filter-pill {
+          display: inline-flex; align-items: center; gap: 5px; padding: 4px 13px;
+          border-radius: 9999px; font-size: 10.5px; font-weight: 600; border: 1px solid var(--edge);
+          background: var(--bg, #F9FAFE); color: var(--ink-ghost); transition: all 120ms;
+          white-space: nowrap; cursor: pointer;
+        }
+        .sp-filter-pill:hover { border-color: var(--ink-ghost); color: var(--ink-muted); }
+        .sp-filter-pill.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+        .sp-chip {
+          display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+          border-radius: 9999px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.02em;
+          white-space: nowrap; text-transform: lowercase;
+        }
+        .sp-chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+        .sp-chip.cold { background: var(--cold-bg); color: var(--cold-fg); }
+        .sp-chip.cold .sp-chip-dot { background: var(--cold-dot); }
+        .sp-chip.warm { background: var(--warm-bg); color: var(--warm-fg); }
+        .sp-chip.warm .sp-chip-dot { background: var(--warm-dot); }
+        .sp-chip.hot { background: var(--hot-bg); color: var(--hot-fg); }
+        .sp-chip.hot .sp-chip-dot { background: var(--hot-dot); }
+        .sp-chip.voicemail { background: var(--vm-bg); color: var(--vm-fg); }
+        .sp-chip.voicemail .sp-chip-dot { background: var(--vm-dot); }
+        .sp-chip.negotiation { background: var(--neg-bg); color: var(--neg-fg); }
+        .sp-chip.negotiation .sp-chip-dot { background: var(--neg-dot); }
+        .sp-chip.closed { background: var(--closed-bg); color: var(--closed-fg); }
+        .sp-chip.closed .sp-chip-dot { background: var(--closed-dot); }
+        .sp-chip.lost { background: var(--lost-bg); color: var(--lost-fg); }
+        .sp-chip.lost .sp-chip-dot { background: var(--lost-dot); }
+        .sp-src-chip {
+          display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px;
+          font-size: 9px; font-weight: 700; letter-spacing: 0.04em; background: var(--surface);
+          color: var(--ink-ghost); border: 1px solid var(--edge); text-transform: uppercase;
+        }
+        .sp-table { width: 100%; border-collapse: collapse; }
+        .sp-table th { padding: 9px 16px; border-bottom: 1px solid var(--edge); background: var(--surface); font-size: 8.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-ghost); text-align: left; white-space: nowrap; }
+        .sp-table th:first-child { padding-left: 32px; }
+        .sp-table th:last-child { padding-right: 32px; }
+        .sp-table td { padding: 11px 16px; border-bottom: 1px solid var(--edge-soft); vertical-align: middle; }
+        .sp-table td:first-child { padding-left: 32px; }
+        .sp-table td:last-child { padding-right: 32px; }
+        .sp-table tr:hover td { background: oklch(0.988 0 0); cursor: pointer; }
+        .sp-co-name { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+        .sp-co-url { font-size: 10.5px; color: var(--ink-ghost); }
+        .sp-avatar-sm { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: #fff; flex-shrink: 0; }
+        .sp-date-cell { font-size: 11px; color: var(--ink-ghost); font-family: ui-monospace, monospace; }
+        .sp-activity-cell { font-size: 11px; color: var(--ink-faint); }
+      `}</style>
 
-        <div className="relative">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="h-5 w-5 text-gray-300" />
-                <span className="text-gray-300 text-sm font-medium">Company Goal</span>
-              </div>
-              <h1 className="text-3xl font-bold">Road to 1,000 Studios</h1>
-            </div>
-            <div className="text-right">
-              <div className="text-5xl font-bold">{currentStudios}</div>
-              <div className="text-gray-300">of {goalStudios.toLocaleString()} studios</div>
-            </div>
-          </div>
 
-          <div className="relative">
-            <div className="h-4 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-300 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            <div className="flex justify-between mt-2">
-              {milestones.map((milestone) => (
-                <div key={milestone.value} className="flex flex-col items-center">
-                  <div className={cn(
-                    'w-3 h-3 rounded-full border-2 -mt-5 mb-1',
-                    currentStudios >= milestone.value
-                      ? 'bg-emerald-400 border-emerald-300'
-                      : 'bg-white/20 border-white/40'
-                  )} />
-                  <span className="text-xs text-gray-300">{milestone.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-white/20">
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{leads.filter(l => l.status !== 'closed' && l.status !== 'lost').length}</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Active Leads</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{closedLeads.length}</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Closed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{conversionRate}%</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Conversion</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{totalLeads}</div>
-              <div className="text-gray-300 text-xs sm:text-sm">Total</div>
-            </div>
-          </div>
+      {/* ── Header ── */}
+      <div style={{ height: 58, background: 'var(--bg, #F9FAFE)', borderBottom: '1px solid var(--edge)', display: 'flex', alignItems: 'center', padding: '0 24px', position: 'sticky', top: 64, zIndex: 20 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginRight: 24, whiteSpace: 'nowrap' }}>
+          Sales Pipeline
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button className={`sp-tab${salesView === 'pipeline' ? ' active' : ''}`} onClick={() => setSalesView('pipeline')}>
+            Pipeline
+          </button>
+          <button className={`sp-tab${salesView === 'cities' ? ' active' : ''}`} onClick={() => setSalesView('cities')}>
+            Per stad
+          </button>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            className="sp-btn-pill"
+            onClick={() => filteredLeads.length > 0 && setSalesModeActive(true)}
+            disabled={filteredLeads.length === 0}
+            style={{ opacity: filteredLeads.length === 0 ? 0.5 : 1 }}
+          >
+            <Crosshair className="h-3 w-3" />
+            Sales Mode
+            <span style={{ background: 'rgba(255,255,255,0.18)', padding: '1px 7px', borderRadius: 9999, fontSize: 10, fontWeight: 700 }}>
+              {filteredLeads.length}
+            </span>
+          </button>
+          <button className="sp-btn-outline" onClick={() => setShowCSVModal(true)}>
+            <Upload className="h-3 w-3" />
+            CSV
+          </button>
+          <button className="sp-btn-outline" onClick={() => setShowAddModal(true)}>
+            <Plus className="h-3 w-3" />
+            Nieuw
+          </button>
         </div>
       </div>
 
-      {/* View toggle */}
-      <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
-        <button
-          onClick={() => setSalesView('pipeline')}
-          className={cn(
-            'px-3 py-1.5 rounded-md text-sm font-medium transition',
-            salesView === 'pipeline' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
-          )}
-        >
-          Pipeline
-        </button>
-        <button
-          onClick={() => setSalesView('cities')}
-          className={cn(
-            'px-3 py-1.5 rounded-md text-sm font-medium transition',
-            salesView === 'cities' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
-          )}
-        >
-          Per stad
-        </button>
+      {/* ── Goal strip ── */}
+      <div style={{ borderBottom: '1px solid var(--edge)', padding: '13px 24px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'var(--ink-ghost)', whiteSpace: 'nowrap' }}>
+          Road to 1000
+        </span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.025em', color: 'var(--accent)' }}>{currentStudios}</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace' }}>/ {goalStudios.toLocaleString()}</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ height: 5, background: 'var(--edge)', borderRadius: 3, position: 'relative' }}>
+            <div style={{ height: '100%', background: 'var(--accent)', borderRadius: 3, width: `${progressPercent}%`, transition: 'width 0.5s' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+            {milestones.map(ms => (
+              <span key={ms.value} style={{ fontSize: 9, fontFamily: 'ui-monospace, monospace', color: 'var(--ink-ghost)' }}>{ms.label}</span>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0 }}>
+          <GoalStat val={String(activeCount)} label="Actief" />
+          <GoalStat val={String(closedLeads.length)} label="Gesloten" />
+          <GoalStat val={`${conversionRate}%`} label="Conversie" color="oklch(0.57 0.24 27)" />
+          <GoalStat val={String(totalLeads)} label="Totaal" />
+        </div>
       </div>
 
+      {/* ── Filter bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px', borderBottom: '1px solid var(--edge)', background: 'var(--surface)', overflowX: 'auto' }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-ghost)', width: 14, height: 14 }} />
+          <input
+            type="text"
+            placeholder="Zoeken op naam, stad, contact…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              border: '1px solid var(--edge)', borderRadius: 9999, background: 'var(--bg, #F9FAFE)',
+              padding: '5px 12px 5px 32px', fontSize: 11.5, color: 'var(--ink)',
+              outline: 'none', width: 240, transition: 'border-color 130ms',
+            }}
+          />
+        </div>
+        <div style={{ width: 1, height: 16, background: 'var(--edge)', flexShrink: 0 }} />
+        <button className={`sp-filter-pill${!statusFilter ? ' active' : ''}`} onClick={() => setStatusFilter(null)}>
+          Alle statussen
+        </button>
+        {(['cold', 'warm', 'hot', 'voicemail', 'negotiation'] as const).map(s => {
+          const count = statusCounts[s]
+          if (count === 0) return null
+          const colors = getStatusColor(s)
+          return (
+            <button
+              key={s}
+              className={`sp-filter-pill${statusFilter === s ? ' active' : ''}`}
+              onClick={() => setStatusFilter(statusFilter === s ? null : s)}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: colors.dot.replace('bg-', '').includes('-') ? undefined : colors.dot }} className={cn('inline-block', colors.dot)} />
+              <span style={{ textTransform: 'capitalize' }}>{s === 'negotiation' ? 'Onderhandeling' : s}</span>
+              <span style={{ fontFamily: 'ui-monospace, monospace' }}>{count}</span>
+            </button>
+          )
+        })}
+        <div style={{ width: 1, height: 16, background: 'var(--edge)', flexShrink: 0 }} />
+        {/* Stad-filter dropdown */}
+        <button
+          ref={cityBtnRef}
+          className={`sp-filter-pill${cityFilter ? ' active' : ''}`}
+          onClick={openCityDropdown}
+        >
+          <MapPin style={{ width: 11, height: 11 }} />
+          {cityFilter || 'Alle steden'}
+          <ChevronDown style={{ width: 11, height: 11 }} />
+        </button>
+        <div style={{ flex: 1 }} />
+      </div>
+
+      {/* Stad-dropdown (fixed, buiten filter-bar overflow context) */}
+      {showCityDropdown && cityDropdownPos && (
+        <div
+          id="city-dropdown-portal"
+          style={{
+            position: 'fixed',
+            top: cityDropdownPos.top,
+            left: cityDropdownPos.left,
+            background: 'var(--bg, #F9FAFE)',
+            border: '1px solid var(--edge)',
+            borderRadius: 6,
+            padding: '6px 0',
+            minWidth: 200,
+            maxHeight: 320,
+            overflowY: 'auto',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+            zIndex: 1000,
+          }}
+        >
+          <button
+            onClick={() => { setCityFilter(null); setShowCityDropdown(false) }}
+            style={{
+              width: '100%', textAlign: 'left', padding: '6px 14px', fontSize: 11.5,
+              background: !cityFilter ? 'var(--surface)' : 'transparent',
+              fontWeight: !cityFilter ? 600 : 500,
+              color: 'var(--ink)', border: 'none', cursor: 'pointer',
+            }}
+          >
+            Alle steden
+          </button>
+          {uniqueCities.map(city => (
+            <button
+              key={city}
+              onClick={() => { setCityFilter(city); setShowCityDropdown(false) }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '6px 14px', fontSize: 11.5,
+                background: cityFilter === city ? 'var(--surface)' : 'transparent',
+                fontWeight: cityFilter === city ? 600 : 500,
+                color: 'var(--ink)', border: 'none', cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}
+            >
+              <span>{city}</span>
+              <span style={{ fontSize: 10, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace' }}>
+                {cityCountMap.get(city) || 0}
+              </span>
+            </button>
+          ))}
+          <div style={{ borderTop: '1px solid var(--edge)', marginTop: 4, paddingTop: 4 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleNormalizeCities() }}
+              disabled={normalizingCities}
+              style={{
+                width: '100%', textAlign: 'left', padding: '6px 14px', fontSize: 11,
+                background: 'transparent', color: 'oklch(0.50 0.18 295)',
+                border: 'none', cursor: normalizingCities ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+                opacity: normalizingCities ? 0.5 : 1,
+              }}
+            >
+              {normalizingCities ? (
+                <><Loader2 style={{ width: 11, height: 11 }} className="animate-spin" /> AI normaliseert steden...</>
+              ) : (
+                <><Sparkles style={{ width: 11, height: 11 }} /> Steden opschonen (AI)</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Content ── */}
       {salesView === 'cities' ? (
         <CityOverview
           leads={leads}
@@ -1776,342 +2371,74 @@ export default function SalesPage() {
           }}
         />
       ) : (
-        <>
-      {/* Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Zoeken..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent w-full sm:w-64"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <button
-              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <Filter className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700">
-                {statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : 'Alle statussen'}
-              </span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </button>
-
-            {showStatusDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10">
-                <button
-                  onClick={() => { setStatusFilter(null); setShowStatusDropdown(false) }}
-                  className={cn(
-                    'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors',
-                    !statusFilter && 'bg-gray-50 font-medium'
-                  )}
-                >
-                  Alle statussen
-                </button>
-                {(['cold', 'warm', 'hot', 'voicemail', 'negotiation', 'closed', 'lost'] as const).map((status) => {
-                  const colors = getStatusColor(status)
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => { setStatusFilter(status); setShowStatusDropdown(false) }}
-                      className={cn(
-                        'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center gap-2',
-                        statusFilter === status && 'bg-gray-50 font-medium'
+        <div style={{ overflowX: 'auto' }}>
+          <table className="sp-table">
+            <thead>
+              <tr>
+                <th>Studio / Bedrijf</th>
+                <th>Contactpersoon</th>
+                <th>Stad</th>
+                <th>Status</th>
+                <th style={{ width: 28 }}></th>
+                <th>Bron</th>
+                <th>Laatste activiteit</th>
+                <th>Toegevoegd</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLeads.map((lead) => {
+                const colors = getStatusColor(lead.status)
+                const approval = getApproval(lead)
+                const initials = (lead.contact_name || lead.company_name || '?').split(' ').slice(0, 2).map(s => s[0]).join('').toUpperCase()
+                return (
+                  <tr key={lead.id} onClick={() => selectLead(lead)}>
+                    <td>
+                      <div className="sp-co-name">{lead.company_name}</div>
+                      {lead.website && <div className="sp-co-url">{lead.website.replace(/^https?:\/\//, '')}</div>}
+                    </td>
+                    <td>
+                      {lead.contact_name ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                          <div className="sp-avatar-sm" style={{ background: 'var(--accent)' }}>{initials}</div>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>{lead.contact_name}</span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--ink-ghost)' }}>—</span>
                       )}
-                    >
-                      <span className={cn('w-2 h-2 rounded-full', colors.dot)} />
-                      <span className="capitalize">{status}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          
-          {/* City Filter */}
-          <div className="relative">
-            <button
-              onClick={() => setShowCityDropdown(!showCityDropdown)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl border hover:bg-gray-50 transition-colors',
-                cityFilter ? 'border-gray-900 bg-gray-50' : 'border-gray-200'
-              )}
-            >
-              <MapPin className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700">
-                {cityFilter || 'Alle steden'}
-              </span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </button>
-
-            {showCityDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10 max-h-64 overflow-auto">
-                <button
-                  onClick={() => { setCityFilter(null); setShowCityDropdown(false) }}
-                  className={cn(
-                    'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors',
-                    !cityFilter && 'bg-gray-50 font-medium'
-                  )}
-                >
-                  Alle steden
-                </button>
-                {uniqueCities.map((city) => (
-                  <button
-                    key={city}
-                    onClick={() => { setCityFilter(city); setShowCityDropdown(false) }}
-                    className={cn(
-                      'w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center justify-between',
-                      cityFilter === city && 'bg-gray-50 font-medium'
-                    )}
-                  >
-                    <span>{city}</span>
-                    <span className="text-xs text-gray-400">
-                      {cityCountMap.get(city) || 0}
-                    </span>
-                  </button>
-                ))}
-                <div className="border-t border-gray-100 mt-1 pt-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleNormalizeCities() }}
-                    disabled={normalizingCities}
-                    className="w-full px-4 py-2 text-left text-xs text-purple-600 hover:bg-purple-50 transition-colors flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {normalizingCities ? (
-                      <><Loader2 className="h-3 w-3 animate-spin" /> AI normaliseert steden...</>
-                    ) : (
-                      <><Sparkles className="h-3 w-3" /> Steden opschonen (AI)</>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sort Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <ArrowUpDown className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700">
-                {sortBy === 'name' ? 'Naam' : sortBy === 'city' ? 'Stad' : sortBy === 'company' ? 'Bedrijf' : 'Datum'}
-              </span>
-              <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-            </button>
-
-            {showSortDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-10">
-                {[
-                  { key: 'date', label: 'Datum' },
-                  { key: 'name', label: 'Contact naam' },
-                  { key: 'company', label: 'Bedrijf' },
-                  { key: 'city', label: 'Stad' },
-                ].map((option) => (
-                  <div
-                    key={option.key}
-                    className={cn(
-                      'w-full px-4 py-2 hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer',
-                      sortBy === option.key && 'bg-gray-50 font-medium'
-                    )}
-                  >
-                    <button
-                      onClick={() => { setSortBy(option.key as typeof sortBy); setShowSortDropdown(false) }}
-                      className="flex-1 text-left"
-                    >
-                      {option.label}
-                    </button>
-                    {sortBy === option.key && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc') }}
-                        className="text-gray-400 hover:text-gray-600 ml-2"
-                      >
-                        {sortOrder === 'asc' ? '↑' : '↓'}
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: 12, color: 'var(--ink-muted)', fontWeight: 500 }}>{lead.city || '—'}</span>
+                    </td>
+                    <td>
+                      <span className={`sp-chip ${lead.status || 'cold'}`}>
+                        <span className="sp-chip-dot" />
+                        {lead.status || 'cold'}
+                      </span>
+                    </td>
+                    <td>
+                      {approval === 'approved' && <ThumbsUp className="h-4 w-4" style={{ color: 'oklch(0.52 0.18 145)' }} />}
+                      {approval === 'rejected' && <ThumbsDown className="h-4 w-4" style={{ color: 'oklch(0.57 0.24 27)' }} />}
+                    </td>
+                    <td>
+                      <span className="sp-src-chip">{lead.source || 'Unknown'}</span>
+                    </td>
+                    <td>
+                      <span className="sp-activity-cell">{lead.updated_at && lead.updated_at !== lead.created_at ? `Bijgewerkt ${formatDate(lead.updated_at)}` : 'Toegevoegd'}</span>
+                    </td>
+                    <td>
+                      <span className="sp-date-cell">{formatDate(lead.created_at)}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {filteredLeads.length === 0 && (
+            <div style={{ padding: 60, textAlign: 'center', fontSize: 13, color: 'var(--ink-ghost)' }}>
+              Geen leads gevonden voor dit filter.
+            </div>
+          )}
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            onClick={() => { setSalesModeResumeIndex(0); setSalesModeActive(true) }}
-            disabled={filteredLeads.length === 0}
-            className="gap-2 bg-gray-900 hover:bg-black"
-          >
-            <Crosshair className="h-4 w-4" />
-            <span className="hidden sm:inline">Sales Mode</span>
-            {filteredLeads.length > 0 && (
-              <Badge className="bg-white/20 text-white ml-1">{filteredLeads.length}</Badge>
-            )}
-          </Button>
-
-          <Link href="/scraper">
-            <Button variant="outline" className="gap-2">
-              <SearchIcon2 className="h-4 w-4" />
-              <span className="hidden md:inline">Meer scrapen</span>
-            </Button>
-          </Link>
-
-          <Button variant="outline" onClick={() => setShowCSVModal(true)}>
-            <Upload className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">CSV Import</span>
-          </Button>
-
-          <Button onClick={() => { setEditLead(null); setShowAddModal(true) }}>
-            <Plus className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">Nieuwe Lead</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Leads Table (desktop) */}
-      <div className="hidden lg:block bg-white rounded-2xl border border-gray-100 overflow-x-auto">
-        <table className="w-full min-w-[700px]">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="text-left p-4 font-semibold text-gray-600">Bedrijf</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Contact</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Locatie</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Status</th>
-              <th className="text-left p-4 font-semibold text-gray-600 w-10"></th>
-              <th className="text-left p-4 font-semibold text-gray-600">Bron</th>
-              <th className="text-left p-4 font-semibold text-gray-600">Toegevoegd</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredLeads.map((lead) => {
-              const statusColors = getStatusColor(lead.status)
-              return (
-                <tr
-                  key={lead.id}
-                  onClick={() => selectLead(lead)}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <td className="p-4">
-                    <div className="font-semibold text-gray-900">{lead.company_name}</div>
-                    {lead.website && (
-                      <div className="text-sm text-gray-500 truncate max-w-[200px]">{lead.website}</div>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <div className="text-gray-900">{lead.contact_name || '-'}</div>
-                    {lead.email && (
-                      <div className="text-sm text-gray-500">{lead.email}</div>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <div>
-                        <div>{lead.city || '-'}</div>
-                        {(lead as SalesLead & { address?: string }).address && (
-                          <div className="text-xs text-gray-400 truncate max-w-[160px]">
-                            {(lead as SalesLead & { address?: string }).address}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <Badge className={cn(statusColors.bg, statusColors.text, 'capitalize')}>
-                      <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', statusColors.dot)} />
-                      {lead.status}
-                    </Badge>
-                  </td>
-                  <td className="p-4">
-                    {(() => {
-                      const a = getApproval(lead)
-                      if (a === 'approved') return <ThumbsUp className="h-4 w-4 text-emerald-500" />
-                      if (a === 'rejected') return <ThumbsDown className="h-4 w-4 text-red-500" />
-                      return null
-                    })()}
-                  </td>
-                  <td className="p-4">
-                    <Badge className={getSourceColor(lead.source)}>
-                      {lead.source || 'Unknown'}
-                    </Badge>
-                  </td>
-                  <td className="p-4 text-gray-500">
-                    {formatDate(lead.created_at)}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-
-        {filteredLeads.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-gray-500">Geen leads gevonden</p>
-          </div>
-        )}
-      </div>
-
-      {/* Leads Cards (mobile/tablet) */}
-      <div className="lg:hidden space-y-2">
-        {filteredLeads.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-            <p className="text-gray-500">Geen leads gevonden</p>
-          </div>
-        ) : (
-          filteredLeads.map((lead) => {
-            const statusColors = getStatusColor(lead.status)
-            const approval = getApproval(lead)
-            return (
-              <button
-                key={lead.id}
-                onClick={() => selectLead(lead)}
-                className="w-full bg-white rounded-xl border border-gray-100 p-4 text-left hover:shadow-sm transition"
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-gray-900 truncate">{lead.company_name}</h3>
-                      {approval === 'approved' && <ThumbsUp className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
-                      {approval === 'rejected' && <ThumbsDown className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
-                    </div>
-                    {lead.contact_name && (
-                      <p className="text-sm text-gray-600 truncate mt-0.5">{lead.contact_name}</p>
-                    )}
-                  </div>
-                  <Badge className={cn(statusColors.bg, statusColors.text, 'capitalize flex-shrink-0 text-xs')}>
-                    <span className={cn('w-1.5 h-1.5 rounded-full mr-1', statusColors.dot)} />
-                    {lead.status}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                  {lead.city && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-gray-400" />
-                      {lead.city}
-                    </span>
-                  )}
-                  {lead.email && (
-                    <span className="truncate max-w-[180px]">{lead.email}</span>
-                  )}
-                  <Badge className={cn(getSourceColor(lead.source), 'text-[10px] px-1.5 py-0')}>
-                    {lead.source || 'Unknown'}
-                  </Badge>
-                  <span className="ml-auto text-gray-400">{formatDate(lead.created_at)}</span>
-                </div>
-              </button>
-            )
-          })
-        )}
-      </div>
-        </>
       )}
 
       {/* Modals */}
