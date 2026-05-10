@@ -285,7 +285,6 @@ export default function SettingsPage() {
 
   // ── Auth toggles ───────────────────────────────────────────────────────────
   const [emailLoginEnabled, setEmailLoginEnabled] = useState(true)
-  const [magicLinkEnabled, setMagicLinkEnabled]   = useState(true)
 
   return (
     <div className="flex bg-[var(--bg)]" style={{ margin: '-16px -16px 0', minHeight: 'calc(100vh - 64px)' }}>
@@ -503,7 +502,6 @@ export default function SettingsPage() {
             <Card>
               <CardTitle>Inlogmethoden</CardTitle>
               <ToggleRow label="E-mail & wachtwoord" desc="Traditioneel e-mail en wachtwoord login" checked={emailLoginEnabled} onChange={setEmailLoginEnabled} />
-              <ToggleRow label="Magic Link" desc="Wachtwoordloos inloggen via eenmalige link" checked={magicLinkEnabled} onChange={setMagicLinkEnabled} />
             </Card>
           </div>
         )}
