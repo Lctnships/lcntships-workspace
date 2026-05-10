@@ -17,6 +17,21 @@
   --border: #E5E7EB;
   --highlight: oklch(0.852 0.199 91.936);
   --brand: oklch(0.623 0.214 259.815);
+
+  /* Redesign tokens */
+  --ink:           oklch(0.145 0 0);
+  --ink-muted:     oklch(0.45 0 0);
+  --ink-faint:     oklch(0.556 0 0);
+  --ink-ghost:     oklch(0.708 0 0);
+  --edge:          oklch(0.922 0 0);
+  --edge-soft:     oklch(0.96 0 0);
+  --surface:       oklch(0.97 0 0);
+  --bg:            #F9FAFE;
+  --accent:        #0E4F6D;
+  --accent-tint:   #e7f3f8;
+  --accent-bright: #08B9EE;
+  --sidebar-w:         220px;
+  --sidebar-collapsed-w: 56px;
 }
 
 @theme inline {
