@@ -1,731 +1,653 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  Search,
-  Upload,
-  FolderPlus,
-  FilePlus,
-  Pin,
-  Clock,
-  Grid3X3,
-  List,
-  MoreHorizontal,
-  FileText,
-  Image,
-  FileSpreadsheet,
-  Video,
-  Music,
-  File,
-  Folder,
-  Star,
-  Download,
-  Trash2,
-  X,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Inbox,
+  Search, Upload, FolderPlus, Plus, X, ChevronLeft, ChevronRight,
+  Grid3X3, List, Folder, Clock, FileText, Image as ImageIcon,
+  FileSpreadsheet, Video, Music, MoreHorizontal, Loader2,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 import { workspaceClient } from '@/lib/workspace-client'
 
-// Helper to get icon info based on document type
-function getDocTypeIcon(type?: string): { icon: any; iconBg: string; iconColor: string } {
-  switch (type?.toLowerCase()) {
-    case 'pdf':
-      return { icon: FileText, iconBg: 'bg-orange-100', iconColor: 'text-orange-600' }
-    case 'image':
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-      return { icon: Image, iconBg: 'bg-blue-100', iconColor: 'text-blue-600' }
-    case 'spreadsheet':
-    case 'xlsx':
-    case 'csv':
-      return { icon: FileSpreadsheet, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' }
-    case 'video':
-    case 'mp4':
-      return { icon: Video, iconBg: 'bg-pink-100', iconColor: 'text-pink-600' }
-    case 'audio':
-    case 'mp3':
-      return { icon: Music, iconBg: 'bg-gray-200', iconColor: 'text-gray-900' }
-    default:
-      return { icon: File, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' }
-  }
+// ─── Types ────────────────────────────────────────────────────────────────────
+type DocType = 'pdf' | 'img' | 'sheet' | 'video' | 'audio' | 'doc'
+
+type Doc = {
+  id: string
+  name: string
+  type: DocType
+  folder: string
+  date: string
+  href: string
 }
 
-function formatDate(dateString?: string): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-}
+type FolderItem = { name: string; color: string; count: number }
 
-const documentTemplates = [
-  { id: 't1', name: 'Blank Document', icon: FileText, description: 'Start from scratch' },
-  { id: 't2', name: 'Contract Template', icon: FileText, description: 'Partner agreement' },
-  { id: 't3', name: 'Invoice Template', icon: FileSpreadsheet, description: 'Billing document' },
-  { id: 't4', name: 'Proposal Template', icon: FileText, description: 'Business proposal' },
+// ─── Static folder palette ────────────────────────────────────────────────────
+const DEFAULT_FOLDERS: FolderItem[] = [
+  { name: 'Contracten', color: '#1565C0', count: 0 },
+  { name: 'Facturen', color: '#2E7D32', count: 0 },
+  { name: 'Templates', color: '#6A1B9A', count: 0 },
+  { name: 'Marketing', color: '#E65100', count: 0 },
+  { name: 'Studio-info', color: '#C62828', count: 0 },
+  { name: 'Overig', color: '#263238', count: 0 },
 ]
 
-const folderColors = [
-  { id: 'blue', color: 'bg-blue-500' },
-  { id: 'emerald', color: 'bg-emerald-500' },
-  { id: 'purple', color: 'bg-purple-500' },
-  { id: 'orange', color: 'bg-orange-500' },
-  { id: 'pink', color: 'bg-pink-500' },
-  { id: 'dark', color: 'bg-gray-900' },
+const FOLDER_COLORS = ['#1565C0', '#2E7D32', '#6A1B9A', '#E65100', '#C62828', '#263238']
+
+const TEMPLATES = [
+  { id: 't1', name: 'Leeg document', desc: 'Begin met een lege pagina' },
+  { id: 't2', name: 'Contracttemplate', desc: 'Partnerovereenkomst' },
+  { id: 't3', name: 'Factuurtemplate', desc: 'Factuuroverzicht' },
+  { id: 't4', name: 'Propositie', desc: 'Business proposal' },
 ]
 
-// Modal Components
-function CreateDocumentModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<'template' | 'upload'>('template')
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
-  const [documentName, setDocumentName] = useState('')
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Create New Document</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100">
-          <button
-            onClick={() => setActiveTab('template')}
-            className={cn(
-              'flex-1 py-4 text-sm font-bold transition-colors',
-              activeTab === 'template'
-                ? 'text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-400 hover:text-gray-600'
-            )}
-          >
-            Choose Template
-          </button>
-          <button
-            onClick={() => setActiveTab('upload')}
-            className={cn(
-              'flex-1 py-4 text-sm font-bold transition-colors',
-              activeTab === 'upload'
-                ? 'text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-400 hover:text-gray-600'
-            )}
-          >
-            Upload File
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {activeTab === 'template' ? (
-            <div className="space-y-6">
-              {/* Document Name */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Document Name</label>
-                <Input
-                  placeholder="Enter document name..."
-                  value={documentName}
-                  onChange={(e) => setDocumentName(e.target.value)}
-                  className="h-12 rounded-xl"
-                />
-              </div>
-
-              {/* Templates Grid */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-3">Select Template</label>
-                <div className="grid grid-cols-2 gap-4">
-                  {documentTemplates.map((template) => {
-                    const Icon = template.icon
-                    return (
-                      <button
-                        key={template.id}
-                        onClick={() => setSelectedTemplate(template.id)}
-                        className={cn(
-                          'p-4 rounded-2xl border-2 text-left transition-all',
-                          selectedTemplate === template.id
-                            ? 'border-gray-900 bg-gray-100'
-                            : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
-                        )}
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
-                          <Icon className="h-6 w-6 text-gray-600" />
-                        </div>
-                        <p className="font-bold text-gray-900">{template.name}</p>
-                        <p className="text-sm text-gray-500 mt-1">{template.description}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Upload Area */}
-              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center hover:border-gray-700 hover:bg-gray-100/50 transition-colors cursor-pointer">
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-4">
-                  <Upload className="h-8 w-8 text-gray-900" />
-                </div>
-                <p className="text-lg font-bold text-gray-900 mb-2">Drop files here or click to upload</p>
-                <p className="text-sm text-gray-500">
-                  Support for PDF, DOCX, XLSX, PNG, JPG, MP4 up to 100MB
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-100">
-          <Button variant="outline" onClick={onClose} className="rounded-xl h-11 px-6">
-            Cancel
-          </Button>
-          <Button className="rounded-xl h-11 px-6">
-            {activeTab === 'template' ? 'Create Document' : 'Upload'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function inferType(name: string): DocType {
+  const ext = name.split('.').pop()?.toLowerCase() || ''
+  if (['pdf'].includes(ext)) return 'pdf'
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) return 'img'
+  if (['xlsx', 'xls', 'csv', 'numbers'].includes(ext)) return 'sheet'
+  if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return 'video'
+  if (['mp3', 'wav', 'm4a', 'flac'].includes(ext)) return 'audio'
+  return 'doc'
 }
 
-function NewFolderModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [folderName, setFolderName] = useState('')
-  const [selectedColor, setSelectedColor] = useState('blue')
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">New Folder</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Folder Name */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Folder Name</label>
-            <Input
-              placeholder="Enter folder name..."
-              value={folderName}
-              onChange={(e) => setFolderName(e.target.value)}
-              className="h-12 rounded-xl"
-            />
-          </div>
-
-          {/* Color Selection */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">Folder Color</label>
-            <div className="flex gap-3">
-              {folderColors.map((color) => (
-                <button
-                  key={color.id}
-                  onClick={() => setSelectedColor(color.id)}
-                  className={cn(
-                    'w-10 h-10 rounded-full transition-all flex items-center justify-center',
-                    color.color,
-                    selectedColor === color.id ? 'ring-4 ring-offset-2 ring-gray-300' : ''
-                  )}
-                >
-                  {selectedColor === color.id && <Check className="h-5 w-5 text-white" />}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Preview */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">Preview</label>
-            <div className="bg-gray-50 rounded-2xl p-6 flex items-center gap-4">
-              <div className={cn('w-14 h-14 rounded-xl flex items-center justify-center', folderColors.find(c => c.id === selectedColor)?.color)}>
-                <Folder className="h-7 w-7 text-white" />
-              </div>
-              <div>
-                <p className="font-bold text-gray-900">{folderName || 'Untitled Folder'}</p>
-                <p className="text-sm text-gray-500">0 items</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-100">
-          <Button variant="outline" onClick={onClose} className="rounded-xl h-11 px-6">
-            Cancel
-          </Button>
-          <Button className="rounded-xl h-11 px-6" disabled={!folderName}>
-            Create Folder
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
+function typeLabel(t: DocType): string {
+  return { pdf: 'PDF', img: 'Afbeelding', sheet: 'Spreadsheet', video: 'Video', audio: 'Audio', doc: 'Document' }[t]
 }
 
-function UploadProgressOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [uploadProgress, setUploadProgress] = useState(65)
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Uploading Files</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          {/* File 1 - Completed */}
-          <div className="flex items-center gap-4 p-4 bg-emerald-50 rounded-2xl">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <Check className="h-6 w-6 text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-gray-900">Contract_Studio_A.pdf</p>
-              <p className="text-sm text-emerald-600">Completed</p>
-            </div>
-            <span className="text-sm font-bold text-emerald-600">2.4 MB</span>
-          </div>
-
-          {/* File 2 - In Progress */}
-          <div className="p-4 bg-gray-50 rounded-2xl">
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-gray-200 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-gray-900" />
-              </div>
-              <div className="flex-1">
-                <p className="font-bold text-gray-900">Invoice_Dec_2024.pdf</p>
-                <p className="text-sm text-gray-500">{uploadProgress}% uploaded</p>
-              </div>
-              <span className="text-sm font-bold text-gray-500">1.8 MB</span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gray-900 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-          </div>
-
-          {/* File 3 - Queued */}
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl opacity-60">
-            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-              <Image className="h-6 w-6 text-gray-400" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-gray-900">Studio_Photos.zip</p>
-              <p className="text-sm text-gray-400">Queued</p>
-            </div>
-            <span className="text-sm font-bold text-gray-400">45 MB</span>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-100">
-          <p className="text-sm text-gray-500">2 of 3 files uploaded</p>
-          <Button variant="outline" onClick={onClose} className="rounded-xl h-11 px-6">
-            Cancel All
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
+function typeStyles(t: DocType): { bg: string; fg: string } {
+  return {
+    pdf: { bg: '#FFF3E0', fg: '#E65100' },
+    img: { bg: '#E3F2FD', fg: '#1565C0' },
+    sheet: { bg: '#E8F5E9', fg: '#2E7D32' },
+    video: { bg: '#FCE4EC', fg: '#C62828' },
+    audio: { bg: 'var(--surface)', fg: 'var(--ink-ghost)' },
+    doc: { bg: 'var(--accent-tint)', fg: 'var(--accent)' },
+  }[t]
 }
 
+function TypeIcon({ t, size = 18 }: { t: DocType; size?: number }) {
+  const Icon = { pdf: FileText, img: ImageIcon, sheet: FileSpreadsheet, video: Video, audio: Music, doc: FileText }[t]
+  return <Icon style={{ width: size, height: size }} />
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DocumentsPage() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [typeFilter, setTypeFilter] = useState('All Types')
-  const [folderFilter, setFolderFilter] = useState('All Folders')
-  const [showCreateDocModal, setShowCreateDocModal] = useState(false)
-  const [showNewFolderModal, setShowNewFolderModal] = useState(false)
-  const [showUploadProgress, setShowUploadProgress] = useState(false)
-  const [documents, setDocuments] = useState<any[]>([])
+  const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-
-  const handleDeleteDoc = async (id: string, name: string) => {
-    if (!confirm(`Weet je zeker dat je "${name}" wilt verwijderen?`)) return
-    setDeletingId(id)
-    const { error } = await workspaceClient
-      .from('workspace_documents')
-      .delete()
-      .eq('id', id)
-    if (error) {
-      alert(`Kon niet verwijderen: ${error.message}`)
-    } else {
-      setDocuments((prev) => prev.filter((d) => d.id !== id))
-    }
-    setDeletingId(null)
-  }
+  const [searchQuery, setSearchQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState('Alle types')
+  const [folderFilter, setFolderFilter] = useState('Alle mappen')
+  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showFolderModal, setShowFolderModal] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   useEffect(() => {
-    async function loadDocuments() {
-      // Laad rich text workspace_documents (Plate)
-      const { data, error } = await workspaceClient
+    let cancelled = false
+    async function load() {
+      const { data } = await workspaceClient
         .from<Array<{ id: string; title: string; updated_at: string; created_at: string }>>('workspace_documents')
         .select('id, title, updated_at, created_at')
         .order('updated_at', { ascending: false })
         .limit(200)
-      if (error) {
-        console.warn('workspace_documents load:', error.message)
-        setDocuments([])
-      } else {
-        setDocuments(
-          (data ?? []).map((d) => ({
-            id: d.id,
-            name: d.title || 'Naamloos document',
-            type: 'doc',
-            updated_at: d.updated_at,
-            created_at: d.created_at,
-            href: `/documents/${d.id}`,
-          })),
-        )
-      }
+      if (cancelled) return
+      const items: Doc[] = (data ?? []).map(d => ({
+        id: d.id,
+        name: d.title || 'Naamloos document',
+        type: inferType(d.title || ''),
+        folder: 'Overig',
+        date: formatDate(d.updated_at),
+        href: `/documents/${d.id}`,
+      }))
+      setDocs(items)
       setLoading(false)
     }
-    loadDocuments()
+    load()
+    return () => { cancelled = true }
   }, [])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
-      </div>
-    )
-  }
+  // Compute folder counts
+  const folders = useMemo<FolderItem[]>(() => {
+    const counts = new Map<string, number>()
+    for (const d of docs) counts.set(d.folder, (counts.get(d.folder) || 0) + 1)
+    return DEFAULT_FOLDERS.map(f => ({ ...f, count: counts.get(f.name) || 0 }))
+  }, [docs])
 
-  if (documents.length === 0) {
-    return (
-      <div className="space-y-8 animate-fade-in">
-        {/* Page Header */}
-        <div className="flex flex-wrap justify-between items-end gap-4">
-          <div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight">Documents</h1>
-            <p className="text-gray-500 mt-1">Manage and organize all your files and documents.</p>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/upload">
-              <Button variant="outline" className="rounded-xl h-11 px-5">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
-              </Button>
-            </Link>
-          </div>
-        </div>
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    return docs.filter(d => {
+      if (q && !d.name.toLowerCase().includes(q) && !d.folder.toLowerCase().includes(q)) return false
+      if (typeFilter !== 'Alle types' && typeLabel(d.type) !== typeFilter) return false
+      if (folderFilter !== 'Alle mappen' && d.folder !== folderFilter) return false
+      return true
+    })
+  }, [docs, searchQuery, typeFilter, folderFilter])
 
-        {/* Empty State */}
-        <div className="flex flex-col items-center justify-center py-24">
-          <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-6">
-            <Inbox className="h-10 w-10 text-gray-400" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Nog geen documenten</h2>
-          <p className="text-gray-500 mb-6">Maak een nieuw document of upload een bestand</p>
-          <div className="flex gap-3">
-            <Link href="/documents/new">
-              <Button className="rounded-xl h-11 px-6 shadow-lg shadow-gray-300">
-                <FilePlus className="h-4 w-4 mr-2" />
-                Nieuw document
-              </Button>
-            </Link>
-            <Link href="/upload">
-              <Button variant="outline" className="rounded-xl h-11 px-6">
-                <Upload className="h-4 w-4 mr-2" />
-                Uploaden
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Modals */}
-        <CreateDocumentModal isOpen={showCreateDocModal} onClose={() => setShowCreateDocModal(false)} />
-        <NewFolderModal isOpen={showNewFolderModal} onClose={() => setShowNewFolderModal(false)} />
-        <UploadProgressOverlay isOpen={showUploadProgress} onClose={() => setShowUploadProgress(false)} />
-      </div>
-    )
-  }
+  const recent = useMemo(() => docs.slice(0, 6), [docs])
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Page Header */}
-      <div className="flex flex-wrap justify-between items-end gap-4">
-        <div>
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight">Documents</h1>
-          <p className="text-gray-500 mt-1">Manage and organize all your files and documents.</p>
-        </div>
-        <div className="flex gap-3">
-          <Link href="/upload">
-            <Button
-              variant="outline"
-              className="rounded-xl h-11 px-5"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </Button>
-          </Link>
-          <Button
-            variant="outline"
-            className="rounded-xl h-11 px-5"
-            onClick={() => setShowNewFolderModal(true)}
-          >
-            <FolderPlus className="h-4 w-4 mr-2" />
-            New Folder
-          </Button>
-          <Link href="/documents/new">
-            <Button className="rounded-xl h-11 px-5 shadow-lg shadow-gray-300">
-              <FilePlus className="h-4 w-4 mr-2" />
-              Nieuw document
-            </Button>
-          </Link>
-        </div>
-      </div>
+    <>
+      <style jsx global>{`
+        .dx-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600; border: 1px solid transparent; cursor: pointer; white-space: nowrap; font-family: inherit; transition: background 0.15s, opacity 0.15s; }
+        .dx-btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+        .dx-btn-primary:hover { opacity: 0.88; }
+        .dx-btn-outline { background: white; color: var(--ink); border-color: var(--edge); }
+        .dx-btn-outline:hover { background: var(--surface); }
+        .dx-input { border: none; background: transparent; font-size: 13px; color: var(--ink); outline: none; font-family: inherit; }
+        .dx-input::placeholder { color: var(--ink-ghost); }
+        .dx-select { border: 1px solid var(--edge); background: white; padding: 6px 10px; font-size: 12px; color: var(--ink-muted); outline: none; font-family: inherit; cursor: pointer; }
+        .dx-view-btn { padding: 6px 10px; background: transparent; border: none; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s; }
+        .dx-view-btn.active { background: var(--accent); color: white; }
+        .dx-section-label { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-ghost); }
+        .dx-fi { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      `}</style>
 
-      {/* Search & Filters */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[300px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Search documents, folders..."
-              className="pl-12 h-12 rounded-xl border-gray-200 bg-gray-50 focus:bg-white"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <div style={{ margin: '-16px -16px 0', minHeight: 'calc(100vh - 64px)', background: 'var(--bg, #F9FAFE)', padding: '36px 40px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28, gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>Documenten</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginTop: 3 }}>Beheer en organiseer alle bestanden en documenten</div>
           </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="dx-btn dx-btn-outline" onClick={() => setShowUploadModal(true)}>
+              <Upload style={{ width: 14, height: 14 }} />
+              Uploaden
+            </button>
+            <button className="dx-btn dx-btn-outline" onClick={() => setShowFolderModal(true)}>
+              <FolderPlus style={{ width: 14, height: 14 }} />
+              Nieuwe map
+            </button>
+            <button className="dx-btn dx-btn-primary" onClick={() => setShowCreateModal(true)}>
+              <Plus style={{ width: 14, height: 14 }} />
+              Nieuw document
+            </button>
+          </div>
+        </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-3">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900"
-            >
-              <option>All Types</option>
+        {/* Search bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: '1px solid var(--edge)', padding: '10px 16px', marginBottom: 24, flexWrap: 'wrap' }}>
+          <Search style={{ width: 15, height: 15, color: 'var(--ink-ghost)' }} />
+          <input
+            type="text"
+            className="dx-input"
+            placeholder="Zoek documenten, mappen…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ flex: 1, minWidth: 180 }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <select className="dx-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option>Alle types</option>
               <option>PDF</option>
               <option>Spreadsheet</option>
-              <option>Image</option>
+              <option>Afbeelding</option>
               <option>Video</option>
-              <option>Audio</option>
+              <option>Document</option>
             </select>
-            <select
-              value={folderFilter}
-              onChange={(e) => setFolderFilter(e.target.value)}
-              className="h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900"
-            >
-              <option>All Folders</option>
-              <option>Contracts</option>
-              <option>Invoices</option>
-              <option>Templates</option>
-              <option>Marketing</option>
+            <select className="dx-select" value={folderFilter} onChange={(e) => setFolderFilter(e.target.value)}>
+              <option>Alle mappen</option>
+              {DEFAULT_FOLDERS.map(f => <option key={f.name}>{f.name}</option>)}
             </select>
-
-            {/* View Toggle */}
-            <div className="flex bg-gray-100 rounded-xl p-1">
+            <div style={{ display: 'flex', border: '1px solid var(--edge)', background: 'white', overflow: 'hidden' }}>
               <button
-                onClick={() => setViewMode('grid')}
-                className={cn(
-                  'p-2.5 rounded-lg transition-colors',
-                  viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'
-                )}
+                className={`dx-view-btn${view === 'grid' ? ' active' : ''}`}
+                onClick={() => setView('grid')}
+                title="Rasterweergave"
               >
-                <Grid3X3 className="h-5 w-5" />
+                <Grid3X3 style={{ width: 14, height: 14 }} />
               </button>
               <button
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  'p-2.5 rounded-lg transition-colors',
-                  viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'
-                )}
+                className={`dx-view-btn${view === 'list' ? ' active' : ''}`}
+                onClick={() => setView('list')}
+                title="Lijstweergave"
               >
-                <List className="h-5 w-5" />
+                <List style={{ width: 14, height: 14 }} />
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Folders */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <span className="dx-section-label">
+            <Folder style={{ width: 13, height: 13 }} />
+            Mappen
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
+          {folders.map(f => (
+            <button
+              key={f.name}
+              onClick={() => setFolderFilter(f.name)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', background: 'white', border: '1px solid var(--edge)',
+                cursor: 'pointer', minWidth: 152, transition: 'border-color 0.15s',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ink-ghost)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--edge)' }}
+            >
+              <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: f.color }}>
+                <Folder style={{ width: 22, height: 22, fill: f.color }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{f.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-ghost)' }}>{f.count} item{f.count !== 1 ? 's' : ''}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Recent */}
+        <RecentSection docs={recent} />
+
+        {/* All documents */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <span className="dx-section-label">
+            <FileText style={{ width: 13, height: 13 }} />
+            Alle documenten
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--ink-ghost)' }}>{filtered.length} bestand{filtered.length !== 1 ? 'en' : ''}</span>
+        </div>
+
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-ghost)' }}>
+            <Loader2 className="animate-spin" style={{ width: 22, height: 22, display: 'inline-block' }} />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 60, textAlign: 'center', fontSize: 13, color: 'var(--ink-ghost)', background: 'white', border: '1px solid var(--edge)' }}>
+            Geen documenten gevonden voor dit filter.
+          </div>
+        ) : view === 'grid' ? (
+          <DocsGrid docs={filtered} />
+        ) : (
+          <DocsList docs={filtered} />
+        )}
+      </div>
+
+      {showCreateModal && <CreateDocModal onClose={() => setShowCreateModal(false)} />}
+      {showFolderModal && <FolderModal onClose={() => setShowFolderModal(false)} />}
+      {showUploadModal && <UploadModal onClose={() => setShowUploadModal(false)} />}
+    </>
+  )
+}
+
+// ─── Recent section ───────────────────────────────────────────────────────────
+function RecentSection({ docs }: Readonly<{ docs: Doc[] }>) {
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
+  if (docs.length === 0) return null
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <span className="dx-section-label">
+          <Clock style={{ width: 13, height: 13 }} />
+          Recent
+        </span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            onClick={() => scrollEl?.scrollBy({ left: -180, behavior: 'smooth' })}
+            style={{ background: 'none', border: '1px solid var(--edge)', padding: '4px 6px', cursor: 'pointer', color: 'var(--ink-ghost)', display: 'flex', alignItems: 'center' }}
+          >
+            <ChevronLeft style={{ width: 13, height: 13 }} />
+          </button>
+          <button
+            onClick={() => scrollEl?.scrollBy({ left: 180, behavior: 'smooth' })}
+            style={{ background: 'none', border: '1px solid var(--edge)', padding: '4px 6px', cursor: 'pointer', color: 'var(--ink-ghost)', display: 'flex', alignItems: 'center' }}
+          >
+            <ChevronRight style={{ width: 13, height: 13 }} />
+          </button>
+        </div>
+      </div>
+      <div
+        ref={setScrollEl}
+        style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4, marginBottom: 32, scrollbarWidth: 'none' }}
+      >
+        {docs.map(d => {
+          const styles = typeStyles(d.type)
+          return (
+            <Link
+              key={d.id}
+              href={d.href}
+              style={{
+                flexShrink: 0, width: 158, background: 'white',
+                border: '1px solid var(--edge)', overflow: 'hidden',
+                textDecoration: 'none', color: 'inherit',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ink-ghost)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--edge)' }}
+            >
+              <div style={{ height: 88, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)' }}>
+                <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: styles.bg, color: styles.fg }}>
+                  <TypeIcon t={d.type} size={20} />
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px', borderTop: '1px solid var(--edge-soft)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {d.name}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-ghost)', marginTop: 2 }}>{d.date}</div>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
+// ─── Docs grid ────────────────────────────────────────────────────────────────
+function DocsGrid({ docs }: Readonly<{ docs: Doc[] }>) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+      {docs.map(d => {
+        const styles = typeStyles(d.type)
+        return (
+          <Link
+            key={d.id}
+            href={d.href}
+            style={{
+              background: 'white', border: '1px solid var(--edge)',
+              padding: 16, cursor: 'pointer',
+              textDecoration: 'none', color: 'inherit',
+              transition: 'border-color 0.15s', display: 'block',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ink-ghost)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--edge)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', background: styles.bg, color: styles.fg }}>
+                <TypeIcon t={d.type} size={18} />
+              </div>
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+                style={{ background: 'none', border: 'none', color: 'var(--ink-ghost)', padding: '2px 4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <MoreHorizontal style={{ width: 14, height: 14 }} />
+              </button>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {d.name}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ink-ghost)', marginTop: 4 }}>
+              {d.folder} · {d.date}
+            </div>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Docs list ────────────────────────────────────────────────────────────────
+function DocsList({ docs }: Readonly<{ docs: Doc[] }>) {
+  return (
+    <div style={{ background: 'white', border: '1px solid var(--edge)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--edge)' }}>
+            <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-ghost)' }}>Naam</th>
+            <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-ghost)' }}>Map</th>
+            <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-ghost)' }}>Type</th>
+            <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-ghost)' }}>Gewijzigd</th>
+            <th style={{ width: 40 }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {docs.map(d => {
+            const styles = typeStyles(d.type)
+            return (
+              <tr key={d.id} style={{ borderBottom: '1px solid var(--edge-soft)' }}>
+                <td style={{ padding: '11px 14px' }}>
+                  <Link href={d.href} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
+                    <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: styles.bg, color: styles.fg, flexShrink: 0 }}>
+                      <TypeIcon t={d.type} size={16} />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{d.name}</span>
+                  </Link>
+                </td>
+                <td style={{ padding: '11px 14px', fontSize: 13, color: 'var(--ink-muted)' }}>{d.folder}</td>
+                <td style={{ padding: '11px 14px', fontSize: 13, color: 'var(--ink-muted)' }}>{typeLabel(d.type)}</td>
+                <td style={{ padding: '11px 14px', fontSize: 13, color: 'var(--ink-muted)' }}>{d.date}</td>
+                <td style={{ padding: '11px 14px' }}>
+                  <button style={{ background: 'none', border: 'none', color: 'var(--ink-ghost)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+                    <MoreHorizontal style={{ width: 14, height: 14 }} />
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Modals ───────────────────────────────────────────────────────────────────
+function ModalShell({ title, onClose, maxWidth = 560, children, footer }: Readonly<{ title: string; onClose: () => void; maxWidth?: number; children: React.ReactNode; footer?: React.ReactNode }>) {
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.42)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: 'white', border: '1px solid var(--edge)', width: '100%', maxWidth }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid var(--edge)' }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{title}</span>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', color: 'var(--ink-ghost)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+          >
+            <X style={{ width: 18, height: 18 }} />
+          </button>
+        </div>
+        {children}
+        {footer}
+      </div>
+    </div>
+  )
+}
+
+function CreateDocModal({ onClose }: Readonly<{ onClose: () => void }>) {
+  const [tab, setTab] = useState<'template' | 'upload'>('template')
+  const [selectedTpl, setSelectedTpl] = useState<string | null>(null)
+  const [docName, setDocName] = useState('')
+
+  return (
+    <ModalShell
+      title="Nieuw document"
+      onClose={onClose}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 22px', borderTop: '1px solid var(--edge)' }}>
+          <button className="dx-btn dx-btn-outline" onClick={onClose}>Annuleren</button>
+          <button className="dx-btn dx-btn-primary">Document aanmaken</button>
+        </div>
+      }
+    >
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--edge)' }}>
+        <button
+          onClick={() => setTab('template')}
+          style={{
+            flex: 1, padding: 12, background: 'none', border: 'none',
+            fontSize: 13, fontWeight: 600,
+            color: tab === 'template' ? 'var(--accent)' : 'var(--ink-ghost)',
+            borderBottom: `2px solid ${tab === 'template' ? 'var(--accent)' : 'transparent'}`,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Template kiezen
+        </button>
+        <button
+          onClick={() => setTab('upload')}
+          style={{
+            flex: 1, padding: 12, background: 'none', border: 'none',
+            fontSize: 13, fontWeight: 600,
+            color: tab === 'upload' ? 'var(--accent)' : 'var(--ink-ghost)',
+            borderBottom: `2px solid ${tab === 'upload' ? 'var(--accent)' : 'transparent'}`,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Bestand uploaden
+        </button>
+      </div>
+      <div style={{ padding: 22 }}>
+        {tab === 'template' ? (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: 6 }}>
+                Documentnaam
+              </label>
+              <input
+                type="text"
+                value={docName}
+                onChange={(e) => setDocName(e.target.value)}
+                placeholder="Naam van het document…"
+                style={{ width: '100%', border: '1px solid var(--edge)', background: 'var(--bg, #F9FAFE)', padding: '9px 12px', fontSize: 13, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }}
+              />
+            </div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: 6 }}>
+              Kies een template
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
+              {TEMPLATES.map(t => {
+                const isSel = selectedTpl === t.id
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setSelectedTpl(t.id)}
+                    style={{
+                      border: `1px solid ${isSel ? 'var(--accent)' : 'var(--edge)'}`,
+                      background: isSel ? 'var(--accent-tint)' : 'white',
+                      padding: 14, cursor: 'pointer', textAlign: 'left',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ width: 36, height: 36, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+                      <FileText style={{ width: 18, height: 18, color: 'var(--ink-muted)' }} />
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{t.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 2 }}>{t.desc}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <UploadArea />
+        )}
+      </div>
+    </ModalShell>
+  )
+}
+
+function FolderModal({ onClose }: Readonly<{ onClose: () => void }>) {
+  const [name, setName] = useState('')
+  const [color, setColor] = useState(FOLDER_COLORS[0])
+  return (
+    <ModalShell
+      title="Nieuwe map"
+      onClose={onClose}
+      maxWidth={420}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 22px', borderTop: '1px solid var(--edge)' }}>
+          <button className="dx-btn dx-btn-outline" onClick={onClose}>Annuleren</button>
+          <button className="dx-btn dx-btn-primary">Map aanmaken</button>
+        </div>
+      }
+    >
+      <div style={{ padding: 22 }}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: 6 }}>
+            Mapnaam
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Naam van de map…"
+            style={{ width: '100%', border: '1px solid var(--edge)', background: 'var(--bg, #F9FAFE)', padding: '9px 12px', fontSize: 13, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }}
+          />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: 6 }}>
+            Kleur
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {FOLDER_COLORS.map(c => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                style={{
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: c, cursor: 'pointer',
+                  border: `2px solid ${color === c ? 'var(--ink)' : 'transparent'}`,
+                  transform: color === c ? 'scale(1.15)' : 'scale(1)',
+                  transition: 'transform 0.15s',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, background: 'var(--surface)', marginTop: 16 }}>
+          <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: color, color: '#fff' }}>
+            <Folder style={{ width: 22, height: 22 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{name || 'Nieuwe map'}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-ghost)' }}>0 items</div>
           </div>
         </div>
       </div>
+    </ModalShell>
+  )
+}
 
-      {/* Pinned Section - skipped when no pinned documents */}
-
-      {/* Recent Section */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-bold text-gray-900">Recent</h2>
-          </div>
-          <div className="flex gap-2">
-            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+function UploadModal({ onClose }: Readonly<{ onClose: () => void }>) {
+  return (
+    <ModalShell
+      title="Bestanden uploaden"
+      onClose={onClose}
+      maxWidth={460}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 22px', borderTop: '1px solid var(--edge)' }}>
+          <button className="dx-btn dx-btn-outline" onClick={onClose}>Annuleren</button>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2">
-          {documents.slice(0, 5).map((doc) => {
-            const { icon: Icon, iconBg, iconColor } = getDocTypeIcon(doc.type)
-            return (
-              <div
-                key={doc.id}
-                className="flex-shrink-0 w-48 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group overflow-hidden"
-              >
-                {/* Thumbnail */}
-                <div className="h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
-                  <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}>
-                    <Icon className={cn('h-6 w-6', iconColor)} />
-                  </div>
-                </div>
-                <div className="p-3">
-                  <p className="font-bold text-gray-900 text-sm truncate">{doc.name}</p>
-                  <p className="text-xs text-gray-400 mt-1">{formatDate(doc.created_at)}</p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+      }
+    >
+      <div style={{ padding: 22 }}>
+        <UploadArea />
+      </div>
+    </ModalShell>
+  )
+}
 
-      {/* All Documents Section */}
-      <section>
-        <h2 className="text-lg font-bold text-gray-900 mb-4">All Documents</h2>
-
-        {/* Files Grid */}
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {documents.map((doc) => {
-              const { icon: Icon, iconBg, iconColor } = getDocTypeIcon(doc.type)
-              const card = (
-                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group h-full">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}>
-                      <Icon className={cn('h-6 w-6', iconColor)} />
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleDeleteDoc(doc.id, doc.name)
-                      }}
-                      disabled={deletingId === doc.id}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg p-1.5 transition-all disabled:opacity-50"
-                      title="Verwijderen"
-                    >
-                      {deletingId === doc.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="font-bold text-gray-900 text-sm truncate mb-1">{doc.name}</p>
-                  <p className="text-xs text-gray-400">
-                    {doc.partner?.company_name ? `${doc.partner.company_name} • ` : ''}
-                    {formatDate(doc.updated_at ?? doc.created_at)}
-                  </p>
-                </div>
-              )
-              return doc.href ? (
-                <Link key={doc.id} href={doc.href}>{card}</Link>
-              ) : (
-                <div key={doc.id}>{card}</div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px]">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">Name</th>
-                  <th className="text-left py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">Partner</th>
-                  <th className="text-left py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="w-12"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map((doc) => {
-                  const { icon: Icon, iconBg, iconColor } = getDocTypeIcon(doc.type)
-                  const row = (
-                    <>
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
-                          <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', iconBg)}>
-                            <Icon className={cn('h-5 w-5', iconColor)} />
-                          </div>
-                          <span className="font-medium text-gray-900">{doc.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-5 text-sm text-gray-500">{doc.partner?.company_name || '-'}</td>
-                      <td className="py-4 px-5 text-sm text-gray-500">{formatDate(doc.updated_at ?? doc.created_at)}</td>
-                      <td className="py-4 px-5 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleDeleteDoc(doc.id, doc.name)
-                          }}
-                          disabled={deletingId === doc.id}
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg p-1.5 transition-colors disabled:opacity-50"
-                          title="Verwijderen"
-                        >
-                          {deletingId === doc.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
-                      </td>
-                    </>
-                  )
-                  return doc.href ? (
-                    <tr
-                      key={doc.id}
-                      onClick={() => { window.location.href = doc.href }}
-                      className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
-                    >
-                      {row}
-                    </tr>
-                  ) : (
-                    <tr key={doc.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      {row}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Modals */}
-      <CreateDocumentModal isOpen={showCreateDocModal} onClose={() => setShowCreateDocModal(false)} />
-      <NewFolderModal isOpen={showNewFolderModal} onClose={() => setShowNewFolderModal(false)} />
-      <UploadProgressOverlay isOpen={showUploadProgress} onClose={() => setShowUploadProgress(false)} />
+function UploadArea() {
+  return (
+    <div
+      style={{
+        border: '1px dashed var(--edge)', padding: 36, textAlign: 'center',
+        cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.borderColor = 'var(--ink-ghost)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--edge)' }}
+    >
+      <div style={{ color: 'var(--ink-ghost)', marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
+        <Upload style={{ width: 32, height: 32 }} />
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Bestanden slepen of klikken</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>PDF, DOCX, XLSX, PNG, JPG, MP4 — max 100 MB</div>
     </div>
   )
 }
