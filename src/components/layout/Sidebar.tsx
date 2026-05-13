@@ -187,7 +187,7 @@ const navGroups: NavGroup[] = [
     label: 'Kern',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
-      { href: '/bookings', label: 'Agenda', icon: <IconCalendar /> },
+      { href: '/agenda', label: 'Agenda', icon: <IconCalendar /> },
       { href: '/email', label: 'Inbox', icon: <IconInbox /> },
     ],
   },

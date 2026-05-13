@@ -11,6 +11,8 @@ import { getMfaStatus } from '@/lib/mfa'
 const MFA_BYPASS_PREFIXES = [
   '/login',
   '/signup',
+  '/forgot-password',
+  '/reset-password',
   '/auth/',
   '/api/',
   '/settings/security/mfa-enroll',
@@ -19,7 +21,14 @@ const MFA_BYPASS_PREFIXES = [
 function shouldBypassMfa(pathname: string): boolean {
   // Route groups like (auth) are stripped from URLs by Next.js — the
   // mfa-challenge page lives at /mfa-challenge, not /auth/mfa-challenge.
-  if (pathname === '/mfa-challenge' || pathname === '/login' || pathname === '/signup') return true
+  if (
+    pathname === '/mfa-challenge' ||
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password'
+  )
+    return true
   return MFA_BYPASS_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p)
   )
@@ -56,7 +65,11 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const isAuthPage = pathname === '/login' || pathname === '/signup'
+  const isAuthPage =
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password'
   const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/b/')
 
   // If not logged in and not on an auth/public page, redirect to login
