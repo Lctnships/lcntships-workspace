@@ -8,7 +8,7 @@ const createSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional().nullable(),
   location: z.string().max(200).optional().nullable(),
-  proposed_dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(20),
+  proposed_dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(20).optional().default([]),
   deadline: z.string().datetime().optional().nullable(),
   lead_id: z.string().uuid().optional().nullable(),
 })
