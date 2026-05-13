@@ -188,7 +188,9 @@ export default function DashboardPage() {
   return (
     <div
       style={{
-        margin: '-16px -16px 0',
+        marginTop: -16,
+        marginRight: -16,
+        marginBottom: 0,
         minHeight: 'calc(100vh - 64px)',
         background: 'var(--bg, #F9FAFE)',
       }}
@@ -334,6 +336,11 @@ export default function DashboardPage() {
           </div>
 
           <TodoCard userEmail={userEmail} todos={todos} setTodos={setTodos} today={today} />
+        </div>
+
+        {/* Company goals */}
+        <div style={{ marginBottom: 24 }}>
+          <CompanyGoalsCard userEmail={userEmail} />
         </div>
 
         {/* Sales pipeline + Recente activiteit */}
@@ -640,6 +647,275 @@ function TodoCard({
                 <button className="tc-remove" onClick={() => remove(t.id)} aria-label="Verwijderen">
                   <X style={{ width: 13, height: 13 }} />
                 </button>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── CompanyGoalsCard ─────────────────────────────────────────────────────────
+type CompanyGoal = {
+  id: string
+  title: string
+  current_value: number
+  target_value: number | null
+  unit: string | null
+  deadline: string | null
+  done: boolean
+  completed_at: string | null
+  sort_order: number
+  created_by: string | null
+  created_at: string
+}
+
+function CompanyGoalsCard({ userEmail }: { userEmail: string | null }) {
+  const [goals, setGoals] = useState<CompanyGoal[]>([])
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState<string>('')
+  const [newTitle, setNewTitle] = useState('')
+  const [newTarget, setNewTarget] = useState('')
+  const [newUnit, setNewUnit] = useState('')
+  const [newDeadline, setNewDeadline] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data } = await workspaceClient
+      .from<CompanyGoal[]>('company_goals')
+      .select('id, title, current_value, target_value, unit, deadline, done, completed_at, sort_order, created_by, created_at')
+      .order('done', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false })
+    if (data) setGoals(data as CompanyGoal[])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const submit = async () => {
+    if (!newTitle.trim()) return
+    const target = newTarget ? parseFloat(newTarget) : null
+    if (!newDeadline && !target) return  // minimaal deadline of target
+    setSaving(true)
+    await workspaceClient.from('company_goals').insert({
+      title: newTitle.trim(),
+      target_value: target && target > 0 ? target : null,
+      current_value: 0,
+      unit: newUnit.trim() || null,
+      deadline: newDeadline || null,
+      created_by: userEmail,
+    })
+    setNewTitle(''); setNewTarget(''); setNewUnit(''); setNewDeadline('')
+    setAdding(false)
+    setSaving(false)
+    await load()
+  }
+
+  const updateCurrent = async (g: CompanyGoal, value: number) => {
+    const clamped = Math.max(0, value)
+    setGoals(prev => prev.map(x => x.id === g.id ? { ...x, current_value: clamped } : x))
+    await workspaceClient
+      .from('company_goals')
+      .update({ current_value: clamped, updated_at: new Date().toISOString() })
+      .eq('id', g.id)
+  }
+
+  const toggleDone = async (g: CompanyGoal) => {
+    setGoals(prev => prev.map(x => x.id === g.id ? { ...x, done: !x.done, completed_at: !x.done ? new Date().toISOString() : null } : x))
+    await workspaceClient
+      .from('company_goals')
+      .update({ done: !g.done, completed_at: !g.done ? new Date().toISOString() : null })
+      .eq('id', g.id)
+  }
+
+  const remove = async (id: string) => {
+    setGoals(prev => prev.filter(g => g.id !== id))
+    await workspaceClient.from('company_goals').delete().eq('id', id)
+  }
+
+  return (
+    <div>
+      <style jsx>{`
+        .cg-new-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 1px solid var(--edge); background: #fff; font-size: 10.5px; font-weight: 600; color: var(--ink-muted); border-radius: 6px; cursor: pointer; }
+        .cg-new-btn:hover { border-color: var(--ink-ghost); color: var(--ink); }
+        .cg-add-box { padding: 12px 14px; background: var(--surface); border: 1px solid var(--edge); border-radius: 4px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .cg-input { width: 100%; box-sizing: border-box; border: 1px solid var(--edge); border-radius: 3px; padding: 7px 10px; font-size: 12px; color: var(--ink); background: #fff; outline: none; font-family: inherit; }
+        .cg-row { display: grid; grid-template-columns: 1fr 110px 110px 1fr 32px; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--edge-soft); }
+        .cg-row:last-child { border-bottom: none; }
+        .cg-row:hover { background: oklch(0.988 0 0); }
+        .cg-row:hover .cg-actions { opacity: 1; }
+        .cg-row.done { opacity: 0.55; }
+        .cg-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+        .cg-title.done { text-decoration: line-through; color: var(--ink-ghost); }
+        .cg-meta { font-size: 10.5px; color: var(--ink-ghost); margin-top: 1px; }
+        .cg-counter { font-size: 12.5px; font-weight: 700; color: var(--ink-muted); font-family: ui-monospace, monospace; text-align: right; }
+        .cg-counter input { width: 60px; border: 1px solid transparent; padding: 3px 4px; font-size: 12.5px; font-weight: 700; color: var(--ink); background: transparent; outline: none; text-align: right; font-family: ui-monospace, monospace; border-radius: 3px; }
+        .cg-counter input:hover { border-color: var(--edge); background: #fff; }
+        .cg-counter input:focus { border-color: var(--accent); background: #fff; }
+        .cg-track { height: 4px; background: var(--edge); border-radius: 2px; overflow: hidden; }
+        .cg-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; }
+        .cg-fill.done { background: oklch(0.65 0.16 145); }
+        .cg-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 130ms; }
+        .cg-actions button { background: none; border: none; cursor: pointer; padding: 4px; color: var(--ink-ghost); display: flex; align-items: center; justify-content: center; border-radius: 3px; }
+        .cg-actions button:hover { color: var(--danger); background: var(--surface); }
+        .cg-check { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
+      `}</style>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div className="db-section-label" style={{ marginBottom: 0 }}>Company goals</div>
+        <button className="cg-new-btn" onClick={() => setAdding(!adding)}>
+          <Plus style={{ width: 11, height: 11 }} />
+          Nieuw doel
+        </button>
+      </div>
+
+      {adding && (
+        <div className="cg-add-box">
+          <input
+            className="cg-input"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Naam van het doel (bv. Studios in pipeline)"
+            autoFocus
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            <input
+              type="number"
+              className="cg-input"
+              value={newTarget}
+              onChange={(e) => setNewTarget(e.target.value)}
+              placeholder="Doel-getal (optioneel)"
+            />
+            <input
+              className="cg-input"
+              value={newUnit}
+              onChange={(e) => setNewUnit(e.target.value)}
+              placeholder="Eenheid (bv. studios)"
+            />
+            <input
+              type="date"
+              className="cg-input"
+              value={newDeadline}
+              onChange={(e) => setNewDeadline(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => { setAdding(false); setNewTitle(''); setNewTarget(''); setNewUnit(''); setNewDeadline('') }}
+              style={{ padding: '4px 10px', border: 'none', background: 'none', fontSize: 11, fontWeight: 600, color: 'var(--ink-ghost)', cursor: 'pointer', borderRadius: 4 }}
+            >
+              Annuleren
+            </button>
+            <button
+              onClick={submit}
+              disabled={saving || !newTitle.trim() || (!newTarget && !newDeadline)}
+              style={{
+                padding: '4px 12px', border: 'none', background: 'var(--accent)', color: '#fff',
+                fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 4,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                opacity: saving || !newTitle.trim() || (!newTarget && !newDeadline) ? 0.5 : 1,
+              }}
+            >
+              {saving && <Loader2 style={{ width: 11, height: 11 }} className="animate-spin" />}
+              Toevoegen
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="db-list-card">
+        {loading ? (
+          <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: 'var(--ink-ghost)' }}>
+            Laden…
+          </div>
+        ) : goals.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: 'var(--ink-ghost)' }}>
+            Nog geen doelen. Klik &quot;Nieuw doel&quot; om er een toe te voegen.
+          </div>
+        ) : (
+          goals.map(g => {
+            const hasTarget = g.target_value !== null && g.target_value > 0
+            const pct = hasTarget ? Math.min(100, Math.round((g.current_value / g.target_value!) * 100)) : 0
+            const isEditing = editingId === g.id
+
+            // Deadline countdown
+            let deadlineText = 'geen deadline'
+            let deadlineOverdue = false
+            if (g.deadline) {
+              const ms = new Date(g.deadline).getTime() - Date.now()
+              const days = Math.round(ms / (1000 * 60 * 60 * 24))
+              const dateStr = new Date(g.deadline).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
+              if (days < 0) { deadlineText = `${dateStr} · ${Math.abs(days)} d te laat`; deadlineOverdue = true }
+              else if (days === 0) deadlineText = `${dateStr} · vandaag`
+              else if (days === 1) deadlineText = `${dateStr} · morgen`
+              else deadlineText = `${dateStr} · over ${days} dagen`
+            }
+
+            return (
+              <div key={g.id} className={`cg-row${g.done ? ' done' : ''}`}>
+                <div>
+                  <div className={`cg-title${g.done ? ' done' : ''}`}>{g.title}</div>
+                  <div className="cg-meta" style={{ color: deadlineOverdue && !g.done ? 'var(--danger)' : undefined, fontWeight: deadlineOverdue && !g.done ? 600 : undefined }}>
+                    {deadlineText}
+                  </div>
+                </div>
+                <div className="cg-counter">
+                  {hasTarget ? (
+                    isEditing ? (
+                      <input
+                        type="number"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => {
+                          const v = parseFloat(editValue)
+                          if (!isNaN(v)) updateCurrent(g, v)
+                          setEditingId(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                          if (e.key === 'Escape') setEditingId(null)
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        onClick={() => { setEditingId(g.id); setEditValue(String(g.current_value)) }}
+                        style={{ cursor: 'pointer', display: 'inline-block', padding: '3px 6px', borderRadius: 3 }}
+                        title="Klik om te wijzigen"
+                      >
+                        {g.current_value.toLocaleString('nl-NL')} / {g.target_value!.toLocaleString('nl-NL')}
+                      </span>
+                    )
+                  ) : (
+                    <span style={{ fontSize: 10.5, color: 'var(--ink-ghost)', fontStyle: 'italic' }}>milestone</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: hasTarget && pct >= 100 ? 'oklch(0.65 0.16 145)' : 'var(--ink-muted)', fontFamily: 'ui-monospace, monospace', textAlign: 'right' }}>
+                  {hasTarget ? `${pct}%` : ''}
+                </div>
+                <div className="cg-track">
+                  {hasTarget && (
+                    <div className={`cg-fill${g.done || pct >= 100 ? ' done' : ''}`} style={{ width: `${pct}%` }} />
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <input
+                    type="checkbox"
+                    className="cg-check"
+                    checked={g.done}
+                    onChange={() => toggleDone(g)}
+                    title={g.done ? 'Markeer als open' : 'Markeer als afgerond'}
+                  />
+                  <div className="cg-actions">
+                    <button onClick={() => remove(g.id)} aria-label="Verwijderen">
+                      <X style={{ width: 13, height: 13 }} />
+                    </button>
+                  </div>
+                </div>
               </div>
             )
           })
