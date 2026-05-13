@@ -1,411 +1,842 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import {
-  DollarSign,
-  Percent,
-  Wallet,
-  Clock,
-  TrendingUp,
-  Download,
-  Calendar,
-  ChevronDown,
-  ArrowRight,
-  Building2,
-  FileText,
-  Search,
-  Filter,
-  MoreHorizontal,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Loader2,
-  Inbox
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn, formatCurrency } from '@/lib/utils'
-import { transactionsApi, financeApi } from '@/lib/supabase'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { ArrowUp, ArrowDown, MoreHorizontal, Plus, RotateCw, Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
-const studioColors = ['bg-gray-900', 'bg-emerald-500', 'bg-orange-500', 'bg-purple-500']
+type Period = 'maand' | 'kwartaal' | 'jaar'
+type InvStatus = 'paid' | 'open' | 'overdue' | 'draft'
+
+interface BookingRow {
+  id: string
+  total_amount: number | null
+  service_fee: number | null
+  host_payout: number | null
+  status: string | null
+  created_at: string
+  start_datetime: string | null
+  studio?: { id: string; title: string } | null
+}
+
+interface TxRow {
+  id: string
+  type: string
+  amount: number
+  description: string | null
+  status: string
+  created_at: string
+}
+
+interface StudioOption { id: string; title: string }
+
+function eur(n: number) {
+  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+}
+function eurMonoK(n: number) {
+  if (n >= 1000) return `€${Math.round(n / 1000)}k`
+  return `€${Math.round(n)}`
+}
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+function initialsOf(name: string) {
+  const parts = name.split(/\s+/).filter(Boolean).slice(0, 3)
+  return parts.map(p => p[0]?.toUpperCase()).join('') || 'ST'
+}
+
+function getPeriodRange(p: Period, now = new Date()) {
+  const year = now.getFullYear()
+  if (p === 'maand') {
+    const from = new Date(year, now.getMonth(), 1)
+    const to = new Date(year, now.getMonth() + 1, 0, 23, 59, 59)
+    const monthNL = now.toLocaleString('nl-NL', { month: 'long' })
+    const monthCap = monthNL.charAt(0).toUpperCase() + monthNL.slice(1)
+    return {
+      from, to,
+      label: `Omzet — ${monthCap} ${year}`,
+      prevLabel: 'vs vorige maand',
+      costsLabel: `${monthCap} ${year}`,
+      chartLabel: `Omzet over tijd — ${monthCap.toLowerCase()} ${year}`,
+      txLabel: 'deze maand',
+    }
+  }
+  if (p === 'kwartaal') {
+    const q = Math.floor(now.getMonth() / 3)
+    const from = new Date(year, q * 3, 1)
+    const to = new Date(year, q * 3 + 3, 0, 23, 59, 59)
+    return {
+      from, to,
+      label: `Omzet — Q${q + 1} ${year}`,
+      prevLabel: `vs Q${q === 0 ? 4 : q} ${q === 0 ? year - 1 : year}`,
+      costsLabel: `Q${q + 1} ${year}`,
+      chartLabel: `Omzet over tijd — Q${q + 1} ${year}`,
+      txLabel: 'dit kwartaal',
+    }
+  }
+  const from = new Date(year, 0, 1)
+  const to = new Date(year, 11, 31, 23, 59, 59)
+  return {
+    from, to,
+    label: `Omzet — ${year}`,
+    prevLabel: `vs ${year - 1}`,
+    costsLabel: `${year} YTD`,
+    chartLabel: `Omzet over tijd — ${year}`,
+    txLabel: 'dit jaar',
+  }
+}
+
+function inferInvStatus(b: BookingRow): InvStatus {
+  const s = (b.status || '').toLowerCase()
+  if (s === 'paid' || s === 'completed' || s === 'confirmed') return 'paid'
+  if (s === 'draft' || s === 'pending') return 'draft'
+  const ageDays = (Date.now() - new Date(b.created_at).getTime()) / 86400000
+  if (ageDays > 30) return 'overdue'
+  return 'open'
+}
+
+const STATUS_CFG: Record<InvStatus, { cls: string; label: string }> = {
+  paid: { cls: 's-paid', label: 'betaald' },
+  open: { cls: 's-open', label: 'open' },
+  overdue: { cls: 's-overdue', label: 'achterstallig' },
+  draft: { cls: 's-draft', label: 'concept' },
+}
 
 export default function FinancePage() {
-  const [dateRange] = useState('Last 30 Days')
-  const [transactions, setTransactions] = useState<any[]>([])
-  const [revenueByStudio, setRevenueByStudio] = useState<any[]>([])
-  const [overview, setOverview] = useState<any>(null)
+  const [period, setPeriod] = useState<Period>('kwartaal')
+  const [studioFilter, setStudioFilter] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState<string | null>(null)
+  const [bookings, setBookings] = useState<BookingRow[]>([])
+  const [txs, setTxs] = useState<TxRow[]>([])
+  const [studios, setStudios] = useState<StudioOption[]>([])
+  const [payoutPaid, setPayoutPaid] = useState<Set<string>>(new Set())
+
+  const range = useMemo(() => getPeriodRange(period), [period])
 
   useEffect(() => {
-    async function loadFinance() {
+    const load = async () => {
+      setLoading(true)
+      setErr(null)
       try {
-        const [txs, revenue, stats] = await Promise.all([
-          transactionsApi.getAll(),
-          financeApi.getRevenueByStudio(),
-          financeApi.getOverview(),
+        const fromIso = range.from.toISOString()
+        const toIso = range.to.toISOString()
+
+        const [bkRes, txRes, stRes] = await Promise.all([
+          supabase
+            .from('bookings')
+            .select('id, total_amount, service_fee, host_payout, status, created_at, start_datetime, studio:studios(id, title)')
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('transactions')
+            .select('id, type, amount, description, status, created_at')
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
+            .order('created_at', { ascending: false })
+            .limit(100),
+          supabase
+            .from('studios')
+            .select('id, title')
+            .order('title', { ascending: true }),
         ])
-        setTransactions(txs || [])
-        setRevenueByStudio(revenue || [])
-        setOverview(stats)
-      } catch (error) {
-        console.error('Error loading finance:', error)
+        if (bkRes.error) throw new Error(bkRes.error.message)
+        if (txRes.error) throw new Error(txRes.error.message)
+        setBookings((bkRes.data as unknown as BookingRow[]) || [])
+        setTxs((txRes.data as unknown as TxRow[]) || [])
+        setStudios((stRes.data as StudioOption[]) || [])
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Onbekende fout')
       } finally {
         setLoading(false)
       }
     }
-    loadFinance()
-  }, [])
+    load()
+  }, [range])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-900" />
-      </div>
-    )
-  }
+  const filteredBookings = useMemo(
+    () => studioFilter ? bookings.filter(b => b.studio?.id === studioFilter) : bookings,
+    [bookings, studioFilter]
+  )
+
+  const kpis = useMemo(() => {
+    const totalRevenue = filteredBookings.reduce((s, b) => s + (Number(b.total_amount) || 0), 0)
+    const fees = filteredBookings.reduce((s, b) => s + (Number(b.service_fee) || 0), 0)
+    const open = filteredBookings.filter(b => inferInvStatus(b) === 'open' || inferInvStatus(b) === 'overdue')
+    const openTotal = open.reduce((s, b) => s + (Number(b.total_amount) || 0), 0)
+    const overdueCount = open.filter(b => inferInvStatus(b) === 'overdue').length
+    const paid = filteredBookings.filter(b => inferInvStatus(b) === 'paid')
+    const paidTotal = paid.reduce((s, b) => s + (Number(b.host_payout) || 0), 0)
+    const paidStudios = new Set(paid.map(b => b.studio?.id).filter(Boolean)).size
+    const pendingPayouts = filteredBookings
+      .filter(b => inferInvStatus(b) === 'paid')
+      .reduce((acc, b) => {
+        const key = b.studio?.id || 'unknown'
+        const k = `${period}_${key}`
+        if (payoutPaid.has(k)) return acc
+        return acc + (Number(b.host_payout) || 0)
+      }, 0)
+    return { totalRevenue, fees, openTotal, openCount: open.length, overdueCount, paidTotal, paidStudios, pendingPayouts }
+  }, [filteredBookings, payoutPaid, period])
+
+  const invoices = useMemo(() => filteredBookings.slice(0, 12), [filteredBookings])
+
+  const costs = useMemo(() => {
+    const studioRent = filteredBookings.reduce((s, b) => s + (Number(b.host_payout) || 0), 0)
+    const platformFees = filteredBookings.reduce((s, b) => s + (Number(b.service_fee) || 0), 0)
+    const refunds = txs.filter(t => (t.type || '').toLowerCase() === 'refund').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0)
+    const other = txs.filter(t => (t.type || '').toLowerCase() === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0)
+    const total = studioRent + platformFees + refunds + other
+    const items = [
+      { cat: 'Studio uitbetalingen', sub: `${new Set(filteredBookings.map(b => b.studio?.id).filter(Boolean)).size} studio's`, amount: studioRent },
+      { cat: 'Platform fees', sub: '15% van omzet', amount: platformFees },
+      { cat: 'Refunds', sub: `${txs.filter(t => (t.type || '').toLowerCase() === 'refund').length} terugbetalingen`, amount: refunds },
+      { cat: 'Overige uitgaven', sub: 'transacties type expense', amount: other },
+    ].sort((a, b) => b.amount - a.amount)
+    return items.map(i => ({
+      ...i,
+      pct: total > 0 ? Math.round((i.amount / total) * 100) : 0,
+    }))
+  }, [filteredBookings, txs])
+
+  const payouts = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number; amount: number }>()
+    for (const b of filteredBookings) {
+      if (inferInvStatus(b) !== 'paid') continue
+      const id = b.studio?.id
+      const name = b.studio?.title
+      if (!id || !name) continue
+      const cur = map.get(id) || { id, name, count: 0, amount: 0 }
+      cur.count += 1
+      cur.amount += Number(b.host_payout) || 0
+      map.set(id, cur)
+    }
+    return Array.from(map.values())
+      .filter(p => p.amount > 0)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 8)
+  }, [filteredBookings])
+
+  const chartData = useMemo(() => {
+    const days = Math.max(1, Math.ceil((range.to.getTime() - range.from.getTime()) / 86400000))
+    const buckets = period === 'maand' ? 7 : period === 'kwartaal' ? 6 : 7
+    const span = days / buckets
+    const points: { rev: number; fee: number; x: number; label: string }[] = []
+    for (let i = 0; i < buckets; i++) {
+      const start = new Date(range.from.getTime() + i * span * 86400000)
+      const end = new Date(range.from.getTime() + (i + 1) * span * 86400000)
+      const subset = filteredBookings.filter(b => {
+        const t = new Date(b.created_at).getTime()
+        return t >= start.getTime() && t < end.getTime()
+      })
+      const rev = subset.reduce((s, b) => s + (Number(b.total_amount) || 0), 0)
+      const fee = subset.reduce((s, b) => s + (Number(b.service_fee) || 0), 0)
+      const x = 30 + (i / Math.max(1, buckets - 1)) * 700
+      const label = period === 'jaar'
+        ? start.toLocaleString('nl-NL', { month: 'short' })
+        : start.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
+      points.push({ rev, fee, x, label })
+    }
+    const maxRev = Math.max(...points.map(p => p.rev), 1)
+    const yAt = (v: number) => 150 - (v / maxRev) * 140
+    const revPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${yAt(p.rev)}`).join(' ')
+    const revArea = `${revPath} L760,160 L30,160 Z`
+    const feePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${yAt(p.fee)}`).join(' ')
+    const feeArea = `${feePath} L760,160 L30,160 Z`
+    const yLabels = [maxRev, maxRev * 0.66, maxRev * 0.33, maxRev * 0.1].map(eurMonoK)
+    return { points, revPath, revArea, feePath, feeArea, yLabels }
+  }, [filteredBookings, range, period])
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Finance Overview</h1>
-          <p className="text-gray-500 mt-1">Track revenue, payouts, and financial health for your studios.</p>
+    <div style={{ margin: '-16px -16px 0 -16px', minHeight: 'calc(100vh - 0px)', background: 'var(--bg, #F9FAFE)', overflowX: 'hidden' }}>
+      <header className="fin-header">
+        <span className="fin-eyebrow">Finance</span>
+        <div className="fin-tabs">
+          {(['maand', 'kwartaal', 'jaar'] as Period[]).map(p => (
+            <button
+              key={p}
+              className={`fin-tab${period === p ? ' active' : ''}`}
+              onClick={() => setPeriod(p)}
+            >
+              {p === 'maand' ? 'Deze maand' : p === 'kwartaal' ? 'Dit kwartaal' : 'Dit jaar'}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
-            <Calendar className="h-4 w-4 text-gray-500" />
-            <span>{dateRange}</span>
-            <ChevronDown className="h-4 w-4 text-gray-500" />
-          </Button>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            <span>Export</span>
-          </Button>
+        <select className="fin-studio-filter" value={studioFilter} onChange={e => setStudioFilter(e.target.value)}>
+          <option value="">Alle studio&apos;s</option>
+          {studios.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+        </select>
+        <div style={{ flex: 1 }} />
+        <div className="fin-actions">
+          <button className="fin-btn-outline">Exporteren</button>
+          <Link href="/finance/invoices" className="fin-btn-primary">
+            <Plus style={{ width: 13, height: 13 }} />
+            Factuur aanmaken
+          </Link>
+        </div>
+      </header>
+
+      <div className="fin-kpi-strip">
+        <div className="fin-kpi">
+          <div className="fin-kpi-label">{range.label}</div>
+          <div className="fin-kpi-value">{eur(kpis.totalRevenue)}</div>
+          <div className="fin-kpi-sub">{range.prevLabel}</div>
+        </div>
+        <div className="fin-kpi">
+          <div className="fin-kpi-label">Platform fees (15%)</div>
+          <div className="fin-kpi-value">{eur(kpis.fees)}</div>
+          <div className="fin-kpi-sub">van totale omzet</div>
+        </div>
+        <div className="fin-kpi">
+          <div className="fin-kpi-label">Openstaande facturen</div>
+          <div className="fin-kpi-value danger">{eur(kpis.openTotal)}</div>
+          <div className="fin-kpi-sub">{kpis.openCount} open · {kpis.overdueCount} achterstallig</div>
+        </div>
+        <div className="fin-kpi">
+          <div className="fin-kpi-label">Uitbetaald aan hosts</div>
+          <div className="fin-kpi-value success">{eur(kpis.paidTotal)}</div>
+          <div className="fin-kpi-sub">{period === 'maand' ? 'deze maand' : period === 'kwartaal' ? 'dit kwartaal' : 'dit jaar'} · {kpis.paidStudios} studio{kpis.paidStudios === 1 ? '' : '’s'}</div>
+        </div>
+        <div className="fin-kpi">
+          <div className="fin-kpi-label">In behandeling</div>
+          <div className="fin-kpi-value">{eur(kpis.pendingPayouts)}</div>
+          <div className="fin-kpi-sub">te verwerken uitbetalingen</div>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Revenue */}
-        <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-              <DollarSign className="h-5 w-5 text-gray-400" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{formatCurrency(overview?.totalRevenue ?? 0)}</h3>
-              <div className="flex items-center gap-1 mt-1">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                <span className="text-xs font-semibold text-emerald-500">+8.2%</span>
-                <span className="text-xs text-gray-500 ml-1">vs last month</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {err && <div style={{ padding: '14px 40px', fontSize: 12, color: 'var(--danger, #dc2626)' }}>Fout: {err}</div>}
 
-        {/* Platform Fees */}
-        <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-gray-500">Platform Fees (15%)</p>
-              <Percent className="h-5 w-5 text-gray-400" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{formatCurrency(overview?.platformFees ?? 0)}</h3>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="text-xs font-medium text-gray-500">Your commission earnings</span>
+      <div className="fin-main">
+        <div className="fin-left">
+          <div className="fin-chart-section">
+            <div className="fin-section-head">
+              <span className="fin-section-eyebrow">{range.chartLabel}</span>
+              <div className="fin-chart-legend">
+                <div className="fin-legend-item"><div className="fin-legend-dot" style={{ background: '#0E4F6D' }} /><span>Omzet</span></div>
+                <div className="fin-legend-item"><div className="fin-legend-dot" style={{ background: 'oklch(0.65 0.16 145)' }} /><span>Platform fees</span></div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Partner Payouts */}
-        <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-gray-500">Partner Payouts</p>
-              <Wallet className="h-5 w-5 text-orange-400" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{formatCurrency(overview?.partnerPayouts ?? 0)}</h3>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="text-xs font-semibold text-orange-500">Processed</span>
-                <span className="text-xs text-gray-500 ml-1">in last 30 days</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pending Payouts */}
-        <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-gray-900/5 to-transparent rounded-bl-3xl" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-gray-500">Pending Payouts</p>
-              <Clock className="h-5 w-5 text-gray-900" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{formatCurrency(overview?.pendingPayouts ?? 0)}</h3>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="px-1.5 py-0.5 rounded-md bg-gray-200 text-gray-900 text-[10px] font-bold uppercase tracking-wider">
-                  Arriving Thu
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Dashboard Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Chart (Left - Wide) */}
-        <Card className="lg:col-span-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-bold">Gross Volume</CardTitle>
-                <p className="text-sm text-gray-500">Income trends over time</p>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" className="h-7 px-3 text-xs rounded-full">Daily</Button>
-                <Button size="sm" variant="ghost" className="h-7 px-3 text-xs rounded-full text-gray-500">Weekly</Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {/* Chart */}
-            <div className="relative w-full h-64">
-              {/* Grid Lines */}
-              <div className="absolute inset-0 flex flex-col justify-between text-xs text-gray-300 pointer-events-none">
-                <div className="border-b border-gray-100 w-full h-0 flex items-center"><span className="-ml-8 text-gray-400">$40k</span></div>
-                <div className="border-b border-gray-100 w-full h-0 flex items-center"><span className="-ml-8 text-gray-400">$30k</span></div>
-                <div className="border-b border-gray-100 w-full h-0 flex items-center"><span className="-ml-8 text-gray-400">$20k</span></div>
-                <div className="border-b border-gray-100 w-full h-0 flex items-center"><span className="-ml-8 text-gray-400">$10k</span></div>
-                <div className="border-b border-gray-100 w-full h-0 flex items-center"><span className="-ml-8 text-gray-400">$0</span></div>
-              </div>
-              {/* Graph Line */}
-              <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+            <div style={{ position: 'relative', height: 160 }}>
+              <svg viewBox="0 0 760 160" preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
                 <defs>
-                  <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#6366F1" stopOpacity="0.2" />
-                    <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
+                  <linearGradient id="fin-rev-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0E4F6D" stopOpacity="0.12" />
+                    <stop offset="100%" stopColor="#0E4F6D" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="fin-fee-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.65 0.16 145)" stopOpacity="0.10" />
+                    <stop offset="100%" stopColor="oklch(0.65 0.16 145)" stopOpacity="0" />
                   </linearGradient>
                 </defs>
-                <path d="M0,80 C10,75 20,60 30,65 C40,70 50,40 60,35 C70,30 80,45 90,20 L100,25 L100,100 L0,100 Z" fill="url(#chartGradient)" />
-                <path d="M0,80 C10,75 20,60 30,65 C40,70 50,40 60,35 C70,30 80,45 90,20 L100,25" fill="none" stroke="#6366F1" strokeLinecap="round" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+                <line x1="0" y1="0" x2="760" y2="0" stroke="oklch(0.96 0 0)" />
+                <line x1="0" y1="40" x2="760" y2="40" stroke="oklch(0.96 0 0)" />
+                <line x1="0" y1="80" x2="760" y2="80" stroke="oklch(0.96 0 0)" />
+                <line x1="0" y1="120" x2="760" y2="120" stroke="oklch(0.96 0 0)" />
+                {chartData.yLabels.map((l, i) => (
+                  <text key={i} x="4" y={9 + i * 40} fontSize="9" fill="oklch(0.708 0 0)" fontFamily="ui-monospace,Menlo,monospace">{l}</text>
+                ))}
+                <path d={chartData.revArea} fill="url(#fin-rev-grad)" />
+                <path d={chartData.revPath} fill="none" stroke="#0E4F6D" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                <path d={chartData.feeArea} fill="url(#fin-fee-grad)" />
+                <path d={chartData.feePath} fill="none" stroke="oklch(0.65 0.16 145)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="4 2" />
+                {chartData.points.map((p, i) => (
+                  <text key={i} x={p.x} y={176} fontSize="9" fill="oklch(0.708 0 0)" fontFamily="ui-monospace,Menlo,monospace" textAnchor="middle">{p.label}</text>
+                ))}
               </svg>
-              {/* Hover Tooltip Indicator */}
-              <div className="absolute top-[20%] left-[90%] w-3 h-3 bg-white border-2 border-gray-900 rounded-full shadow-md z-10" />
-              <div className="absolute top-[5%] left-[78%] bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg z-20">
-                Jan 28: $38,420
-              </div>
             </div>
-            {/* X Axis Labels */}
-            <div className="flex justify-between mt-4 text-xs font-medium text-gray-500">
-              <span>Jan 1</span>
-              <span>Jan 8</span>
-              <span>Jan 15</span>
-              <span>Jan 22</span>
-              <span>Jan 29</span>
+          </div>
+
+          <div className="fin-invoices-section">
+            <div className="fin-table-head-row">
+              <span className="fin-section-eyebrow">Facturen</span>
+              <span className="fin-table-meta">{invoices.length} factu{invoices.length === 1 ? 'ur' : 'ren'}</span>
             </div>
-          </CardContent>
-        </Card>
+            <table className="fin-inv-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 120 }}>Nummer</th>
+                  <th>Klant</th>
+                  <th style={{ width: 120 }}>Datum</th>
+                  <th style={{ width: 130 }}>Status</th>
+                  <th style={{ width: 140, textAlign: 'right' }}>Bedrag</th>
+                  <th style={{ width: 36 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={6} style={{ padding: 28, textAlign: 'center', color: 'var(--ink-ghost)' }}>
+                    <Loader2 className="fin-spin" style={{ width: 16, height: 16, display: 'inline-block', verticalAlign: 'middle' }} /> Laden…
+                  </td></tr>
+                ) : invoices.length === 0 ? (
+                  <tr className="fin-empty-row"><td colSpan={6}>Geen facturen voor deze selectie.</td></tr>
+                ) : invoices.map(b => {
+                  const st = inferInvStatus(b)
+                  const cfg = STATUS_CFG[st]
+                  const num = `LTC-INV-${b.id.slice(0, 6).toUpperCase()}`
+                  const clientName = b.studio?.title || 'Onbekend'
+                  const sub = b.start_datetime ? fmtDate(b.start_datetime) : '—'
+                  const amount = Number(b.total_amount) || 0
+                  const fee = Number(b.service_fee) || Math.round(amount * 0.15)
+                  return (
+                    <tr key={b.id} className="fin-inv-row">
+                      <td><span className="fin-inv-num">{num}</span></td>
+                      <td>
+                        <div className="fin-inv-client">{clientName}</div>
+                        <div className="fin-inv-sub">{sub}</div>
+                      </td>
+                      <td><span className="fin-inv-date">{fmtDate(b.created_at)}</span></td>
+                      <td><span className={`fin-status-chip ${cfg.cls}`}>{cfg.label}</span></td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="fin-inv-amount">{eur(amount)}</div>
+                        <div className="fin-inv-fee">{eur(fee)} platform (15%)</div>
+                      </td>
+                      <td>
+                        <button className="fin-icon-btn" aria-label="Acties">
+                          <MoreHorizontal style={{ width: 14, height: 14 }} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Right Column */}
-        <div className="flex flex-col gap-6">
-          {/* Next Payout Card */}
-          <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">Next Payout</h3>
-                  <p className="text-sm text-gray-500 mt-1">Scheduled for Thursday</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-900">
-                  <Building2 className="h-5 w-5" />
-                </div>
-              </div>
-              <div className="mt-6">
-                <span className="text-3xl font-bold text-gray-900 tracking-tight">{formatCurrency(overview?.pendingPayouts ?? 0)}</span>
-              </div>
-              <div className="mt-6">
-                <Button className="w-full gap-2">
-                  <span>Payout Now</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Revenue by Studio */}
-          <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold">Revenue by Studio</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {revenueByStudio.map((studio, index) => (
-                <div key={studio.name}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-900">{studio.name}</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(studio.revenue)}</span>
+          <div className="fin-costs-section">
+            <div className="fin-table-head-row">
+              <span className="fin-section-eyebrow">Kosten per categorie</span>
+              <span className="fin-table-meta">{range.costsLabel}</span>
+            </div>
+            <div>
+              {costs.map((c, i) => (
+                <div key={i} className="fin-cost-row">
+                  <div style={{ flex: 1 }}>
+                    <div className="fin-cost-cat">{c.cat}</div>
+                    <div className="fin-cost-sub">{c.sub}</div>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div
-                      className={cn("h-2 rounded-full", studioColors[index % studioColors.length])}
-                      style={{ width: `${studio.percentage}%` }}
-                    />
-                  </div>
+                  <div className="fin-cost-pct">{c.pct}%</div>
+                  <div className="fin-cost-track"><div className="fin-cost-bar" style={{ width: `${Math.max(2, c.pct * 2)}%` }} /></div>
+                  <div className="fin-cost-amount">{eur(c.amount)}</div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Recent Transactions Table */}
-      <Card className="shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">Recent Transactions</h3>
-            <p className="text-sm text-gray-500">Latest financial activity across all studios</p>
-          </div>
-          <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search transactions..."
-                className="pl-9 h-9 w-full sm:w-64 bg-gray-50"
-              />
             </div>
-            <Button variant="outline" size="icon" className="h-9 w-9">
-              <Filter className="h-4 w-4" />
-            </Button>
+          </div>
+
+          <div className="fin-footer">
+            <span>Lctnships Workspace · Finance · {range.costsLabel} · EUR</span>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100">
-                <th className="py-3 px-6 text-xs font-semibold uppercase tracking-wider text-gray-500">Transaction</th>
-                <th className="py-3 px-6 text-xs font-semibold uppercase tracking-wider text-gray-500">Studio</th>
-                <th className="py-3 px-6 text-xs font-semibold uppercase tracking-wider text-gray-500">Date</th>
-                <th className="py-3 px-6 text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
-                <th className="py-3 px-6 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">Amount</th>
-                <th className="py-3 px-6 text-xs font-semibold uppercase tracking-wider text-gray-500 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <Inbox className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-500">No transactions yet</p>
-                    <p className="text-xs text-gray-400 mt-1">Transactions will appear here once recorded.</p>
-                  </td>
-                </tr>
-              ) : (
-                transactions.map((tx) => (
-                  <tr key={tx.id} className="group hover:bg-gray-50/50 transition-colors cursor-pointer">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "h-8 w-8 rounded-full flex items-center justify-center",
-                          tx.type === 'payment' ? 'bg-gray-200 text-gray-900' : 'bg-orange-100 text-orange-600'
-                        )}>
-                          {tx.type === 'payment' ? (
-                            <ArrowDownLeft className="h-4 w-4" />
-                          ) : (
-                            <ArrowUpRight className="h-4 w-4" />
-                          )}
-                        </div>
-                        <span className="font-medium text-gray-900">{tx.description}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-sm text-gray-500">{tx.partner?.company_name ?? '—'}</td>
-                    <td className="py-4 px-6 text-sm text-gray-500">{tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
-                    <td className="py-4 px-6">
-                      <Badge
-                        variant={
-                          tx.status === 'succeeded' ? 'success' :
-                          tx.status === 'processing' ? 'secondary' :
-                          'warning'
-                        }
-                        className={cn(
-                          "capitalize",
-                          tx.status === 'succeeded' && "bg-emerald-50 text-emerald-700 border-emerald-200",
-                          tx.status === 'processing' && "bg-gray-100 text-gray-600 border-gray-200",
-                          tx.status === 'pending' && "bg-yellow-50 text-yellow-700 border-yellow-200"
-                        )}
-                      >
-                        {tx.status}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-6 text-sm font-semibold text-gray-900 text-right font-mono">
-                      {tx.amount > 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <aside className="fin-right">
+          <div className="fin-widget">
+            <div className="fin-w-head">
+              <span className="fin-w-eye">Uitbetalingen</span>
+              <span className="fin-w-meta">{eur(kpis.pendingPayouts)} open</span>
+            </div>
+            <div>
+              {payouts.length === 0 ? (
+                <div style={{ padding: 14, fontSize: 11, color: 'var(--ink-ghost)' }}>Geen open uitbetalingen.</div>
+              ) : payouts.map(p => {
+                const key = `${period}_${p.id}`
+                const done = payoutPaid.has(key)
+                return (
+                  <div key={p.id} className="fin-payout-row">
+                    <div className="fin-payout-avatar" style={{ background: '#0E4F6D' }}>{initialsOf(p.name)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="fin-payout-name">{p.name}</div>
+                      <div className="fin-payout-sub">{p.count} boeking{p.count === 1 ? '' : 'en'}</div>
+                    </div>
+                    <div className="fin-payout-amount">{eur(p.amount)}</div>
+                    <button
+                      className={`fin-pay-btn${done ? ' done' : ''}`}
+                      disabled={done}
+                      onClick={() => setPayoutPaid(prev => {
+                        const next = new Set(prev)
+                        next.add(key)
+                        return next
+                      })}
+                    >
+                      {done ? 'Betaald' : 'Betalen'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            {payouts.length > 0 && (
+              <div className="fin-payout-footer">
+                <button
+                  className="fin-pay-all-btn"
+                  onClick={() => setPayoutPaid(prev => {
+                    const next = new Set(prev)
+                    payouts.forEach(p => next.add(`${period}_${p.id}`))
+                    return next
+                  })}
+                >
+                  Verwerk alle uitbetalingen
+                </button>
+              </div>
+            )}
+          </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-center">
-          <Button variant="ghost" className="text-sm font-medium text-gray-900 hover:text-black gap-1">
-            View all transactions
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </Card>
-
-      {/* Quick Actions Footer */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
-            <Building2 className="h-5 w-5" />
+          <div className="fin-widget">
+            <div className="fin-w-head">
+              <span className="fin-w-eye">Recente transacties</span>
+              <span className="fin-w-meta">{range.txLabel}</span>
+            </div>
+            <div>
+              {txs.length === 0 ? (
+                <div style={{ padding: 14, fontSize: 11, color: 'var(--ink-ghost)' }}>Geen transacties.</div>
+              ) : txs.slice(0, 8).map(t => {
+                const amount = Number(t.amount) || 0
+                const isRefund = (t.type || '').toLowerCase() === 'refund'
+                const pos = amount > 0 && !isRefund
+                return (
+                  <div key={t.id} className="fin-tx-row">
+                    <div className="fin-tx-icon" style={{ background: isRefund ? '#fef3c7' : pos ? '#ecfdf5' : '#fef2f2' }}>
+                      {isRefund ? <RotateCw style={{ width: 14, height: 14, color: '#b45309' }} /> : pos ? <ArrowDown style={{ width: 14, height: 14, color: 'var(--success, #15803d)' }} /> : <ArrowUp style={{ width: 14, height: 14, color: 'var(--danger, #dc2626)' }} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="fin-tx-desc">{t.description || t.type}</div>
+                      <div className="fin-tx-date">{fmtDate(t.created_at)}</div>
+                    </div>
+                    <div className={`fin-tx-amount ${pos ? 'pos' : 'neg'}`}>{pos ? '+' : '−'}{eur(Math.abs(amount))}</div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-gray-900">Update Bank Info</h4>
-            <p className="text-xs text-gray-500">Manage payout methods</p>
-          </div>
-        </button>
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
-            <FileText className="h-5 w-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-gray-900">Tax Forms</h4>
-            <p className="text-xs text-gray-500">Download tax documents</p>
-          </div>
-        </button>
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
-            <Download className="h-5 w-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-gray-900">Export Reports</h4>
-            <p className="text-xs text-gray-500">Download CSV or PDF</p>
-          </div>
-        </button>
-        <button className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-600 transition-colors text-left">
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:text-gray-900 transition-colors">
-            <Wallet className="h-5 w-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-gray-900">Payout History</h4>
-            <p className="text-xs text-gray-500">View all past payouts</p>
-          </div>
-        </button>
+        </aside>
       </div>
+
+      <style jsx>{`
+        .fin-header {
+          position: sticky; top: 0; z-index: 100;
+          height: 58px; background: var(--bg, #F9FAFE);
+          border-bottom: 1px solid var(--edge);
+          display: flex; align-items: center;
+          padding: 0 40px; gap: 0;
+        }
+        .fin-eyebrow {
+          font-size: 9px; font-weight: 700;
+          letter-spacing: 0.20em; text-transform: uppercase;
+          color: var(--ink-ghost); margin-right: 24px; white-space: nowrap;
+        }
+        .fin-tabs { display: flex; align-items: center; height: 100%; }
+        .fin-tab {
+          height: 100%; padding: 0 16px;
+          border: none; background: none;
+          font-size: 11.5px; font-weight: 600;
+          color: var(--ink-ghost);
+          border-bottom: 2px solid transparent;
+          transition: all 130ms; cursor: pointer;
+        }
+        .fin-tab:hover { color: var(--ink-muted); }
+        .fin-tab.active { color: var(--ink); border-bottom-color: var(--accent, #0E4F6D); }
+        .fin-studio-filter {
+          height: 30px; padding: 0 24px 0 10px;
+          border: 1px solid var(--edge); border-radius: 6px;
+          background: var(--surface);
+          font-size: 11px; font-weight: 600; color: var(--ink-muted);
+          outline: none; appearance: none; -webkit-appearance: none;
+          margin-left: 16px; cursor: pointer;
+          background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23aaaaaa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 8px center;
+        }
+        .fin-studio-filter:focus { border-color: var(--accent, #0E4F6D); }
+        .fin-actions { display: flex; align-items: center; gap: 8px; }
+        .fin-btn-outline {
+          height: 30px; padding: 0 14px;
+          border: 1px solid var(--edge); border-radius: 9999px;
+          background: transparent;
+          font-size: 11px; font-weight: 600; color: var(--ink);
+          cursor: pointer; transition: all 130ms;
+        }
+        .fin-btn-outline:hover { border-color: var(--ink-ghost); background: var(--surface); }
+        .fin-btn-primary {
+          background: var(--accent, #0E4F6D); color: #fff; border: none;
+          padding: 6px 16px; border-radius: 9999px;
+          font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+          display: inline-flex; align-items: center; gap: 5px;
+          cursor: pointer; text-decoration: none;
+        }
+        .fin-btn-primary:hover { opacity: 0.82; }
+        .fin-spin { animation: fin-spin 0.9s linear infinite; }
+        @keyframes fin-spin { to { transform: rotate(360deg); } }
+
+        .fin-kpi-strip {
+          display: grid; grid-template-columns: repeat(5, 1fr);
+          border-bottom: 1px solid var(--edge);
+        }
+        .fin-kpi { padding: 20px 28px; border-right: 1px solid var(--edge); }
+        .fin-kpi:last-child { border-right: none; }
+        .fin-kpi-label {
+          font-size: 7.5px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.20em;
+          color: var(--ink-ghost); margin-bottom: 7px;
+        }
+        .fin-kpi-value {
+          font-size: 28px; font-weight: 800;
+          letter-spacing: -0.025em; line-height: 1;
+          color: var(--ink);
+        }
+        .fin-kpi-value.danger { color: var(--danger, #dc2626); }
+        .fin-kpi-value.success { color: var(--success, #15803d); }
+        .fin-kpi-sub { font-size: 10px; color: var(--ink-ghost); margin-top: 5px; }
+
+        .fin-main {
+          display: grid; grid-template-columns: minmax(0, 1fr) 340px;
+          align-items: start;
+        }
+        .fin-left { border-right: 1px solid var(--edge); }
+
+        .fin-chart-section {
+          border-bottom: 1px solid var(--edge);
+          padding: 28px 40px 32px;
+        }
+        .fin-section-head {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 18px;
+        }
+        .fin-section-eyebrow {
+          font-size: 9px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.20em;
+          color: var(--ink-ghost);
+        }
+        .fin-chart-legend { display: flex; align-items: center; gap: 14px; }
+        .fin-legend-item {
+          display: flex; align-items: center; gap: 5px;
+          font-size: 10px; font-weight: 600; color: var(--ink-ghost);
+        }
+        .fin-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        .fin-invoices-section { border-bottom: 1px solid var(--edge); }
+        .fin-table-head-row {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 40px;
+          background: var(--surface);
+          border-bottom: 1px solid var(--edge);
+        }
+        .fin-table-meta {
+          font-size: 9.5px; color: var(--ink-ghost);
+          font-family: ui-monospace, Menlo, monospace;
+        }
+        .fin-inv-table { width: 100%; border-collapse: collapse; }
+        .fin-inv-table th {
+          padding: 7px 12px 6px;
+          font-size: 7.5px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.18em;
+          color: var(--ink-ghost); text-align: left;
+          background: var(--surface);
+          border-bottom: 1px solid var(--edge);
+        }
+        .fin-inv-table th:first-child { padding-left: 40px; }
+        .fin-inv-table th:last-child { padding-right: 40px; }
+        .fin-inv-table td {
+          padding: 11px 12px;
+          border-bottom: 1px solid var(--edge-soft, #e5e5e5);
+          vertical-align: middle;
+        }
+        .fin-inv-table td:first-child { padding-left: 40px; }
+        .fin-inv-table td:last-child { padding-right: 40px; text-align: right; }
+        .fin-inv-row { cursor: pointer; transition: background 100ms; }
+        .fin-inv-row:hover { background: oklch(0.988 0 0); }
+        .fin-inv-num {
+          font-size: 11px; font-weight: 700;
+          font-family: ui-monospace, Menlo, monospace;
+          color: var(--ink-muted);
+        }
+        .fin-inv-client {
+          font-size: 12.5px; font-weight: 600; color: var(--ink);
+        }
+        .fin-inv-sub {
+          font-size: 10px; color: var(--ink-ghost); margin-top: 2px;
+        }
+        .fin-inv-date {
+          font-size: 11px; color: var(--ink-muted);
+          font-family: ui-monospace, Menlo, monospace;
+        }
+        .fin-inv-amount {
+          font-size: 12.5px; font-weight: 700; color: var(--ink);
+          font-family: ui-monospace, Menlo, monospace;
+        }
+        .fin-inv-fee {
+          font-size: 9.5px; color: var(--ink-ghost);
+          font-family: ui-monospace, Menlo, monospace;
+          margin-top: 2px;
+        }
+        .fin-status-chip {
+          display: inline-flex; align-items: center;
+          padding: 3px 9px; border-radius: 9999px;
+          font-size: 9px; font-weight: 700;
+          text-transform: lowercase; white-space: nowrap;
+        }
+        .fin-status-chip.s-paid { background: #ecfdf5; color: var(--success, #15803d); }
+        .fin-status-chip.s-open { background: #e7f3f8; color: var(--accent, #0E4F6D); }
+        .fin-status-chip.s-overdue { background: #fef2f2; color: var(--danger, #dc2626); }
+        .fin-status-chip.s-draft { background: var(--surface); color: var(--ink-ghost); border: 1px solid var(--edge); }
+        .fin-icon-btn {
+          width: 26px; height: 26px;
+          border: none; background: none;
+          color: var(--ink-ghost);
+          display: inline-flex; align-items: center; justify-content: center;
+          border-radius: 4px; cursor: pointer;
+          transition: all 110ms;
+        }
+        .fin-icon-btn:hover { color: var(--ink-muted); background: var(--surface); }
+
+        .fin-empty-row td {
+          padding: 28px 40px;
+          font-size: 11.5px; color: var(--ink-ghost);
+          font-style: italic; text-align: left;
+        }
+
+        .fin-costs-section { border-bottom: 1px solid var(--edge); }
+        .fin-cost-row {
+          display: flex; align-items: center; gap: 14px;
+          padding: 13px 40px;
+          border-bottom: 1px solid var(--edge-soft, #e5e5e5);
+          transition: background 100ms;
+        }
+        .fin-cost-row:last-child { border-bottom: none; }
+        .fin-cost-row:hover { background: oklch(0.988 0 0); }
+        .fin-cost-cat {
+          font-size: 12.5px; font-weight: 600; color: var(--ink);
+        }
+        .fin-cost-sub { font-size: 10.5px; color: var(--ink-ghost); }
+        .fin-cost-pct {
+          font-size: 10px; font-weight: 700;
+          color: var(--ink-ghost);
+          min-width: 32px; text-align: right;
+        }
+        .fin-cost-track {
+          width: 120px; height: 4px;
+          background: var(--edge);
+          border-radius: 2px;
+          flex-shrink: 0;
+          overflow: hidden;
+        }
+        .fin-cost-bar {
+          height: 100%;
+          border-radius: 2px;
+          background: var(--accent, #0E4F6D);
+        }
+        .fin-cost-amount {
+          font-size: 12.5px; font-weight: 700; color: var(--ink);
+          font-family: ui-monospace, Menlo, monospace;
+          min-width: 80px; text-align: right;
+        }
+
+        .fin-footer {
+          border-top: 1px solid var(--edge);
+          padding: 10px 40px;
+          font-size: 11px; color: var(--ink-ghost);
+          font-family: ui-monospace, Menlo, monospace;
+        }
+
+        .fin-right {
+          position: sticky; top: 58px;
+          max-height: calc(100vh - 58px);
+          overflow-y: auto; padding: 20px;
+          display: flex; flex-direction: column; gap: 14px;
+        }
+        .fin-widget {
+          border: 1px solid var(--edge);
+          border-radius: 4px; overflow: hidden;
+          background: var(--bg, #F9FAFE);
+        }
+        .fin-w-head {
+          padding: 9px 13px;
+          border-bottom: 1px solid var(--edge);
+          background: var(--surface);
+          display: flex; align-items: center; justify-content: space-between;
+        }
+        .fin-w-eye {
+          font-size: 8px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.20em;
+          color: var(--ink-ghost);
+        }
+        .fin-w-meta {
+          font-size: 9.5px; color: var(--ink-ghost);
+          font-family: ui-monospace, Menlo, monospace;
+        }
+
+        .fin-payout-row {
+          display: flex; align-items: center; gap: 9px;
+          padding: 10px 13px;
+          border-bottom: 1px solid var(--edge-soft, #e5e5e5);
+        }
+        .fin-payout-row:last-child { border-bottom: none; }
+        .fin-payout-avatar {
+          width: 28px; height: 28px; border-radius: 50%;
+          flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 9px; font-weight: 900; color: #fff;
+        }
+        .fin-payout-name {
+          font-size: 11.5px; font-weight: 700;
+          color: var(--ink-muted); line-height: 1.2;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .fin-payout-sub { font-size: 9.5px; color: var(--ink-ghost); }
+        .fin-payout-amount {
+          font-size: 12px; font-weight: 700; color: var(--ink);
+          font-family: ui-monospace, Menlo, monospace;
+          margin-right: 4px;
+        }
+        .fin-pay-btn {
+          font-size: 10px; font-weight: 700;
+          background: var(--accent, #0E4F6D); color: #fff;
+          border: none; padding: 4px 10px;
+          border-radius: 9999px;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: opacity 130ms;
+        }
+        .fin-pay-btn:hover { opacity: 0.82; }
+        .fin-pay-btn.done {
+          background: #ecfdf5; color: var(--success, #15803d);
+          cursor: default;
+        }
+        .fin-payout-footer {
+          padding: 10px 13px;
+          border-top: 1px solid var(--edge);
+        }
+        .fin-pay-all-btn {
+          display: block; width: 100%;
+          background: var(--accent, #0E4F6D); color: #fff; border: none;
+          padding: 8px; border-radius: 5px;
+          font-size: 11.5px; font-weight: 700;
+          text-align: center; cursor: pointer;
+          transition: opacity 130ms;
+        }
+        .fin-pay-all-btn:hover { opacity: 0.82; }
+
+        .fin-tx-row {
+          display: flex; align-items: center; gap: 9px;
+          padding: 9px 13px;
+          border-bottom: 1px solid var(--edge-soft, #e5e5e5);
+        }
+        .fin-tx-row:last-child { border-bottom: none; }
+        .fin-tx-icon {
+          width: 28px; height: 28px; border-radius: 5px;
+          flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .fin-tx-desc {
+          font-size: 11px; font-weight: 600;
+          color: var(--ink-muted); line-height: 1.2;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .fin-tx-date { font-size: 9.5px; color: var(--ink-ghost); margin-top: 1px; }
+        .fin-tx-amount {
+          font-size: 12px; font-weight: 700;
+          font-family: ui-monospace, Menlo, monospace;
+        }
+        .fin-tx-amount.pos { color: var(--success, #15803d); }
+        .fin-tx-amount.neg { color: var(--danger, #dc2626); }
+      `}</style>
     </div>
   )
 }
