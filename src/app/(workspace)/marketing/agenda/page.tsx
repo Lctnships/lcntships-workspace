@@ -1,57 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
-import { format, parseISO } from 'date-fns'
-import { nl } from 'date-fns/locale'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Calendar,
-  Plus,
-  Copy,
-  Check,
-  Loader2,
-  Trash2,
-  X,
-  Users,
-  Lock,
-  Unlock,
-  Star,
-  Clapperboard,
-  ExternalLink,
-  CalendarDays,
-  List,
-  Search,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-} from 'lucide-react'
+import { Search, Plus, ArrowRight, Users, ExternalLink, Loader2, X, FileText, Inbox } from 'lucide-react'
 import { workspaceClient } from '@/lib/workspace-client'
-import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction'
-import type { EventInput, EventClickArg } from '@fullcalendar/core'
-import nlLocale from '@fullcalendar/core/locales/nl'
 
-type SalesAgendaItem = {
-  id: string
-  title: string
-  description: string | null
-  type: 'meeting' | 'call' | 'follow_up' | 'demo' | 'other'
-  date: string
-  start_time: string | null
-  end_time: string | null
-  location: string | null
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show'
-  assigned_to: string | null
-}
-
+// ─── Types ────────────────────────────────────────────────────────────────────
 type Production = {
   id: string
   title: string
@@ -70,405 +25,730 @@ type Production = {
 type ClosedStudio = {
   id: string
   company_name: string
-  contact_name: string | null
   city: string | null
   address: string | null
   email: string | null
   phone: string | null
 }
 
-type Vote = {
-  id: string
-  voter_name: string
-  available_dates: string[]
-  note: string | null
-  created_at: string
+type Phase = 'new-sale' | 'datum-vast' | 'stemmen-open' | 'in-productie' | 'afgerond'
+type FilterPill = 'urgent' | 'open' | null
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function formatDate(d: string) {
-  try {
-    return format(parseISO(d), 'EEE d MMM yyyy', { locale: nl })
-  } catch {
-    return d
+function deadlineRelative(deadlineIso: string): string {
+  const diffMs = new Date(deadlineIso).getTime() - Date.now()
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  if (diffMs < 0) return 'poll gesloten'
+  if (days >= 1) return `poll sluit in ${days} d ${String(hours).padStart(2, '0')}:00`
+  return `poll sluit binnen ${hours}u`
+}
+
+function getPhase(p: Production, today: Date): Phase {
+  if (p.status === 'closed' && p.final_date) {
+    const finalDate = new Date(p.final_date)
+    if (finalDate < today) return 'afgerond'
+    return 'datum-vast'
   }
+  if (p.final_date) return 'in-productie'
+  if (p.proposed_dates && p.proposed_dates.length > 0) return 'stemmen-open'
+  return 'new-sale'
 }
 
-export default function ProductieAgendaPage() {
-  const [productions, setProductions] = useState<Production[]>([])
-  const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
-  const [selected, setSelected] = useState<Production | null>(null)
-  const [votes, setVotes] = useState<Vote[]>([])
-  const [loadingVotes, setLoadingVotes] = useState(false)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [view, setView] = useState<'list' | 'calendar'>('calendar')
-  const [meetings, setMeetings] = useState<SalesAgendaItem[]>([])
-  const [showSalesMeetings, setShowSalesMeetings] = useState(true)
-  const [closedStudios, setClosedStudios] = useState<ClosedStudio[]>([])
-  const [prefillLead, setPrefillLead] = useState<ClosedStudio | null>(null)
+function phaseLabel(ph: Phase): string {
+  return {
+    'new-sale': 'nieuw · van sales',
+    'datum-vast': 'datum vast',
+    'stemmen-open': 'stemmen open',
+    'in-productie': 'in productie',
+    'afgerond': 'afgerond',
+  }[ph]
+}
 
-  const loadProductions = useCallback(async () => {
+function phaseChipClass(ph: Phase): string {
+  return {
+    'new-sale': 'pa-chip-new-sale',
+    'datum-vast': 'pa-chip-accent',
+    'stemmen-open': 'pa-chip-warning',
+    'in-productie': 'pa-chip-success',
+    'afgerond': 'pa-chip-neutral',
+  }[ph]
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+export default function ProductiesPage() {
+  const router = useRouter()
+  const today = useMemo(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d
+  }, [])
+
+  const [productions, setProductions] = useState<Production[]>([])
+  const [closedStudios, setClosedStudios] = useState<ClosedStudio[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [phaseFilter, setPhaseFilter] = useState<Phase | ''>('')
+  const [extraPill, setExtraPill] = useState<FilterPill>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [createPrefill, setCreatePrefill] = useState<ClosedStudio | null>(null)
+
+  const load = useCallback(async () => {
     setLoading(true)
-    const [prodRes, meetingsRes, studiosRes] = await Promise.all([
-      fetch('/api/productions'),
-      workspaceClient
-        .from<SalesAgendaItem[]>('sales_agenda')
-        .select('id, title, description, type, date, start_time, end_time, location, status, assigned_to')
-        .order('date', { ascending: true }),
+    const [prodRes, studiosRes] = await Promise.all([
+      fetch('/api/productions').then(r => r.ok ? r.json() : []).catch(() => []),
       workspaceClient
         .from<ClosedStudio[]>('sales_leads')
-        .select('id, company_name, contact_name, city, address, email, phone')
+        .select('id, company_name, city, address, email, phone')
         .eq('status', 'closed')
         .order('updated_at', { ascending: false }),
     ])
-    if (prodRes.ok) setProductions(await prodRes.json())
-    if (meetingsRes.data) setMeetings(meetingsRes.data as SalesAgendaItem[])
-    if (studiosRes.data) setClosedStudios(studiosRes.data as ClosedStudio[])
+    setProductions((prodRes as Production[]) || [])
+    setClosedStudios((studiosRes.data as ClosedStudio[]) || [])
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    loadProductions()
-  }, [loadProductions])
+  useEffect(() => { load() }, [load])
 
-  const loadDetail = useCallback(async (id: string) => {
-    setLoadingVotes(true)
-    const res = await fetch(`/api/productions/${id}`)
-    if (res.ok) {
-      const data = await res.json()
-      setSelected(data.production)
-      setVotes(data.votes)
-    }
-    setLoadingVotes(false)
-  }, [])
-
-  const copyLink = async (token: string, id: string) => {
-    const base =
-      process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
-        ? process.env.NEXT_PUBLIC_APP_URL
-        : typeof window !== 'undefined' && !window.location.origin.includes('localhost')
-          ? window.location.origin
-          : 'https://workspace.lctnships.com'
-    const url = `${base.replace(/\/$/, '')}/p/${token}`
-    await navigator.clipboard.writeText(url)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 1500)
-  }
-
-  const toggleStatus = async (p: Production) => {
-    const next = p.status === 'open' ? 'closed' : 'open'
-    const res = await fetch(`/api/productions/${p.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: next }),
+  // ── Derived ─────────────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    return productions.filter(p => {
+      if (search) {
+        const q = search.toLowerCase()
+        if (!p.title.toLowerCase().includes(q)
+          && !(p.location || '').toLowerCase().includes(q)
+          && !(p.description || '').toLowerCase().includes(q)) return false
+      }
+      const ph = getPhase(p, today)
+      if (phaseFilter && ph !== phaseFilter) return false
+      if (extraPill === 'urgent') {
+        // Production with final_date upcoming where T-3 not handled — proxy: final_date binnen 5 dagen + status='closed'
+        if (!p.final_date) return false
+        const days = (new Date(p.final_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        if (days > 5 || days < 0) return false
+      }
+      if (extraPill === 'open' && p.final_date) return false
+      return true
     })
-    if (res.ok) {
-      await loadProductions()
-      if (selected?.id === p.id) await loadDetail(p.id)
+  }, [productions, search, phaseFilter, extraPill, today])
+
+  // Group by phase
+  const grouped = useMemo(() => {
+    const order: Phase[] = ['new-sale', 'datum-vast', 'stemmen-open', 'in-productie', 'afgerond']
+    const map: Record<Phase, Production[]> = {
+      'new-sale': [],
+      'datum-vast': [],
+      'stemmen-open': [],
+      'in-productie': [],
+      'afgerond': [],
     }
+    filtered.forEach(p => { map[getPhase(p, today)].push(p) })
+    return order.map(ph => ({ phase: ph, items: map[ph] }))
+  }, [filtered, today])
+
+  // Stats (all productions, niet gefilterd)
+  const stats = useMemo(() => {
+    const s: Record<Phase, number> = { 'new-sale': 0, 'datum-vast': 0, 'stemmen-open': 0, 'in-productie': 0, 'afgerond': 0 }
+    productions.forEach(p => { s[getPhase(p, today)]++ })
+    return s
+  }, [productions, today])
+
+  const selected = useMemo(() => productions.find(p => p.id === selectedId) || null, [productions, selectedId])
+  const selectedLead = useMemo(() => closedStudios.find(s => s.id === selectedLeadId) || null, [closedStudios, selectedLeadId])
+
+  // Sales-leads die nog niet als productie zijn
+  const leadsWithoutProduction = useMemo(() => {
+    const linkedLeads = new Set(productions.map(p => p.lead_id).filter(Boolean))
+    return closedStudios.filter(s => !linkedLeads.has(s.id))
+  }, [closedStudios, productions])
+
+  const startSetup = (lead: ClosedStudio) => {
+    setCreatePrefill(lead)
+    setShowCreate(true)
   }
-
-  const setFinalDate = async (p: Production, date: string | null) => {
-    const res = await fetch(`/api/productions/${p.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ final_date: date }),
-    })
-    if (res.ok) {
-      await loadProductions()
-      if (selected?.id === p.id) await loadDetail(p.id)
-    }
-  }
-
-  const deleteProduction = async (id: string) => {
-    if (!confirm('Weet je zeker dat je deze productie wilt verwijderen?')) return
-    const res = await fetch(`/api/productions/${id}`, { method: 'DELETE' })
-    if (res.ok) {
-      setSelected(null)
-      setVotes([])
-      await loadProductions()
-    }
-  }
-
-  const router = useRouter()
-  const createBriefFromProduction = async (p: Production) => {
-    // Check of er al een brief is voor deze productie
-    const existing = await workspaceClient
-      .from<Array<{ id: string }>>('content_briefs')
-      .select('id')
-      .eq('production_id', p.id)
-      .limit(1)
-    if (existing.data && existing.data.length > 0) {
-      router.push(`/content?brief=${existing.data[0].id}`)
-      return
-    }
-    const { data, error } = await workspaceClient
-      .from<Array<{ id: string }>>('content_briefs')
-      .insert({
-        production_id: p.id,
-        studio_name: p.location ?? p.title,
-        title: p.title,
-        description: p.description,
-        shoot_date: p.final_date ?? (p.proposed_dates[0] ?? null),
-        status: 'draft',
-        shotlist: [],
-        equipment: [],
-        share_link: crypto.randomUUID(),
-      })
-      .select()
-    if (error) {
-      alert(`Kon brief niet aanmaken: ${error.message}`)
-      return
-    }
-    const row = Array.isArray(data) ? data[0] : null
-    if (row) {
-      router.push(`/content?brief=${row.id}`)
-    } else {
-      router.push('/content')
-    }
-  }
-
-  // Studios die wel "closed" zijn maar nog geen productie hebben gepland
-  const plannedLeadIds = new Set(
-    productions.map((p) => p.lead_id).filter((id): id is string => !!id),
-  )
-  const unplannedStudios = closedStudios.filter((s) => !plannedLeadIds.has(s.id))
-
-  // Producties deze week (ma-zo van vandaag)
-  const now = new Date()
-  const dayOfWeek = (now.getDay() + 6) % 7 // 0 = maandag
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek)
-  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
-  const productionsThisWeek = productions.filter((p) => {
-    if (!p.final_date) return false
-    const d = new Date(p.final_date + 'T12:00:00')
-    return d >= weekStart && d < weekEnd
-  })
-  const weekCount = productionsThisWeek.length
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Productie Agenda</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Plan productiedagen en laat het team stemmen op beschikbare datums.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setView('calendar')}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
-                view === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
-              )}
+    <>
+      <style jsx global>{`
+        .pa-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 9999px; font-size: 9px; font-weight: 700; text-transform: lowercase; white-space: nowrap; }
+        .pa-chip-accent { background: var(--accent); color: #fff; }
+        .pa-chip-success { background: oklch(0.96 0.04 145); color: oklch(0.65 0.16 145); }
+        .pa-chip-warning { background: oklch(0.97 0.05 72); color: oklch(0.50 0.14 65); }
+        .pa-chip-neutral { background: var(--surface); color: var(--ink-ghost); border: 1px solid var(--edge); }
+        .pa-chip-new-sale { background: #d9f4fd; color: #0778a8; }
+
+        .pa-f-select {
+          height: 30px; padding: 0 24px 0 9px; border: 1px solid var(--edge);
+          border-radius: 6px; background: var(--surface); font-size: 10.5px;
+          font-weight: 600; color: var(--ink-muted); outline: none;
+          -webkit-appearance: none; appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23aaaaaa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+          background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
+        }
+        .pa-f-select:focus { border-color: var(--accent); }
+
+        .pa-pill {
+          height: 30px; padding: 0 12px; border: 1px solid var(--edge);
+          border-radius: 6px; font-size: 10.5px; font-weight: 600;
+          color: var(--ink-ghost); background: var(--surface); transition: all 130ms;
+          cursor: pointer;
+        }
+        .pa-pill.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+        .pa-pill:hover:not(.active) { border-color: var(--ink-ghost); color: var(--ink-muted); }
+
+        .pa-prod-row {
+          display: grid;
+          grid-template-columns: 32px 1fr 120px 130px 60px 86px 36px;
+          align-items: center; padding: 0 24px;
+          border-bottom: 1px solid var(--edge-soft);
+          cursor: pointer; transition: background 100ms; position: relative;
+        }
+        .pa-prod-row:hover { background: oklch(0.988 0 0); }
+        .pa-prod-row.selected { background: var(--accent-tint); }
+        .pa-prod-row.urgent::before {
+          content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2.5px; background: var(--danger);
+        }
+        .pa-prod-row.action::before {
+          content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2.5px; background: var(--accent);
+        }
+        .pa-prod-row.new-sale::before {
+          content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2.5px; background: var(--accent-bright, #08B9EE);
+        }
+      `}</style>
+
+      <div style={{ margin: '-16px -16px 0', minHeight: 'calc(100vh - 64px)', background: 'var(--bg, #F9FAFE)' }}>
+        {/* Header */}
+        <div
+          style={{
+            height: 58, background: 'var(--bg, #F9FAFE)', borderBottom: '1px solid var(--edge)',
+            display: 'flex', alignItems: 'center', padding: '0 24px', gap: 10,
+            position: 'sticky', top: 64, zIndex: 30,
+          }}
+        >
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginRight: 14, whiteSpace: 'nowrap' }}>
+            Producties
+          </span>
+          <div style={{ position: 'relative', marginRight: 10 }}>
+            <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-ghost)', width: 14, height: 14, pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Zoek op studio of titel…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: 240, padding: '6px 10px 6px 31px',
+                border: '1px solid var(--edge)', borderRadius: 6,
+                background: 'var(--surface)', fontSize: 11.5, color: 'var(--ink)',
+                outline: 'none',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <select
+              className="pa-f-select"
+              value={phaseFilter}
+              onChange={(e) => setPhaseFilter(e.target.value as Phase | '')}
             >
-              <CalendarDays className="h-4 w-4" />
-              Kalender
+              <option value="">Alle fasen</option>
+              <option value="new-sale">Nieuw van sales</option>
+              <option value="datum-vast">Datum vast</option>
+              <option value="stemmen-open">Stemmen open</option>
+              <option value="in-productie">In productie</option>
+              <option value="afgerond">Afgerond</option>
+            </select>
+            <button
+              className={`pa-pill${extraPill === 'urgent' ? ' active' : ''}`}
+              onClick={() => setExtraPill(extraPill === 'urgent' ? null : 'urgent')}
+            >
+              Actie vereist
             </button>
             <button
-              onClick={() => setView('list')}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition',
-                view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900',
-              )}
+              className={`pa-pill${extraPill === 'open' ? ' active' : ''}`}
+              onClick={() => setExtraPill(extraPill === 'open' ? null : 'open')}
             >
-              <List className="h-4 w-4" />
-              Lijst
+              Datum open
             </button>
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showSalesMeetings}
-              onChange={(e) => setShowSalesMeetings(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            Sales meetings tonen
-          </label>
-          <Button onClick={() => { setPrefillLead(null); setCreating(true) }}>
-            <Plus className="h-4 w-4 mr-2" />
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={() => { setCreatePrefill(null); setShowCreate(true) }}
+            style={{
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              padding: '6px 16px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+            }}
+          >
+            <Plus style={{ width: 13, height: 13 }} />
             Nieuwe productie
-          </Button>
+          </button>
+        </div>
+
+        {/* Body grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', alignItems: 'start' }}>
+          <div style={{ borderRight: '1px solid var(--edge)' }}>
+            {/* Stats bar */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: '1px solid var(--edge)' }}>
+              {([
+                { phase: 'datum-vast' as Phase, label: 'Datum vast', value: stats['datum-vast'] },
+                { phase: 'stemmen-open' as Phase, label: 'Stemmen open', value: stats['stemmen-open'] },
+                { phase: 'in-productie' as Phase, label: 'In productie', value: stats['in-productie'] },
+                { phase: 'afgerond' as Phase, label: 'Afgerond', value: stats['afgerond'] },
+              ]).map(s => (
+                <button
+                  key={s.phase}
+                  onClick={() => setPhaseFilter(phaseFilter === s.phase ? '' : s.phase)}
+                  style={{
+                    padding: '16px 24px',
+                    borderRight: '1px solid var(--edge)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: phaseFilter === s.phase ? 'var(--accent-tint)' : 'transparent',
+                    textAlign: 'left',
+                    transition: 'background 100ms',
+                  }}
+                >
+                  <div style={{ fontSize: 7.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.20em', color: 'var(--ink-ghost)', marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1, color: 'var(--ink)' }}>{s.value}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Setup-required leads (nieuw van sales — niet via production-table) */}
+            {leadsWithoutProduction.length > 0 && (
+              <>
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 24px', background: 'var(--surface)',
+                    borderBottom: '1px solid var(--edge)',
+                  }}
+                >
+                  <span style={{ fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.17em', color: '#0778a8' }}>
+                    Nieuw — van sales (setup vereist)
+                  </span>
+                  <span style={{ fontSize: 8.5, color: '#0778a8', fontFamily: 'ui-monospace, monospace', background: '#d9f4fd', padding: '1px 6px', borderRadius: 9999 }}>
+                    {leadsWithoutProduction.length}
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: '#9de6f9', opacity: 0.4 }} />
+                </div>
+                {leadsWithoutProduction.slice(0, 5).map(lead => (
+                  <div
+                    key={lead.id}
+                    className={`pa-prod-row new-sale${selectedLeadId === lead.id ? ' selected' : ''}`}
+                    onClick={() => { setSelectedLeadId(lead.id); setSelectedId(null) }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 0' }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-bright, #08B9EE)' }} />
+                    </div>
+                    <div style={{ padding: '14px 16px 14px 0', minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-ghost)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>
+                        {lead.company_name}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2 }}>
+                        {lead.company_name}{lead.city && ` — ${lead.city}`}
+                      </div>
+                      <div style={{ fontSize: 9.5, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>
+                        gesloten · setup nodig
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '14px 12px 14px 0' }}>
+                      <span className="pa-chip pa-chip-new-sale">nieuw · van sales</span>
+                    </div>
+                    <div style={{ padding: '14px 12px 14px 0' }}>
+                      <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--ink-ghost)' }}>nog in te plannen</div>
+                    </div>
+                    <div style={{ padding: '14px 12px 14px 0', fontSize: 10, color: 'var(--ink-ghost)', fontStyle: 'italic' }}>—</div>
+                    <div style={{ padding: '14px 12px 14px 0', fontSize: 11, color: 'var(--ink-ghost)' }}>—</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '14px 0' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startSetup(lead) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          fontSize: 10.5, fontWeight: 700, color: '#0778a8',
+                          border: 'none', background: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer',
+                        }}
+                      >
+                        <ArrowRight style={{ width: 13, height: 13 }} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Production groups */}
+            {loading ? (
+              <div style={{ padding: 60, textAlign: 'center', fontSize: 13, color: 'var(--ink-ghost)' }}>
+                <Loader2 style={{ width: 18, height: 18, display: 'inline-block', verticalAlign: 'middle', marginRight: 8 }} className="animate-spin" />
+                Producties laden…
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: 60, textAlign: 'center', fontSize: 13, color: 'var(--ink-ghost)' }}>
+                Geen producties voor dit filter.
+              </div>
+            ) : (
+              grouped.map(({ phase, items }) => {
+                if (items.length === 0) return null
+                return (
+                  <div key={phase}>
+                    <div
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 24px', background: 'var(--surface)',
+                        borderBottom: '1px solid var(--edge)',
+                        position: 'sticky', top: 122, zIndex: 1,
+                      }}
+                    >
+                      <span style={{ fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.17em', color: phase === 'afgerond' ? 'var(--ink-ghost)' : 'var(--ink-muted)' }}>
+                        {phaseLabel(phase)}
+                      </span>
+                      <span style={{ fontSize: 8.5, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace', background: 'var(--edge-soft)', padding: '1px 6px', borderRadius: 9999 }}>
+                        {items.length}
+                      </span>
+                      <div style={{ flex: 1, height: 1, background: 'var(--edge-soft)' }} />
+                    </div>
+                    {items.map(p => {
+                      const ph = getPhase(p, today)
+                      const isSelected = selectedId === p.id
+                      const dot = ph === 'datum-vast' ? 'var(--accent)' :
+                                  ph === 'in-productie' ? 'oklch(0.65 0.16 145)' :
+                                  ph === 'stemmen-open' ? 'oklch(0.50 0.14 65)' :
+                                  ph === 'afgerond' ? 'var(--ink-ghost)' :
+                                  'var(--accent-bright, #08B9EE)'
+                      const isUrgent = p.final_date && (() => {
+                        const days = (new Date(p.final_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+                        return days >= 0 && days <= 5
+                      })()
+                      const dim = ph === 'afgerond' ? { opacity: 0.4 } : {}
+                      return (
+                        <div
+                          key={p.id}
+                          className={`pa-prod-row${isSelected ? ' selected' : ''}${isUrgent && ph === 'datum-vast' ? ' urgent' : ''}`}
+                          style={dim}
+                          onClick={() => { setSelectedId(p.id); setSelectedLeadId(null) }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 0' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: dot }} />
+                          </div>
+                          <div style={{ padding: '14px 16px 14px 0', minWidth: 0 }}>
+                            {p.location && (
+                              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-ghost)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {p.location}
+                              </div>
+                            )}
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.title}
+                            </div>
+                            <div style={{ fontSize: 9.5, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>
+                              {p.id.slice(0, 8)}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', padding: '14px 12px 14px 0' }}>
+                            <span className={`pa-chip ${phaseChipClass(ph)}`}>{phaseLabel(ph)}</span>
+                          </div>
+                          <div style={{ padding: '14px 12px 14px 0' }}>
+                            {p.final_date ? (
+                              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-muted)', lineHeight: 1.2 }}>
+                                {formatShort(p.final_date)}
+                              </div>
+                            ) : p.deadline ? (
+                              <>
+                                <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--ink-ghost)' }}>datum open</div>
+                                <div style={{ fontSize: 10, color: 'var(--danger)', fontWeight: 600, marginTop: 2 }}>
+                                  {deadlineRelative(p.deadline)}
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--ink-ghost)' }}>
+                                {p.proposed_dates && p.proposed_dates.length > 0 ? `${p.proposed_dates.length} voorgesteld` : 'datum open'}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ padding: '14px 12px 14px 0' }}>
+                            <span style={{ fontSize: 10, color: 'var(--ink-ghost)', fontStyle: 'italic' }}>—</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '14px 12px 14px 0', fontSize: 11, fontWeight: 700, color: 'var(--ink-muted)' }}>
+                            <Users style={{ width: 13, height: 13, color: 'var(--ink-ghost)' }} />
+                            —
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '14px 0' }}>
+                            <Link
+                              href={`/marketing/agenda/${p.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                fontSize: 10.5, fontWeight: 700, color: 'var(--accent)',
+                                padding: '4px 8px', borderRadius: 4, textDecoration: 'none',
+                              }}
+                            >
+                              <ExternalLink style={{ width: 13, height: 13 }} />
+                            </Link>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })
+            )}
+
+            <div style={{ borderTop: '1px solid var(--edge)', padding: '10px 24px' }}>
+              <span style={{ fontSize: 11, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace' }}>
+                Lctnships Workspace · Producties · {productions.length} totaal
+              </span>
+            </div>
+          </div>
+
+          {/* Right panel */}
+          <div
+            style={{
+              position: 'sticky', top: 122, maxHeight: 'calc(100vh - 122px)',
+              overflowY: 'auto', padding: 18,
+              display: 'flex', flexDirection: 'column', gap: 14,
+            }}
+          >
+            {selected ? (
+              <DetailPanel
+                production={selected}
+                phase={getPhase(selected, today)}
+                onOpen={() => router.push(`/marketing/agenda/${selected.id}`)}
+              />
+            ) : selectedLead ? (
+              <LeadSetupPanel
+                lead={selectedLead}
+                onStartSetup={() => startSetup(selectedLead)}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '40px 20px', textAlign: 'center' }}>
+                <Inbox style={{ width: 28, height: 28, color: 'var(--ink-ghost)', opacity: 0.22 }} />
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-ghost)' }}>Selecteer een productie</div>
+                <div style={{ fontSize: 10.5, color: 'var(--ink-ghost)', opacity: 0.55 }}>Klik op een rij voor de samenvatting</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Create modal */}
+        {showCreate && (
+          <CreateProductionModal
+            prefillLead={createPrefill}
+            onClose={() => { setShowCreate(false); setCreatePrefill(null) }}
+            onCreated={(id) => { setShowCreate(false); setCreatePrefill(null); load(); router.push(`/marketing/agenda/${id}`) }}
+          />
+        )}
+      </div>
+    </>
+  )
+}
+
+// ─── Lead Setup Panel (rechterpaneel voor "Nieuw van sales") ─────────────────
+function LeadSetupPanel({
+  lead,
+  onStartSetup,
+}: Readonly<{
+  lead: ClosedStudio
+  onStartSetup: () => void
+}>) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ paddingBottom: 12, borderBottom: '1px solid var(--edge)' }}>
+        <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--ink-ghost)', marginBottom: 4 }}>
+          {lead.city || 'Locatie onbekend'}
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.015em', color: 'var(--ink)', lineHeight: 1.2, marginBottom: 6 }}>
+          {lead.company_name}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span className="pa-chip pa-chip-new-sale">nieuw · van sales</span>
         </div>
       </div>
 
-      {/* Week indicator */}
-      {!loading && (
-        <div
-          className={cn(
-            'mb-6 rounded-xl border px-5 py-4 flex items-center justify-between',
-            weekCount >= 2
-              ? 'bg-emerald-50 border-emerald-200'
-              : 'bg-red-50 border-red-200',
+      <div
+        style={{
+          padding: '8px 11px', background: '#d9f4fd', border: '1px solid #9de6f9',
+          borderRadius: 4, fontSize: 10.5, color: '#0778a8', fontWeight: 600, lineHeight: 1.45,
+        }}
+      >
+        Sale gesloten → setup vereist. Datum, brief en crew zijn nog in te plannen.
+      </div>
+
+      {/* Lead-gegevens widget */}
+      <div style={{ border: '1px solid var(--edge)', borderRadius: 4, overflow: 'hidden', background: 'var(--bg, #F9FAFE)' }}>
+        <div style={{ padding: '9px 13px', borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}>
+          <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.20em', color: 'var(--ink-ghost)' }}>Studio-gegevens</span>
+        </div>
+        <div style={{ padding: '10px 13px', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11.5, color: 'var(--ink-muted)' }}>
+          {lead.address && (
+            <div>
+              <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 2 }}>Adres</div>
+              {lead.address}
+            </div>
           )}
-        >
-          <div>
-            <p className={cn('text-sm font-semibold', weekCount >= 2 ? 'text-emerald-900' : 'text-red-900')}>
-              {weekCount >= 2
-                ? `${weekCount} producties deze week — minimum gehaald`
-                : `Deze week ${weekCount}/2 producties gepland`}
-            </p>
-            <p className={cn('text-xs mt-0.5', weekCount >= 2 ? 'text-emerald-700' : 'text-red-700')}>
-              {weekCount >= 2
-                ? 'Goed bezig.'
-                : `Je hebt ${2 - weekCount} extra productie${2 - weekCount === 1 ? '' : 's'} nodig om je weekdoel te halen.`}
-            </p>
-          </div>
-          {productionsThisWeek.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 max-w-md justify-end">
-              {productionsThisWeek.map((p) => (
-                <span
-                  key={p.id}
-                  className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md text-gray-700"
-                >
-                  {p.title}
-                </span>
-              ))}
+          {lead.email && (
+            <div>
+              <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 2 }}>E-mail</div>
+              <a href={`mailto:${lead.email}`} style={{ color: 'var(--accent)' }}>{lead.email}</a>
+            </div>
+          )}
+          {lead.phone && (
+            <div>
+              <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 2 }}>Telefoon</div>
+              <a href={`tel:${lead.phone}`} style={{ color: 'var(--ink-muted)' }}>{lead.phone}</a>
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* Producties nog in te plannen — tabel */}
-      {!loading && (
-        <ProductionsTable
-          productions={productions.filter((p) => !p.final_date)}
-          unplannedStudios={unplannedStudios}
-          onOpenProduction={(id) => router.push(`/marketing/agenda/${id}`)}
-          onOpenStudio={(leadId) => router.push(`/sales/${leadId}/producties`)}
-          onCopyLink={copyLink}
-          copiedId={copiedId}
-          onPlanForStudio={(s) => { setPrefillLead(s); setCreating(true) }}
-        />
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+      {/* Setup stappen */}
+      <div style={{ border: '1px solid var(--edge)', borderRadius: 4, overflow: 'hidden', background: 'var(--bg, #F9FAFE)' }}>
+        <div style={{ padding: '9px 13px', borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}>
+          <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.20em', color: 'var(--ink-ghost)' }}>Setup stappen</span>
         </div>
-      ) : view === 'list' && productions.length === 0 ? (
-        <div className="border border-dashed border-gray-200 rounded-xl py-16 text-center">
-          <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Nog geen producties. Klik op "Nieuwe productie" om te beginnen.</p>
-        </div>
-      ) : view === 'calendar' ? (
-        <ProductieKalender
-          productions={productions}
-          meetings={showSalesMeetings ? meetings : []}
-          onEventClick={(id) => router.push(`/marketing/agenda/${id}`)}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {productions.map((p) => (
-            <div
-              key={p.id}
-              className={cn(
-                'border border-gray-100 rounded-xl p-4 bg-white hover:shadow-sm transition cursor-pointer',
-                selected?.id === p.id && 'ring-2 ring-gray-900',
-              )}
-              onClick={() => loadDetail(p.id)}
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="font-semibold text-gray-900 line-clamp-1">{p.title}</h3>
-                <Badge variant={p.status === 'open' ? 'default' : 'secondary'}>
-                  {p.status === 'open' ? 'Open' : 'Gesloten'}
-                </Badge>
-              </div>
-              {p.location && <p className="text-xs text-gray-500 mb-1">{p.location}</p>}
-              {p.deadline && (
-                <p className="text-xs text-gray-400 mb-2">
-                  Sluit {format(parseISO(p.deadline), 'd MMM HH:mm', { locale: nl })}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-1 mb-3">
-                {p.proposed_dates.slice(0, 3).map((d) => (
-                  <span
-                    key={d}
-                    className={cn(
-                      'text-xs px-2 py-0.5 rounded-md border',
-                      p.final_date === d
-                        ? 'bg-green-50 border-green-300 text-green-800'
-                        : 'bg-gray-50 border-gray-200 text-gray-700',
-                    )}
-                  >
-                    {formatDate(d)}
-                  </span>
-                ))}
-                {p.proposed_dates.length > 3 && (
-                  <span className="text-xs text-gray-400">+{p.proposed_dates.length - 3}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    copyLink(p.share_token, p.id)
-                  }}
-                >
-                  {copiedId === p.id ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 mr-1.5" />
-                      Gekopieerd
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5 mr-1.5" />
-                      Deel-link
-                    </>
-                  )}
-                </Button>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {[
+            { task: 'Datum prikken', meta: 'Start de datum-poll voor de shoot' },
+            { task: 'Brief aanmaken', meta: 'Shoot-type, shotlist, deliverables' },
+            { task: 'Crew uitnodigen', meta: 'Actief na datum-bevestiging' },
+          ].map((s, i) => (
+            <div key={s.task} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 13px', borderBottom: i < 2 ? '1px solid var(--edge-soft)' : 'none' }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', marginTop: 5, flexShrink: 0, background: 'var(--accent-bright, #08B9EE)' }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-muted)', lineHeight: 1.3 }}>{s.task}</div>
+                <div style={{ fontSize: 9.5, color: 'var(--ink-ghost)', marginTop: 1 }}>{s.meta}</div>
               </div>
             </div>
           ))}
         </div>
-      )}
+      </div>
 
-      {selected && (
-        <DetailPanel
-          production={selected}
-          votes={votes}
-          loading={loadingVotes}
-          onClose={() => {
-            setSelected(null)
-            setVotes([])
-          }}
-          onToggleStatus={() => toggleStatus(selected)}
-          onSetFinal={(d) => setFinalDate(selected, d)}
-          onDelete={() => deleteProduction(selected.id)}
-          onCopyLink={() => copyLink(selected.share_token, selected.id)}
-          onCreateBrief={() => createBriefFromProduction(selected)}
-          copied={copiedId === selected.id}
-          linkedStudio={closedStudios.find((s) => s.id === selected.lead_id) ?? null}
-        />
-      )}
-
-      {creating && (
-        <CreateDialog
-          prefillLead={prefillLead}
-          onClose={() => { setCreating(false); setPrefillLead(null) }}
-          onCreated={(productionId) => {
-            setCreating(false)
-            setPrefillLead(null)
-            router.push(`/marketing/agenda/${productionId}`)
-          }}
-        />
-      )}
+      <button
+        onClick={onStartSetup}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+          background: 'var(--accent)', color: '#fff', border: 'none',
+          padding: '9px 14px', borderRadius: 6, fontSize: 11.5, fontWeight: 700,
+          textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        <ArrowRight style={{ width: 14, height: 14 }} />
+        Setup starten
+      </button>
     </div>
   )
 }
 
-function CreateDialog({
+// ─── Detail Panel ─────────────────────────────────────────────────────────────
+function DetailPanel({
+  production,
+  phase,
+  onOpen,
+}: {
+  production: Production
+  phase: Phase
+  onOpen: () => void
+}) {
+  const isNew = phase === 'new-sale'
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ paddingBottom: 12, borderBottom: '1px solid var(--edge)' }}>
+        {production.location && (
+          <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--ink-ghost)', marginBottom: 4 }}>
+            {production.location}
+          </div>
+        )}
+        <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.015em', color: 'var(--ink)', lineHeight: 1.2, marginBottom: 6 }}>
+          {production.title}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span className={`pa-chip ${phaseChipClass(phase)}`}>{phaseLabel(phase)}</span>
+          <span style={{ fontSize: 10, color: 'var(--ink-ghost)', fontFamily: 'ui-monospace, monospace' }}>
+            {production.id.slice(0, 8)}
+          </span>
+        </div>
+      </div>
+
+      {isNew && (
+        <div
+          style={{
+            padding: '8px 11px', background: '#d9f4fd', border: '1px solid #9de6f9',
+            borderRadius: 4, fontSize: 10.5, color: '#0778a8', fontWeight: 600, lineHeight: 1.45,
+          }}
+        >
+          Sale gesloten → setup vereist. Datum, brief en crew zijn nog in te plannen.
+        </div>
+      )}
+
+      {/* Datum widget */}
+      <div style={{ border: '1px solid var(--edge)', borderRadius: 4, overflow: 'hidden', background: 'var(--bg, #F9FAFE)' }}>
+        <div style={{ padding: '9px 13px', borderBottom: '1px solid var(--edge)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.20em', color: 'var(--ink-ghost)' }}>Datum</span>
+        </div>
+        <div style={{ padding: '12px 13px', fontSize: 11.5, color: 'var(--ink-muted)' }}>
+          {production.final_date
+            ? formatShort(production.final_date)
+            : production.proposed_dates && production.proposed_dates.length > 0
+              ? `${production.proposed_dates.length} datum(s) voorgesteld${production.deadline ? ` · ${deadlineRelative(production.deadline)}` : ''}`
+              : 'Nog niet gepland'}
+        </div>
+      </div>
+
+      {/* Description widget */}
+      {production.description && (
+        <div style={{ border: '1px solid var(--edge)', borderRadius: 4, overflow: 'hidden', background: 'var(--bg, #F9FAFE)' }}>
+          <div style={{ padding: '9px 13px', borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}>
+            <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.20em', color: 'var(--ink-ghost)' }}>Beschrijving</span>
+          </div>
+          <div style={{ padding: '12px 13px', fontSize: 11.5, color: 'var(--ink-muted)', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+            {production.description}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <button
+          onClick={onOpen}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+            background: 'var(--accent)', color: '#fff', border: 'none',
+            padding: '9px 14px', borderRadius: 6, fontSize: 11.5, fontWeight: 700,
+            textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <ArrowRight style={{ width: 14, height: 14 }} />
+          {isNew ? 'Setup starten' : 'Productie openen'}
+        </button>
+        {!isNew && (
+          <Link
+            href={`/marketing/agenda/${production.id}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+              background: 'transparent', color: 'var(--ink)', border: '1px solid var(--edge)',
+              padding: '8px 14px', borderRadius: 6, fontSize: 11.5, fontWeight: 600,
+              textAlign: 'left', textDecoration: 'none', boxSizing: 'border-box',
+            }}
+          >
+            <FileText style={{ width: 14, height: 14 }} />
+            Brief bekijken / bewerken
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Create Modal ─────────────────────────────────────────────────────────────
+function CreateProductionModal({
+  prefillLead,
   onClose,
   onCreated,
-  prefillLead,
 }: {
-  onClose: () => void
-  onCreated: (productionId: string) => void
   prefillLead: ClosedStudio | null
+  onClose: () => void
+  onCreated: (id: string) => void
 }) {
   const [title, setTitle] = useState(prefillLead?.company_name ?? '')
   const [description, setDescription] = useState('')
@@ -478,20 +758,17 @@ function CreateDialog({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const validDates = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+  const validDates = dates.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
 
   const submit = async () => {
     setError(null)
     if (!title.trim()) return setError('Titel is verplicht')
-    if (validDates.length === 0) return setError('Voeg minstens één datum toe')
-
     let deadlineIso: string | null = null
     if (deadline) {
       const d = new Date(deadline)
       if (isNaN(d.getTime())) return setError('Ongeldige deadline')
       deadlineIso = d.toISOString()
     }
-
     setSubmitting(true)
     const res = await fetch('/api/productions', {
       method: 'POST',
@@ -518,858 +795,120 @@ function CreateDialog({
     onCreated(created.id)
   }
 
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+    textTransform: 'uppercase', color: 'var(--ink-ghost)', marginBottom: 5,
+  }
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    border: '1px solid var(--edge)', borderRadius: 3,
+    padding: '8px 10px', fontSize: 12, color: 'var(--ink)',
+    background: '#fff', outline: 'none', fontFamily: 'inherit',
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Nieuwe productie</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="h-4 w-4" />
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: '#fff', border: '1px solid var(--edge)', borderRadius: 6, width: '100%', maxWidth: 520, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+      >
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--edge)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+            Nieuwe productie{prefillLead ? ` — ${prefillLead.company_name}` : ''}
+          </span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--ink-ghost)', cursor: 'pointer', padding: 2 }}>
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <Label htmlFor="title">Titel *</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Bijv. Shoot nieuwe studio"
-            />
+            <label style={labelStyle}>Titel *</label>
+            <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Bijv. Editorial shoot — SS26" />
           </div>
           <div>
-            <Label htmlFor="location">Locatie</Label>
-            <Input
-              id="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Bijv. Amsterdam"
-            />
+            <label style={labelStyle}>Locatie</label>
+            <input style={inputStyle} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Amsterdam" />
           </div>
           <div>
-            <Label htmlFor="description">Omschrijving</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Korte beschrijving voor het team..."
-              rows={3}
-            />
-          </div>
-          <div>
-            <Label>Voorgestelde datums *</Label>
-            <div className="space-y-2 mt-1">
+            <label style={labelStyle}>Voorgestelde datums <span style={{ fontSize: 8, fontWeight: 500, letterSpacing: 0, textTransform: 'none', color: 'var(--ink-ghost)' }}>(optioneel — kan later via poll)</span></label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {dates.map((d, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input
+                <div key={i} style={{ display: 'flex', gap: 6 }}>
+                  <input
                     type="date"
+                    style={inputStyle}
                     value={d}
                     onChange={(e) => {
-                      const next = [...dates]
-                      next[i] = e.target.value
-                      setDates(next)
+                      const next = [...dates]; next[i] = e.target.value; setDates(next)
                     }}
                   />
                   {dates.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() => setDates(dates.filter((_, idx) => idx !== i))}
+                      style={{ background: 'none', border: '1px solid var(--edge)', color: 'var(--ink-ghost)', cursor: 'pointer', borderRadius: 3, padding: '4px 8px' }}
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
+                      <X style={{ width: 12, height: 12 }} />
+                    </button>
                   )}
                 </div>
               ))}
-              <Button variant="outline" size="sm" onClick={() => setDates([...dates, ''])}>
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Datum toevoegen
-              </Button>
+              <button
+                type="button"
+                onClick={() => setDates([...dates, ''])}
+                style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start', padding: 0 }}
+              >
+                + Datum toevoegen
+              </button>
             </div>
           </div>
           <div>
-            <Label htmlFor="deadline">Deadline (optioneel)</Label>
-            <Input
-              id="deadline"
-              type="datetime-local"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-            />
-            <p className="text-xs text-gray-500 mt-1">Na deze tijd sluit de poll automatisch.</p>
+            <label style={labelStyle}>Deadline poll</label>
+            <input type="datetime-local" style={inputStyle} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </div>
-
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="outline" onClick={onClose}>
-            Annuleren
-          </Button>
-          <Button onClick={submit} disabled={submitting}>
-            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Aanmaken
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function DetailPanel({
-  production,
-  votes,
-  loading,
-  onClose,
-  onToggleStatus,
-  onSetFinal,
-  onDelete,
-  onCopyLink,
-  onCreateBrief,
-  copied,
-  linkedStudio,
-}: {
-  production: Production
-  votes: Vote[]
-  loading: boolean
-  onClose: () => void
-  onToggleStatus: () => void
-  onSetFinal: (d: string | null) => void
-  onDelete: () => void
-  onCopyLink: () => void
-  onCreateBrief: () => void
-  copied: boolean
-  linkedStudio: ClosedStudio | null
-}) {
-  const tally = useMemo(() => {
-    const m = new Map<string, string[]>()
-    production.proposed_dates.forEach((d) => m.set(d, []))
-    votes.forEach((v) => {
-      v.available_dates.forEach((d) => {
-        if (m.has(d)) m.get(d)!.push(v.voter_name)
-      })
-    })
-    return m
-  }, [production.proposed_dates, votes])
-
-  const bestCount = Math.max(0, ...Array.from(tally.values()).map((a) => a.length))
-
-  return (
-    <div className="fixed inset-0 z-40 bg-black/30 flex justify-end" onClick={onClose}>
-      <div
-        className="bg-white w-full max-w-xl h-full overflow-y-auto shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold text-gray-900">{production.title}</h2>
-            {production.location && <p className="text-sm text-gray-500 mt-0.5">{production.location}</p>}
-            {linkedStudio && (
-              <div className="mt-2">
-                <a
-                  href={`/sales/${linkedStudio.id}/producties`}
-                  className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Studio: {linkedStudio.company_name}
-                  {linkedStudio.contact_name ? ` — ${linkedStudio.contact_name}` : ''}
-                </a>
-                {linkedStudio.address && (
-                  <p className="text-xs text-gray-500 mt-0.5">{linkedStudio.address}{linkedStudio.city ? `, ${linkedStudio.city}` : ''}</p>
-                )}
-              </div>
-            )}
-            {production.description && (
-              <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{production.description}</p>
-            )}
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-5">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={onCopyLink}>
-              {copied ? (
-                <>
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
-                  Gekopieerd
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 mr-1.5" />
-                  Deel-link kopiëren
-                </>
-              )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={onToggleStatus}>
-              {production.status === 'open' ? (
-                <>
-                  <Lock className="h-3.5 w-3.5 mr-1.5" />
-                  Sluiten
-                </>
-              ) : (
-                <>
-                  <Unlock className="h-3.5 w-3.5 mr-1.5" />
-                  Heropenen
-                </>
-              )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={onCreateBrief}>
-              <Clapperboard className="h-3.5 w-3.5 mr-1.5" />
-              Maak content brief
-            </Button>
-            <Button variant="outline" size="sm" onClick={onDelete}>
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Verwijderen
-            </Button>
-          </div>
-
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-400" />
-              Resultaten ({votes.length} {votes.length === 1 ? 'stem' : 'stemmen'})
-            </h3>
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-            ) : (
-              <div className="space-y-2">
-                {production.proposed_dates.map((d) => {
-                  const names = tally.get(d) ?? []
-                  const isFinal = production.final_date === d
-                  const isBest = names.length === bestCount && bestCount > 0
-                  return (
-                    <div
-                      key={d}
-                      className={cn(
-                        'border rounded-lg p-3',
-                        isFinal
-                          ? 'border-green-300 bg-green-50'
-                          : isBest
-                            ? 'border-gray-900'
-                            : 'border-gray-100',
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{formatDate(d)}</span>
-                          {isFinal && (
-                            <Badge className="bg-green-600 hover:bg-green-600">Finale datum</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-700">
-                            {names.length} / {votes.length}
-                          </span>
-                          <Button
-                            variant={isFinal ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => onSetFinal(isFinal ? null : d)}
-                            className="h-7 px-2"
-                          >
-                            <Star className={cn('h-3.5 w-3.5', isFinal && 'fill-current')} />
-                          </Button>
-                        </div>
-                      </div>
-                      {names.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {names.map((n) => (
-                            <span key={n} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5">
-                              {n}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <label style={labelStyle}>Beschrijving</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Korte beschrijving voor de poll-pagina…"
+            />
           </div>
-
-          {votes.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Stemmen</h3>
-              <div className="space-y-2">
-                {votes.map((v) => (
-                  <div key={v.id} className="border border-gray-100 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm text-gray-900">{v.voter_name}</span>
-                      <span className="text-xs text-gray-400">
-                        {format(parseISO(v.created_at), 'd MMM HH:mm', { locale: nl })}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {v.available_dates.map((d) => (
-                        <span key={d} className="text-xs bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
-                          {formatDate(d)}
-                        </span>
-                      ))}
-                    </div>
-                    {v.note && <p className="text-xs text-gray-600 mt-1.5 italic">"{v.note}"</p>}
-                  </div>
-                ))}
-              </div>
+          {error && (
+            <div style={{ padding: '6px 10px', background: 'oklch(0.97 0.03 27)', color: 'var(--danger)', fontSize: 12, borderRadius: 3 }}>
+              {error}
             </div>
           )}
         </div>
-      </div>
-    </div>
-  )
-}
 
-type TableRow =
-  | {
-      kind: 'production'
-      id: string
-      title: string
-      city: string
-      contact: string
-      proposedStart: string | null
-      proposedEnd: string | null
-      proposedDates: string[]
-      voteCount: number
-      deadline: string | null
-      status: 'open' | 'closed'
-      production: Production
-    }
-  | {
-      kind: 'studio'
-      id: string
-      title: string
-      city: string
-      contact: string
-      proposedStart: null
-      proposedEnd: null
-      proposedDates: []
-      voteCount: 0
-      deadline: null
-      status: 'no_production'
-      studio: ClosedStudio
-    }
-
-type SortKey = 'title' | 'city' | 'status' | 'proposedStart' | 'proposedEnd' | 'votes' | 'deadline'
-
-function ProductionsTable({
-  productions,
-  unplannedStudios,
-  onOpenProduction,
-  onOpenStudio,
-  onCopyLink,
-  copiedId,
-  onPlanForStudio,
-}: {
-  productions: Production[]
-  unplannedStudios: ClosedStudio[]
-  onOpenProduction: (id: string) => void
-  onOpenStudio: (leadId: string) => void
-  onCopyLink: (token: string, id: string) => void
-  copiedId: string | null
-  onPlanForStudio: (s: ClosedStudio) => void
-}) {
-  const [search, setSearch] = useState('')
-  const [cityFilter, setCityFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closed' | 'no_production'>('all')
-  const [startFrom, setStartFrom] = useState('')
-  const [endTo, setEndTo] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('proposedStart')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-
-  const rows: TableRow[] = useMemo(() => {
-    const out: TableRow[] = []
-    for (const p of productions) {
-      const sorted = [...p.proposed_dates].sort()
-      out.push({
-        kind: 'production',
-        id: p.id,
-        title: p.title,
-        city: p.location ?? '',
-        contact: '',
-        proposedStart: sorted[0] ?? null,
-        proposedEnd: sorted[sorted.length - 1] ?? null,
-        proposedDates: sorted,
-        voteCount: 0,
-        deadline: p.deadline,
-        status: p.status,
-        production: p,
-      })
-    }
-    for (const s of unplannedStudios) {
-      out.push({
-        kind: 'studio',
-        id: s.id,
-        title: s.company_name,
-        city: s.city ?? '',
-        contact: s.contact_name ?? '',
-        proposedStart: null,
-        proposedEnd: null,
-        proposedDates: [],
-        voteCount: 0,
-        deadline: null,
-        status: 'no_production',
-        studio: s,
-      })
-    }
-    return out
-  }, [productions, unplannedStudios])
-
-  const cities = useMemo(() => {
-    const set = new Set<string>()
-    rows.forEach((r) => { if (r.city) set.add(r.city) })
-    return Array.from(set).sort()
-  }, [rows])
-
-  const filtered = useMemo(() => {
-    return rows.filter((r) => {
-      if (search && !`${r.title} ${r.city} ${r.contact}`.toLowerCase().includes(search.toLowerCase())) return false
-      if (cityFilter !== 'all' && r.city !== cityFilter) return false
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false
-      if (startFrom && r.proposedStart && r.proposedStart < startFrom) return false
-      if (endTo && r.proposedEnd && r.proposedEnd > endTo) return false
-      if ((startFrom || endTo) && r.kind === 'studio') return false
-      return true
-    })
-  }, [rows, search, cityFilter, statusFilter, startFrom, endTo])
-
-  const sorted = useMemo(() => {
-    const arr = [...filtered]
-    arr.sort((a, b) => {
-      const dir = sortDir === 'asc' ? 1 : -1
-      const get = (r: TableRow): string | number => {
-        switch (sortKey) {
-          case 'title': return r.title.toLowerCase()
-          case 'city': return r.city.toLowerCase()
-          case 'status': return r.status
-          case 'proposedStart': return r.proposedStart ?? '9999'
-          case 'proposedEnd': return r.proposedEnd ?? '9999'
-          case 'votes': return r.voteCount
-          case 'deadline': return r.deadline ?? '9999'
-        }
-      }
-      const av = get(a)
-      const bv = get(b)
-      if (av < bv) return -1 * dir
-      if (av > bv) return 1 * dir
-      return 0
-    })
-    return arr
-  }, [filtered, sortKey, sortDir])
-
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else { setSortKey(key); setSortDir('asc') }
-  }
-
-  const SortIcon = ({ k }: { k: SortKey }) => {
-    if (sortKey !== k) return <ArrowUpDown className="h-3 w-3 text-gray-300" />
-    return sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-700" /> : <ArrowDown className="h-3 w-3 text-gray-700" />
-  }
-
-  const statusLabel = (s: TableRow['status']) => {
-    if (s === 'open') return { text: 'Stemronde open', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
-    if (s === 'closed') return { text: 'Wacht op finale', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
-    return { text: 'Geen productie', cls: 'bg-gray-50 text-gray-600 border-gray-200' }
-  }
-
-  const hasFilters = search || cityFilter !== 'all' || statusFilter !== 'all' || startFrom || endTo
-
-  return (
-    <div className="mb-6 rounded-xl border border-gray-100 bg-white">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-900">Producties nog in te plannen</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {sorted.length} {sorted.length === 1 ? 'regel' : 'regels'}
-            {hasFilters && rows.length !== sorted.length ? ` (van ${rows.length})` : ''}
-            {' — geen officiële datum'}
-          </p>
+        <div style={{ padding: '12px 24px', borderTop: '1px solid var(--edge)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 3, border: '1px solid var(--edge)', background: '#fff', color: 'var(--ink)', cursor: 'pointer' }}
+          >
+            Annuleren
+          </button>
+          <button
+            onClick={submit}
+            disabled={submitting}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontSize: 12, fontWeight: 700, padding: '8px 18px',
+              borderRadius: 3, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer',
+              opacity: submitting ? 0.5 : 1,
+            }}
+          >
+            {submitting && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />}
+            Aanmaken
+          </button>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-1 md:grid-cols-6 gap-2">
-        <div className="md:col-span-2 relative">
-          <Search className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Zoek studio, contact, stad..."
-            className="pl-8 h-8 text-sm"
-          />
-        </div>
-        <select
-          value={cityFilter}
-          onChange={(e) => setCityFilter(e.target.value)}
-          className="h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
-        >
-          <option value="all">Alle steden</option>
-          {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          className="h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
-        >
-          <option value="all">Alle statussen</option>
-          <option value="open">Stemronde open</option>
-          <option value="closed">Wacht op finale</option>
-          <option value="no_production">Geen productie</option>
-        </select>
-        <Input
-          type="date"
-          value={startFrom}
-          onChange={(e) => setStartFrom(e.target.value)}
-          className="h-8 text-sm"
-          title="Vanaf"
-        />
-        <Input
-          type="date"
-          value={endTo}
-          onChange={(e) => setEndTo(e.target.value)}
-          className="h-8 text-sm"
-          title="Tot en met"
-        />
-      </div>
-
-      {sorted.length === 0 ? (
-        <div className="px-5 py-12 text-center text-sm text-gray-500">
-          {hasFilters ? 'Geen resultaten met deze filters.' : 'Alles is ingepland — top!'}
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-b-xl">
-          <table className="w-full text-sm table-auto">
-            <thead>
-              <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
-                <th className="text-left font-semibold px-5 py-2.5">
-                  <button onClick={() => toggleSort('title')} className="flex items-center gap-1 hover:text-gray-900">
-                    Studio / titel <SortIcon k="title" />
-                  </button>
-                </th>
-                <th className="text-left font-semibold px-3 py-2.5">
-                  <button onClick={() => toggleSort('city')} className="flex items-center gap-1 hover:text-gray-900">
-                    Stad <SortIcon k="city" />
-                  </button>
-                </th>
-                <th className="text-left font-semibold px-3 py-2.5">
-                  <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-gray-900">
-                    Status <SortIcon k="status" />
-                  </button>
-                </th>
-                <th className="text-left font-semibold px-3 py-2.5">
-                  <button onClick={() => toggleSort('proposedStart')} className="flex items-center gap-1 hover:text-gray-900">
-                    Start <SortIcon k="proposedStart" />
-                  </button>
-                </th>
-                <th className="text-left font-semibold px-3 py-2.5">
-                  <button onClick={() => toggleSort('proposedEnd')} className="flex items-center gap-1 hover:text-gray-900">
-                    Eind <SortIcon k="proposedEnd" />
-                  </button>
-                </th>
-                <th className="text-left font-semibold px-3 py-2.5">
-                  <button onClick={() => toggleSort('deadline')} className="flex items-center gap-1 hover:text-gray-900">
-                    Deadline <SortIcon k="deadline" />
-                  </button>
-                </th>
-                <th className="text-right font-semibold px-5 py-2.5 whitespace-nowrap w-[1%]">Actie</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((r) => {
-                const lbl = statusLabel(r.status)
-                return (
-                  <tr
-                    key={`${r.kind}-${r.id}`}
-                    className="border-b border-gray-50 hover:bg-gray-50/50 transition cursor-pointer"
-                    onClick={() => r.kind === 'production' ? onOpenProduction(r.id) : onOpenStudio(r.id)}
-                  >
-                    <td className="px-5 py-3">
-                      <div className="font-medium text-gray-900">{r.title}</div>
-                      {r.contact && <div className="text-xs text-gray-500">{r.contact}</div>}
-                      {r.kind === 'studio' && r.studio.address && (
-                        <div className="text-xs text-gray-400">{r.studio.address}</div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-gray-700">{r.city || <span className="text-gray-300">—</span>}</td>
-                    <td className="px-3 py-3">
-                      <span className={cn('inline-flex text-xs px-2 py-0.5 rounded-md border', lbl.cls)}>
-                        {lbl.text}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-gray-700">
-                      {r.proposedStart ? formatDate(r.proposedStart) : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-3 py-3 text-gray-700">
-                      {r.proposedEnd && r.proposedEnd !== r.proposedStart
-                        ? formatDate(r.proposedEnd)
-                        : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-3 py-3 text-gray-600 text-xs">
-                      {r.deadline
-                        ? format(parseISO(r.deadline), 'd MMM HH:mm', { locale: nl })
-                        : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-5 py-3 text-right whitespace-nowrap w-[1%]" onClick={(e) => e.stopPropagation()}>
-                      {r.kind === 'production' ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2"
-                            onClick={() => onCopyLink(r.production.share_token, r.id)}
-                          >
-                            {copiedId === r.id ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2.5 text-xs"
-                            onClick={() => onOpenProduction(r.id)}
-                          >
-                            Open
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2.5 text-xs"
-                          onClick={() => onPlanForStudio(r.studio)}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" />
-                          Plan
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ProductieKalender({
-  productions,
-  meetings,
-  onEventClick,
-}: {
-  productions: Production[]
-  meetings: SalesAgendaItem[]
-  onEventClick: (id: string) => void
-}) {
-  const events: EventInput[] = useMemo(() => {
-    const out: EventInput[] = []
-    for (const p of productions) {
-      if (!p.final_date) continue
-      out.push({
-        id: p.id,
-        title: p.title,
-        start: p.final_date,
-        allDay: true,
-        backgroundColor: '#10b981',
-        borderColor: '#059669',
-        textColor: '#ffffff',
-        extendedProps: { kind: 'final', productionId: p.id, location: p.location },
-      })
-    }
-    // Meetings / sales agenda
-    for (const m of meetings) {
-      if (m.status === 'cancelled') continue
-      const typeColor: Record<string, { bg: string; border: string; text: string }> = {
-        meeting: { bg: '#ede9fe', border: '#7c3aed', text: '#5b21b6' },
-        call: { bg: '#ffedd5', border: '#ea580c', text: '#9a3412' },
-        follow_up: { bg: '#fef3c7', border: '#d97706', text: '#92400e' },
-        demo: { bg: '#fce7f3', border: '#db2777', text: '#9f1239' },
-        other: { bg: '#e5e7eb', border: '#6b7280', text: '#374151' },
-      }
-      const c = typeColor[m.type] ?? typeColor.other
-      const start = m.start_time ? `${m.date}T${m.start_time}` : m.date
-      const typeLabel: Record<string, string> = {
-        meeting: 'Sales meeting',
-        call: 'Belafspraak',
-        follow_up: 'Follow-up',
-        demo: 'Demo',
-        other: 'Sales',
-      }
-      const prefix = typeLabel[m.type] ?? 'Sales'
-      out.push({
-        id: `meeting-${m.id}`,
-        title: `${prefix}: ${m.title}`,
-        start,
-        allDay: !m.start_time,
-        backgroundColor: c.bg,
-        borderColor: c.border,
-        textColor: c.text,
-        extendedProps: { kind: 'meeting', location: m.location, meetingType: m.type },
-      })
-    }
-    return out
-  }, [productions, meetings])
-
-  const handleEventClick = (arg: EventClickArg) => {
-    const props = arg.event.extendedProps as { productionId?: string }
-    const id = props.productionId ?? arg.event.id
-    onEventClick(id)
-  }
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 productie-kalender">
-      <style jsx global>{`
-        .productie-kalender .fc {
-          font-family: inherit;
-          --fc-border-color: #f3f4f6;
-          --fc-page-bg-color: #ffffff;
-          --fc-neutral-bg-color: #fafafa;
-          --fc-today-bg-color: #fafafa;
-          --fc-now-indicator-color: #111827;
-        }
-        .productie-kalender .fc-toolbar.fc-header-toolbar {
-          margin-bottom: 1.25rem;
-        }
-        .productie-kalender .fc-toolbar-title {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: #111827;
-          letter-spacing: -0.01em;
-        }
-        .productie-kalender .fc-button {
-          background: #ffffff !important;
-          border: 1px solid #e5e7eb !important;
-          color: #4b5563 !important;
-          font-weight: 500 !important;
-          text-transform: capitalize !important;
-          box-shadow: none !important;
-          padding: 0.4rem 0.85rem !important;
-          font-size: 0.8125rem !important;
-          border-radius: 0.625rem !important;
-        }
-        .productie-kalender .fc-button:hover {
-          background: #f9fafb !important;
-          border-color: #d1d5db !important;
-          color: #111827 !important;
-        }
-        .productie-kalender .fc-button:focus {
-          outline: none !important;
-          box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08) !important;
-        }
-        .productie-kalender .fc-button-active,
-        .productie-kalender .fc-button-primary:not(:disabled).fc-button-active {
-          background: #111827 !important;
-          color: #ffffff !important;
-          border-color: #111827 !important;
-        }
-        .productie-kalender .fc-button-group {
-          gap: 2px;
-        }
-        .productie-kalender .fc-daygrid-day.fc-day-today,
-        .productie-kalender .fc-timegrid-col.fc-day-today {
-          background: #fafafa !important;
-        }
-        .productie-kalender .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-          color: #ffffff;
-          background: #111827;
-          border-radius: 999px;
-          width: 1.5rem;
-          height: 1.5rem;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 600;
-        }
-        .productie-kalender .fc-daygrid-day-number {
-          padding: 0.5rem;
-          color: #4b5563;
-          font-size: 0.8125rem;
-          font-weight: 500;
-        }
-        .productie-kalender .fc-event {
-          border-radius: 6px;
-          padding: 3px 8px;
-          font-size: 12px;
-          font-weight: 500;
-          cursor: pointer;
-          margin: 1px 4px;
-        }
-        .productie-kalender .fc-event:hover {
-          opacity: 0.9;
-        }
-        .productie-kalender .fc-col-header-cell {
-          background: transparent;
-          padding: 12px 0 8px;
-          font-weight: 600;
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          color: #9ca3af;
-          border-bottom: 1px solid #f3f4f6;
-        }
-        .productie-kalender .fc-col-header-cell-cushion {
-          color: inherit !important;
-          padding: 0 !important;
-          text-decoration: none !important;
-        }
-        .productie-kalender .fc-scrollgrid {
-          border: none !important;
-        }
-        .productie-kalender .fc-scrollgrid td,
-        .productie-kalender .fc-scrollgrid th {
-          border-color: #f3f4f6 !important;
-        }
-        .productie-kalender .fc-timegrid-slot {
-          height: 2.5rem !important;
-          border-color: #f3f4f6 !important;
-        }
-        .productie-kalender .fc-timegrid-slot-label {
-          color: #9ca3af;
-          font-size: 0.75rem;
-          font-weight: 500;
-          padding-right: 0.75rem !important;
-        }
-        .productie-kalender .fc-list-event:hover td {
-          background: #f9fafb !important;
-        }
-        .productie-kalender .fc-more-link {
-          color: #6b7280 !important;
-          font-size: 0.75rem;
-          font-weight: 500;
-          padding: 2px 6px;
-        }
-      `}</style>
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        locale={nlLocale}
-        firstDay={1}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay',
-        }}
-        buttonText={{ today: 'Vandaag', month: 'Maand', week: 'Week', day: 'Dag' }}
-        events={events}
-        eventClick={handleEventClick}
-        height="auto"
-        dayMaxEvents={3}
-        moreLinkText={(n) => `+${n} meer`}
-        slotMinTime="07:00:00"
-        slotMaxTime="22:00:00"
-        nowIndicator
-        allDayText="Hele dag"
-      />
-      <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 text-xs">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#10b981]" /> Finale productiedatum
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#ede9fe] border border-[#7c3aed]" /> Sales meeting
-        </span>
       </div>
     </div>
   )
