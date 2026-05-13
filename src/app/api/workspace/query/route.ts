@@ -54,6 +54,8 @@ const ALLOWED_TABLES = new Set([
   // batch 5 (dashboard todo)
   'workspace_todos',
   'company_goals',
+  // batch 6 (weekly review)
+  'weekly_reviews',
 ])
 
 type Filter = { col: string; op: string; val: unknown }
